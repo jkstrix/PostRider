@@ -22,6 +22,10 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	private static final int[] TAB_ICONS = {PostOfficeStyle.ICON_INBOX, PostOfficeStyle.ICON_SEND, PostOfficeStyle.ICON_SETTINGS};
 	private static final String[] TAB_KEYS = {"inbox", "send", "settings"};
+	/** On the Settings tab, the address rules and then a line for what's wrong (or that it's saved), clear of the inventory. */
+	private static final int RULES_Y = 66;
+	private static final int RULES_WIDTH = 160;
+	private static final int STATUS_Y = 86;
 	private static final int LEDGER_X = 68;
 	private static final int LEDGER_Y = 19;
 	private static final int LEDGER_ROWS = PostOfficeStyle.LEDGER_HEIGHT / PostOfficeStyle.LEDGER_ROW;
@@ -32,6 +36,9 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	private int seenInfoVersion = -1;
 	private String name;
 	private String ownerName = "";
+	/** The address last sent to be saved, to say so once the server agrees. */
+	@Nullable
+	private String savedAs;
 	private List<String> addresses = List.of();
 	@Nullable
 	private String selected;
@@ -94,6 +101,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 		if (!nameBox.visible)
 			nameBox.setFocused(false);
 		saveButton.visible = tab == MailboxMenu.TAB_SETTINGS;
+		saveButton.active = canSave();
 		sendButton.visible = tab == MailboxMenu.TAB_SEND;
 		sendButton.active = hasName() && selected != null && parcelHasItems();
 	}
@@ -116,6 +124,29 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	private void save() {
 		PacketDistributor.sendToServer(new RenameMailboxPayload(nameBox.getValue()));
 		nameBox.setFocused(false);
+		savedAs = MailboxNames.clean(nameBox.getValue());
+	}
+
+	/**
+	 * What's wrong with the address being typed, shown on the parchment as you type (the server checks again, but its
+	 * messages would only show on the hotbar, hidden behind this screen); null if it can be saved or is unchanged.
+	 */
+	@Nullable
+	private Component nameProblem() {
+		String cleaned = MailboxNames.clean(nameBox.getValue());
+		if (cleaned.isEmpty() || MailboxNames.key(cleaned).equals(MailboxNames.key(name)))
+			return null;
+		MailboxNames.Problem problem = MailboxNames.check(cleaned);
+		if (problem != null)
+			return MailboxNames.describe(problem);
+		if (MailboxNames.isTaken(cleaned, addresses))
+			return Component.translatable("message.postrider.mailbox.name_taken", cleaned);
+		return null;
+	}
+
+	private boolean canSave() {
+		String cleaned = MailboxNames.clean(nameBox.getValue());
+		return MailboxNames.check(cleaned) == null && !MailboxNames.key(cleaned).equals(MailboxNames.key(name)) && nameProblem() == null;
 	}
 
 	private void send() {
@@ -207,9 +238,20 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 			if (!ownerName.isEmpty())
 				PostOfficeStyle.write(graphics, font, Component.translatable("gui.postrider.mailbox.owner", ownerName), 70, 52, PostOfficeStyle.PENCIL);
 			graphics.drawWordWrap(font, Component.translatable("gui.postrider.mailbox.name_rules", MailboxNames.MIN_LENGTH, MailboxNames.MAX_LENGTH),
-				8, 70, 160, PostOfficeStyle.PENCIL);
+				8, RULES_Y, RULES_WIDTH, PostOfficeStyle.PENCIL);
+			Component problem = nameProblem();
+			if (problem != null)
+				PostOfficeStyle.write(graphics, font, fit(problem, RULES_WIDTH), 8, STATUS_Y, PostOfficeStyle.INK_ERROR);
+			else if (savedAs != null && MailboxNames.key(savedAs).equals(MailboxNames.key(name)))
+				PostOfficeStyle.write(graphics, font, Component.translatable("gui.postrider.mailbox.name_saved"), 8, STATUS_Y, PostOfficeStyle.INK);
 		}
 		PostOfficeStyle.write(graphics, font, playerInventoryTitle, 8, MailboxMenu.INVENTORY_LABEL_Y, PostOfficeStyle.CREAM);
+	}
+
+	/** A message cut to fit on one line of the parchment. */
+	private Component fit(Component message, int width) {
+		String text = message.getString();
+		return font.width(text) <= width ? message : Component.literal(font.plainSubstrByWidth(text, width - font.width("...")) + "...");
 	}
 
 	@Override

@@ -1,7 +1,11 @@
 package com.comedymonkey.postrider.post;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -37,5 +41,19 @@ class MailboxNamesTest {
 	@Test
 	void keyIgnoresCaseAndSpacing() {
 		assertEquals(MailboxNames.key("Steve's Ranch"), MailboxNames.key("  steve's   RANCH "));
+	}
+
+	@Test
+	void anAddressAnotherMailboxHasIsTakenWhateverTheCase() {
+		List<String> others = List.of("Steve's Ranch", "Beach House");
+		assertTrue(MailboxNames.isTaken("beach house", others));
+		assertTrue(MailboxNames.isTaken("STEVE'S RANCH", others));
+		assertFalse(MailboxNames.isTaken("Beach Hut", others));
+	}
+
+	@Test
+	void everyProblemHasAMessage() {
+		for (MailboxNames.Problem problem : MailboxNames.Problem.values())
+			assertTrue(MailboxNames.describe(problem).getContents().toString().contains("message.postrider.mailbox.name_"), problem.name());
 	}
 }

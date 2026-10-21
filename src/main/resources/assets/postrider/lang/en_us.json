@@ -81,7 +81,8 @@
   "gui.postrider.mailbox.to": "To: %s",
   "gui.postrider.mailbox.address": "Address",
   "gui.postrider.mailbox.owner": "Owner: %s",
-  "gui.postrider.mailbox.name_rules": "%s to %s letters, numbers or simple punctuation. No two mailboxes can share an address.",
+  "gui.postrider.mailbox.name_rules": "%s to %s letters, numbers or simple punctuation.",
+  "gui.postrider.mailbox.name_saved": "Address saved.",
   "gui.postrider.mailbox.name_first": "Give this mailbox an address in Settings first.",
   "gui.postrider.mailbox.no_addresses": "No other mailboxes here yet.",
 

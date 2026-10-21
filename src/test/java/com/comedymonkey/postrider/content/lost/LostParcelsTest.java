@@ -2,6 +2,7 @@ package com.comedymonkey.postrider.content.lost;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.util.Set;
@@ -62,5 +63,15 @@ class LostParcelsTest {
 		assertEquals(4, plain);
 		for (String model : new String[] {"lost_parcel", "lost_parcel_skull", "lost_parcel_map"})
 			assertEquals(true, ModResourceFiles.find("assets", "postrider", "models", "block", model + ".json") != null, model);
+	}
+
+	@Test
+	void lostInTheVoidItGoesToTheNearestLand() {
+		// Land only from x 30 on: far beyond the usual few blocks' search
+		BlockPos fell = new BlockPos(0, -80, 0);
+		BlockPos spot = LostParcels.nearestColumn(fell, LostParcels.LAND_SEARCH_RADIUS, (x, z) -> x >= 30 ? new BlockPos(x, 64, z) : null);
+		assertEquals(new BlockPos(30, 64, 0), spot, "the nearest column with ground, straight across");
+		assertNull(LostParcels.nearestColumn(fell, LostParcels.LAND_SEARCH_RADIUS, (x, z) -> null), "nothing within reach");
+		assertTrue(LostParcels.LAND_SEARCH_RADIUS >= 48);
 	}
 }

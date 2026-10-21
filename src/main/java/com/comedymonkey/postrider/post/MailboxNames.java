@@ -1,8 +1,12 @@
 package com.comedymonkey.postrider.post;
 
+import java.util.Collection;
 import java.util.Locale;
 
 import org.jetbrains.annotations.Nullable;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 
 /** The rules for mailbox addresses: 3 to 24 characters, unique on the server ignoring case. */
 public final class MailboxNames {
@@ -36,6 +40,23 @@ public final class MailboxNames {
 				return Problem.BAD_CHARACTER;
 		}
 		return null;
+	}
+
+	/** Whether another mailbox already has this address (ignoring case). */
+	public static boolean isTaken(String cleaned, Collection<String> others) {
+		for (String other : others)
+			if (key(other).equals(key(cleaned)))
+				return true;
+		return false;
+	}
+
+	/** What to tell the player about a problem with an address. */
+	public static MutableComponent describe(Problem problem) {
+		return switch (problem) {
+			case TOO_SHORT -> Component.translatable("message.postrider.mailbox.name_too_short", MIN_LENGTH);
+			case TOO_LONG -> Component.translatable("message.postrider.mailbox.name_too_long", MAX_LENGTH);
+			case BAD_CHARACTER -> Component.translatable("message.postrider.mailbox.name_bad_character");
+		};
 	}
 
 	/** The lookup key for a name, so "Steve's Ranch" and "steve's ranch" are the same address. */

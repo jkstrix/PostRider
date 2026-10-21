@@ -40,20 +40,10 @@ public record RenameMailboxPayload(String name) implements CustomPacketPayload {
 			Component message = switch (result) {
 				case OK -> Component.translatable("message.postrider.mailbox.named", mailbox.getName()).withStyle(ChatFormatting.DARK_GREEN);
 				case TAKEN -> Component.translatable("message.postrider.mailbox.name_taken", name).withStyle(ChatFormatting.RED);
-				case INVALID -> problemMessage(problem).withStyle(ChatFormatting.RED);
+				case INVALID -> MailboxNames.describe(problem != null ? problem : MailboxNames.Problem.BAD_CHARACTER).withStyle(ChatFormatting.RED);
 			};
 			player.displayClientMessage(message, true);
 			mailbox.sendInfo(player);
 		});
-	}
-
-	private static net.minecraft.network.chat.MutableComponent problemMessage(MailboxNames.Problem problem) {
-		if (problem == null)
-			return Component.translatable("message.postrider.mailbox.name_bad_character");
-		return switch (problem) {
-			case TOO_SHORT -> Component.translatable("message.postrider.mailbox.name_too_short", MailboxNames.MIN_LENGTH);
-			case TOO_LONG -> Component.translatable("message.postrider.mailbox.name_too_long", MailboxNames.MAX_LENGTH);
-			case BAD_CHARACTER -> Component.translatable("message.postrider.mailbox.name_bad_character");
-		};
 	}
 }
