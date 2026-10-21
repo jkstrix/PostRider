@@ -58,6 +58,8 @@ public class DeliveryRun {
 	/** How long he tries to walk up to the mailbox before stepping up to it. */
 	public static final int WALK_UP_TICKS = 200;
 	private static final int AIM_INTERVAL = 40;
+	/** On foot he runs as fast as a sprinting player; he only walks the last few steps to the mailbox. */
+	public static final double RUN_SPEED = 1.2;
 
 	private final PendingDelivery delivery;
 	@Nullable
@@ -180,6 +182,7 @@ public class DeliveryRun {
 		double distance = Journey.horizontalDistance(rider.position(), target);
 		if (distance <= Journey.DISMOUNT_DISTANCE) {
 			rider.dismissHorse();
+			rider.setSprinting(false);
 			enter(Stage.WALKING_TO_BOX);
 			return;
 		}
@@ -188,10 +191,12 @@ public class DeliveryRun {
 			rider.whistleForHorse();
 		if (checkStuck(rider, level, distance, target))
 			return;
+		boolean onFoot = rider.getHorse() == null;
+		rider.setSprinting(onFoot);
 		if (--aimCooldown <= 0 || rider.getNavigation().isDone()) {
 			aimCooldown = AIM_INTERVAL;
 			Vec3 aim = chooseAim(level, rider.position(), target);
-			rider.getNavigation().moveTo(aim.x, aim.y, aim.z, 1.0);
+			rider.getNavigation().moveTo(aim.x, aim.y, aim.z, onFoot ? RUN_SPEED : 1.0);
 		}
 	}
 
@@ -216,6 +221,7 @@ public class DeliveryRun {
 		if (stageTicks == 1) {
 			rider.getNavigation().stop();
 			rider.dismissHorse();
+			rider.setSprinting(false);
 			rider.setActivity(PostmanEntity.Activity.CAMP_REST);
 		}
 		if (PostOfficeHours.isOpen(level.getDayTime())) {

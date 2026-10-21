@@ -21,6 +21,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 
 /**
@@ -78,6 +79,29 @@ public class PostmanHorse extends Horse {
 		horse.moveTo(x, y, z, yaw, 0);
 		EventHooks.finalizeMobSpawn(horse, level, level.getCurrentDifficultyAt(horse.blockPosition()), MobSpawnType.MOB_SUMMONED, null);
 		return horse;
+	}
+
+	/** Within this many blocks of where he's steering, the horse eases off so it doesn't overshoot. */
+	public static final double EASE_OFF_DISTANCE = 3.0;
+
+	/**
+	 * How hard to push forward. Vanilla gives a mob-steered horse its own speed as the forward push, which makes it
+	 * crawl compared with a player riding the same horse; the rider pushes flat out instead, easing off close to his
+	 * mark, so the horse gallops at its real speed.
+	 */
+	public static double gallopInput(double forward, double distanceToMark) {
+		if (forward <= 0)
+			return forward;
+		return Math.max(forward, Math.min(1.0, distanceToMark / EASE_OFF_DISTANCE));
+	}
+
+	@Override
+	public void travel(Vec3 input) {
+		if (getControllingPassenger() instanceof PostmanEntity && getMoveControl().hasWanted()) {
+			double dx = getMoveControl().getWantedX() - getX(), dz = getMoveControl().getWantedZ() - getZ();
+			input = new Vec3(input.x, input.y, gallopInput(input.z, Math.sqrt(dx * dx + dz * dz)));
+		}
+		super.travel(input);
 	}
 
 	@Override

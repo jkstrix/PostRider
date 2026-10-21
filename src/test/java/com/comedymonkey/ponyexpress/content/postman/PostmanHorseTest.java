@@ -42,6 +42,31 @@ class PostmanHorseTest {
 	}
 
 	@Test
+	void gallopsFlatOutWhenItsMarkIsFarOff() {
+		assertEquals(1.0, PostmanHorse.gallopInput(0.25, 10), 1e-9);
+	}
+
+	@Test
+	void easesOffCloseToItsMark() {
+		assertEquals(0.5, PostmanHorse.gallopInput(0.25, PostmanHorse.EASE_OFF_DISTANCE / 2), 1e-9);
+		assertEquals(0.25, PostmanHorse.gallopInput(0.25, 0.1), 1e-9);
+	}
+
+	@Test
+	void standsStillOrBacksUpAsAskedWithoutGalloping() {
+		assertEquals(0.0, PostmanHorse.gallopInput(0.0, 10), 1e-9);
+		assertEquals(-0.2, PostmanHorse.gallopInput(-0.2, 10), 1e-9);
+	}
+
+	@Test
+	void onFootHeRunsAboutAsFastAsASprintingPlayer() {
+		// A mob's push and pace both scale with its speed, so its pace goes with speed squared; a sprinting player's
+		// goes with 0.13 (walking speed 0.1, sprinting 30% faster) at full push
+		double pace = Math.pow(0.3 * DeliveryRun.RUN_SPEED, 2);
+		assertEquals(0.13, pace, 0.01);
+	}
+
+	@Test
 	void isHorseSizedAndHasHorseAttributes() {
 		assertEquals(EntityType.HORSE.getWidth(), ModEntities.POSTMAN_HORSE.get().getWidth());
 		assertEquals(EntityType.HORSE.getHeight(), ModEntities.POSTMAN_HORSE.get().getHeight());
