@@ -119,4 +119,34 @@ class PostOfficeTest {
 		assertEquals(32, back.items().get(0).getCount());
 		assertEquals("Old Faithful", back.items().get(1).getHoverName().getString());
 	}
+
+	@Test
+	void itRemembersWhereEachRiderWasLastSeen() {
+		var registries = VanillaRegistries.createLookup();
+		PostOffice office = new PostOffice();
+		PendingDelivery pending = delivery("Inn", new ItemStack(Items.APPLE));
+		UUID rider = UUID.randomUUID();
+		office.setOut(pending, rider, "ada");
+		assertTrue(office.active().iterator().next().lastSeen().isEmpty(), "not seen yet");
+		office.saw(pending.id(), new BlockPos(120, 70, -40));
+		PostOffice loaded = PostOffice.load(office.save(new CompoundTag(), registries), registries);
+		assertEquals(new BlockPos(120, 70, -40), loaded.active().iterator().next().lastSeen().orElseThrow());
+	}
+
+	@Test
+	void aVanishedRiderIsReplacedAndOnlyTheNewOneCarriesTheMail() {
+		PostOffice office = new PostOffice();
+		PendingDelivery pending = delivery("Inn", new ItemStack(Items.APPLE));
+		UUID gone = UUID.randomUUID(), back = UUID.randomUUID();
+		office.setOut(pending, gone, "ada");
+		office.saw(pending.id(), new BlockPos(5, 64, 5));
+		assertTrue(office.isCarrying(pending.id(), gone));
+		office.replaceRider(pending.id(), back, "ada");
+		assertTrue(office.isCarrying(pending.id(), back));
+		assertFalse(office.isCarrying(pending.id(), gone), "if the old one turns up, he knows to leave");
+		assertEquals(new BlockPos(5, 64, 5), office.active().iterator().next().lastSeen().orElseThrow(), "still knows where");
+		assertEquals(Set.of("ada"), office.busyRiders());
+		assertEquals(1, office.activeCount(), "the same delivery, not a second one");
+		assertEquals(0, office.size(), "nothing put back on the queue");
+	}
 }

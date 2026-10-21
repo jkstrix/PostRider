@@ -18,7 +18,6 @@ import com.comedymonkey.postrider.post.PendingDelivery;
 import com.comedymonkey.postrider.post.PostOffice;
 import com.comedymonkey.postrider.post.PostOfficeHours;
 import com.comedymonkey.postrider.registry.ModEntities;
-import com.comedymonkey.postrider.registry.ModSounds;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,10 +25,7 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -103,6 +99,13 @@ public class DeliveryRun {
 	public static DeliveryRun plan(ServerLevel level, PendingDelivery delivery) {
 		MailboxDirectory.Entry entry = MailboxDirectory.get(level.getServer()).find(delivery.toName());
 		return new DeliveryRun(delivery, entry != null ? entry.pos() : null);
+	}
+
+	/** A run picked up again by a rider brought back mid-delivery: he has the mail, so he calls his horse and goes. */
+	public static DeliveryRun resume(ServerLevel level, PendingDelivery delivery) {
+		DeliveryRun run = plan(level, delivery);
+		run.stage = Stage.CALLING_HORSE;
+		return run;
 	}
 
 	public PendingDelivery delivery() {
@@ -508,8 +511,6 @@ public class DeliveryRun {
 	public static final double DETOUR_SLACK = 3.0;
 	/** How long he walks towards his pitch before stepping onto it. */
 	public static final int WALK_TO_CAMP_TICKS = 200;
-	/** How far players hear the harmonica, for stopping it when he turns in. */
-	private static final double HEARING_RANGE = 48;
 
 	/** The evening, step by step: find a pitch, walk to it, hammer in the pegs, play, sleep. */
 	public enum CampStep {
@@ -579,10 +580,8 @@ public class DeliveryRun {
 				}
 			}
 			case PLAYING -> {
-				if (PostOfficeHours.isBedtime(level.getDayTime())) {
-					stopHarmonica(rider, level);
+				if (PostOfficeHours.isBedtime(level.getDayTime()))
 					turnIn(rider, level);
-				}
 			}
 			case SLEEPING -> {}
 		}
@@ -595,7 +594,6 @@ public class DeliveryRun {
 			return;
 		}
 		rider.setActivity(PostmanEntity.Activity.HARMONICA);
-		level.playSound(null, rider, ModSounds.HARMONICA.get(), SoundSource.NEUTRAL, 1.0F, 1.0F);
 		step(CampStep.PLAYING);
 	}
 
@@ -639,7 +637,6 @@ public class DeliveryRun {
 	}
 
 	private void breakCamp(PostmanEntity rider, ServerLevel level) {
-		stopHarmonica(rider, level);
 		if (rider.isInTent() && campSite != null) {
 			Vec3 seat = campSite.seatPos();
 			rider.moveTo(seat.x, seat.y, seat.z, rider.getYRot(), 0);
@@ -697,14 +694,6 @@ public class DeliveryRun {
 			rider.setSprinting(true);
 			rider.getNavigation().moveTo(away.x, away.y, away.z, RUN_SPEED);
 		}
-	}
-
-	/** Stops the tune for everyone who could hear it. */
-	private static void stopHarmonica(PostmanEntity rider, ServerLevel level) {
-		ClientboundStopSoundPacket stop = new ClientboundStopSoundPacket(ModSounds.HARMONICA.getId(), SoundSource.NEUTRAL);
-		for (ServerPlayer player : level.players())
-			if (player.distanceToSqr(rider) < HEARING_RANGE * HEARING_RANGE)
-				player.connection.send(stop);
 	}
 
 	private void walkUp(PostmanEntity rider, ServerLevel level) {
@@ -839,6 +828,16 @@ public class DeliveryRun {
 		finish(rider, level);
 		if (cause != LostCause.KILLED)
 			rider.vanish();
+	}
+
+	/** His mail has gone with another rider: he lets go of his chunks and packs up any camp, without a word. */
+	public void withdraw(PostmanEntity rider, ServerLevel level) {
+		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent)
+			tent.packAway(level);
+		enter(Stage.DONE);
+		if (loadedChunk != null)
+			RiderChunks.release(level, rider.getUUID(), loadedChunk);
+		loadedChunk = null;
 	}
 
 	private void finish(PostmanEntity rider, ServerLevel level) {

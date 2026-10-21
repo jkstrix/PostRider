@@ -6,10 +6,12 @@ import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.Spider;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
 /**
- * Hostile mobs hunt riders the way they hunt players; neutral ones (endermen, piglins...) leave them be. Creepers
+ * Hostile mobs hunt riders the way they hunt players (spiders only in the dark); neutral ones (endermen, piglins...)
+ * leave them be. Creepers
  * never stalk him: one only goes off if he comes right up close to it in plain sight, and never while he's in his
  * tent.
  */
@@ -29,8 +31,25 @@ public final class RiderHunting {
 		return !inTent && distanceSqr <= CREEPER_NOTICE_RANGE * CREEPER_NOTICE_RANGE;
 	}
 
+	/** Spiders, like with players, only go looking for riders in the dark; in daylight they leave them be. */
+	public static boolean huntsOnlyInTheDark(Class<? extends Entity> type) {
+		return Spider.class.isAssignableFrom(type);
+	}
+
+	/** Spider light rules: a light level under half (the same as vanilla's spider targeting). */
+	public static final float SPIDER_LIGHT = 0.5F;
+
 	public static void onJoin(EntityJoinLevelEvent event) {
-		if (!event.getLevel().isClientSide() && event.getEntity() instanceof Monster monster && huntsRiders(monster.getClass()))
+		if (event.getLevel().isClientSide() || !(event.getEntity() instanceof Monster monster) || !huntsRiders(monster.getClass()))
+			return;
+		if (huntsOnlyInTheDark(monster.getClass()))
+			monster.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(monster, PostmanEntity.class, true) {
+				@Override
+				public boolean canUse() {
+					return monster.getLightLevelDependentMagicValue() < SPIDER_LIGHT && super.canUse();
+				}
+			});
+		else
 			monster.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(monster, PostmanEntity.class, true));
 	}
 

@@ -78,6 +78,11 @@ public class PostmanHorse extends Horse {
 		getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(horse.speed());
 	}
 
+	@Override
+	public boolean canUsePortal(boolean allowPassengers) {
+		return false;
+	}
+
 	/** Creates a ready-saddled horse at a spot, without adding it to the world yet. */
 	@Nullable
 	public static PostmanHorse create(EntityType<PostmanHorse> type, ServerLevel level, double x, double y, double z, float yaw) {

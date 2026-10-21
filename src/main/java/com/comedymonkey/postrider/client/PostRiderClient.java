@@ -9,6 +9,7 @@ import com.comedymonkey.postrider.client.model.MochilaModel;
 import com.comedymonkey.postrider.client.model.PostmanModel;
 import com.comedymonkey.postrider.client.model.TentModel;
 import com.comedymonkey.postrider.client.renderer.BargeRenderer;
+import com.comedymonkey.postrider.client.sound.HarmonicaSound;
 import com.comedymonkey.postrider.client.renderer.PostmanHorseRenderer;
 import com.comedymonkey.postrider.client.renderer.PostmanRenderer;
 import com.comedymonkey.postrider.client.renderer.TentRenderer;
@@ -26,6 +27,7 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
@@ -45,6 +47,7 @@ public class PostRiderClient {
 				Minecraft.getInstance().setScreen(new LetterReadScreen(letter));
 			}
 		});
+		NeoForge.EVENT_BUS.addListener(HarmonicaSound::onEntityTick);
 		modBus.addListener(this::registerScreens);
 		modBus.addListener(this::registerLayers);
 		modBus.addListener(this::registerRenderers);

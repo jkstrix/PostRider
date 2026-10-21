@@ -15,20 +15,22 @@ import com.comedymonkey.postrider.post.PostDispatcher;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.animal.Cow;
+import net.minecraft.world.entity.monster.CaveSpider;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.Skeleton;
+import net.minecraft.world.entity.monster.Spider;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.monster.ZombifiedPiglin;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 class DeliveryRunTest {
 	private static PendingDelivery delivery() {
@@ -143,5 +145,13 @@ class DeliveryRunTest {
 		assertFalse(RiderHunting.huntsRiders(EnderMan.class));
 		assertFalse(RiderHunting.huntsRiders(ZombifiedPiglin.class));
 		assertFalse(RiderHunting.huntsRiders(Cow.class));
+	}
+
+	@Test
+	void spidersOnlyHuntRidersInTheDark() {
+		assertTrue(RiderHunting.huntsRiders(Spider.class) && RiderHunting.huntsOnlyInTheDark(Spider.class));
+		assertTrue(RiderHunting.huntsOnlyInTheDark(CaveSpider.class));
+		assertFalse(RiderHunting.huntsOnlyInTheDark(Zombie.class), "zombies hunt day or night");
+		assertEquals(0.5F, RiderHunting.SPIDER_LIGHT, "the same light rule as vanilla spiders");
 	}
 }

@@ -1,6 +1,8 @@
 package com.comedymonkey.postrider.content.postman;
 
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -46,8 +48,12 @@ public final class RiderChunks {
 		return Math.abs(chunk.x - centre.x) <= TICKING_RADIUS && Math.abs(chunk.z - centre.z) <= TICKING_RADIUS;
 	}
 
+	/** Where each rider's square is centred, so a rider who vanishes can have his let go (see {@link #forget}). */
+	private static final Map<UUID, ChunkPos> CENTRES = new HashMap<>();
+
 	/** Moves a rider's loaded square from where it was (or nowhere) to around his chunk now. */
 	public static void move(ServerLevel level, UUID rider, ChunkPos previous, ChunkPos now) {
+		CENTRES.put(rider, now);
 		Set<ChunkPos> keep = around(now);
 		if (previous != null)
 			for (ChunkPos chunk : around(previous)) {
@@ -59,7 +65,15 @@ public final class RiderChunks {
 			CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, true, ticks(now, chunk));
 	}
 
+	/** Lets go of a vanished rider's square, wherever it was last. */
+	public static void forget(ServerLevel level, UUID rider) {
+		ChunkPos centre = CENTRES.get(rider);
+		if (centre != null)
+			release(level, rider, centre);
+	}
+
 	public static void release(ServerLevel level, UUID rider, ChunkPos centre) {
+		CENTRES.remove(rider);
 		for (ChunkPos chunk : around(centre))
 			CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, false, ticks(centre, chunk));
 	}

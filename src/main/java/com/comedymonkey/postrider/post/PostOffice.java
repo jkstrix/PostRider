@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -18,6 +19,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
@@ -35,12 +37,16 @@ public class PostOffice extends SavedData {
 	public static final String ID = "postrider_post_office";
 	private static final SavedData.Factory<PostOffice> FACTORY = new SavedData.Factory<>(PostOffice::new, PostOffice::load, null);
 
-	/** A delivery a rider has set out with: the rider entity, and which of the crew it is (see {@link Roster}). */
-	public record Active(PendingDelivery delivery, UUID rider, String riderId) {
+	/**
+	 * A delivery a rider has set out with: the rider entity, which of the crew it is (see {@link Roster}), and where he
+	 * was last seen, so he can be brought back there if he vanishes.
+	 */
+	public record Active(PendingDelivery delivery, UUID rider, String riderId, Optional<BlockPos> lastSeen) {
 		public static final Codec<Active> CODEC = RecordCodecBuilder.create(i -> i.group(
 			PendingDelivery.CODEC.fieldOf("delivery").forGetter(Active::delivery),
 			UUIDUtil.CODEC.fieldOf("rider").forGetter(Active::rider),
-			Codec.STRING.optionalFieldOf("rider_id", "").forGetter(Active::riderId)
+			Codec.STRING.optionalFieldOf("rider_id", "").forGetter(Active::riderId),
+			BlockPos.CODEC.optionalFieldOf("last_seen").forGetter(Active::lastSeen)
 		).apply(i, Active::new));
 	}
 
@@ -81,7 +87,7 @@ public class PostOffice extends SavedData {
 
 	/** Records that one of the crew has set out with a delivery. */
 	public void setOut(PendingDelivery delivery, UUID rider, String riderId) {
-		active.put(delivery.id(), new Active(delivery, rider, riderId));
+		active.put(delivery.id(), new Active(delivery, rider, riderId, Optional.empty()));
 		setDirty();
 	}
 
@@ -91,6 +97,30 @@ public class PostOffice extends SavedData {
 		for (Active each : active.values())
 			busy.add(each.riderId());
 		return busy;
+	}
+
+	/** Whether this rider is the one carrying this delivery. */
+	public boolean isCarrying(UUID deliveryId, UUID rider) {
+		Active carried = active.get(deliveryId);
+		return carried != null && carried.rider().equals(rider);
+	}
+
+	/** Notes where a delivery's rider is now. */
+	public void saw(UUID deliveryId, BlockPos where) {
+		Active carried = active.get(deliveryId);
+		if (carried != null && !carried.lastSeen().equals(Optional.of(where))) {
+			active.put(deliveryId, new Active(carried.delivery(), carried.rider(), carried.riderId(), Optional.of(where)));
+			setDirty();
+		}
+	}
+
+	/** A vanished rider has been brought back as a new entity, still carrying the mail. */
+	public void replaceRider(UUID deliveryId, UUID rider, String riderId) {
+		Active carried = active.get(deliveryId);
+		if (carried != null) {
+			active.put(deliveryId, new Active(carried.delivery(), rider, riderId, carried.lastSeen()));
+			setDirty();
+		}
 	}
 
 	/** The delivery is over, whether it arrived or was lost. */

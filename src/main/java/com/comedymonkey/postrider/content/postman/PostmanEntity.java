@@ -5,10 +5,13 @@ import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.content.lost.LostParcels;
 import com.comedymonkey.postrider.post.PendingDelivery;
+import com.comedymonkey.postrider.post.PostOffice;
 import com.comedymonkey.postrider.registry.ModEntities;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -93,6 +96,8 @@ public class PostmanEntity extends PathfinderMob {
 	}
 
 	public static final float HURT_SECONDS = 0.4F;
+	/** How often a rider checks the post office still has him down for his delivery. */
+	public static final int WITHDRAWN_CHECK = 100;
 	/** The camp_hammer animation brings the hammer down once a second. */
 	public static final int HAMMER_BLOW_TICKS = 20;
 
@@ -237,6 +242,41 @@ public class PostmanEntity extends PathfinderMob {
 		if (rider != null)
 			rider.run = DeliveryRun.plan(level, delivery);
 		return rider;
+	}
+
+	/**
+	 * Brings back a rider who vanished mid-delivery, still carrying the mail: where he was last seen if there's room to
+	 * stand there, otherwise at the sender's mailbox. He whistles up his horse and carries on. Null if there's nowhere
+	 * to put him just now.
+	 */
+	@Nullable
+	public static PostmanEntity reappear(ServerLevel level, PendingDelivery delivery, Roster.Rider who, @Nullable BlockPos lastSeen) {
+		EntityType<PostmanEntity> type = ModEntities.POSTMAN.get();
+		Vec3 stand = lastSeen == null ? null : standingRoomNear(level, type, lastSeen);
+		if (stand == null) {
+			BlockPos mailbox = delivery.from().pos();
+			level.getChunkAt(mailbox);
+			stand = standingRoomNear(level, type, BlockPos.containing(DeliveryRun.standingSpot(level, mailbox, DeliveryRun.PICKUP_STAND_OFF)));
+		}
+		if (stand == null)
+			return null;
+		PostmanEntity rider = appear(type, level, stand.x, stand.y, stand.z, level.getRandom().nextFloat() * 360, who);
+		if (rider != null) {
+			rider.setCarrying(true);
+			rider.run = DeliveryRun.resume(level, delivery);
+		}
+		return rider;
+	}
+
+	/** Somewhere near a spot (in the world, on solid ground, out of harm's way) with room for a rider to stand. */
+	@Nullable
+	private static Vec3 standingRoomNear(ServerLevel level, EntityType<PostmanEntity> type, BlockPos near) {
+		if (level.isOutsideBuildHeight(near))
+			return null;
+		level.getChunkAt(near);
+		BlockPos spot = LostParcels.findSpot(near, pos -> level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP)
+			&& !Hazards.isDangerous(level, pos) && level.noCollision(type.getSpawnAABB(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5)));
+		return spot == null ? null : Vec3.atBottomCenterOf(spot);
 	}
 
 	@Nullable
@@ -452,6 +492,13 @@ public class PostmanEntity extends PathfinderMob {
 				RiderHunting.startleCreepers(this, server);
 			if (getActivity() == Activity.CAMP_HAMMER && tickCount % HAMMER_BLOW_TICKS == 0)
 				server.playSound(null, getX(), getY(), getZ(), SoundEvents.WOOD_HIT, SoundSource.NEUTRAL, 0.8F, 0.9F + getRandom().nextFloat() * 0.2F);
+			if (run != null && tickCount % WITHDRAWN_CHECK == 0 && !PostOffice.get(server.getServer()).isCarrying(run.delivery().id(), getUUID())) {
+				// Gone missing a while (and his mail sent with someone else), or left over from a muddle: he leaves quietly
+				run.withdraw(this, server);
+				run = null;
+				vanish();
+				return;
+			}
 			if (run != null && !isRemoved()) {
 				run.tick(this, server);
 				if (run.isOver())
@@ -523,6 +570,12 @@ public class PostmanEntity extends PathfinderMob {
 			drinkTicks = tag.getInt("drink_ticks");
 		}
 		run = tag.contains("run") ? DeliveryRun.load(tag.getCompound("run"), registryAccess()) : null;
+	}
+
+	/** Riders keep to their own dimension: one carried off through a portal would be lost to the post office. */
+	@Override
+	public boolean canUsePortal(boolean allowPassengers) {
+		return false;
 	}
 
 	@Override

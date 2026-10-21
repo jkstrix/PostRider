@@ -213,6 +213,11 @@ public class BargeEntity extends Entity {
 	}
 
 	@Override
+	public boolean canUsePortal(boolean allowPassengers) {
+		return false;
+	}
+
+	@Override
 	protected void readAdditionalSaveData(CompoundTag tag) {}
 
 	@Override

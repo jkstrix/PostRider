@@ -21,7 +21,10 @@ public final class PostDispatcher {
 
 	public static void onServerTick(ServerTickEvent.Post event) {
 		MinecraftServer server = event.getServer();
-		if (server.getTickCount() % INTERVAL == 0 && PostOfficeHours.isOpen(server.overworld().getDayTime()))
+		if (server.getTickCount() % INTERVAL != 0)
+			return;
+		RiderWatch.check(server);
+		if (PostOfficeHours.isOpen(server.overworld().getDayTime()))
 			dispatch(server);
 	}
 
