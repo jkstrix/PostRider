@@ -14,6 +14,8 @@ import com.comedymonkey.ponyexpress.post.PendingDelivery;
 import com.comedymonkey.ponyexpress.post.PostDispatcher;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -60,6 +62,37 @@ class DeliveryRunTest {
 		var registries = VanillaRegistries.createLookup();
 		DeliveryRun loaded = DeliveryRun.load(new DeliveryRun(delivery(), null).save(registries), registries);
 		assertNotNull(loaded);
+	}
+
+	@Test
+	void heStandsRightUpAtTheDoorCloseEnoughToReachIn() {
+		BlockPos mailbox = new BlockPos(10, 64, 10);
+		for (Direction facing : Direction.Plane.HORIZONTAL) {
+			Vec3 spot = DeliveryRun.standingSpot(mailbox, facing);
+			Vec3 post = Vec3.atBottomCenterOf(mailbox);
+			assertEquals(DeliveryRun.STAND_OFF, spot.distanceTo(post), 1e-9, facing.getName());
+			// On the door's side, in front of it rather than beside it
+			assertEquals(facing.getStepX() * DeliveryRun.STAND_OFF, spot.x - post.x, 1e-9);
+			assertEquals(facing.getStepZ() * DeliveryRun.STAND_OFF, spot.z - post.z, 1e-9);
+		}
+	}
+
+	@Test
+	void heDoesNotBumpIntoTheBoxStandingThere() {
+		// Half a player's width in front of him, and the box's door is at the edge of the mailbox's block
+		double front = DeliveryRun.STAND_OFF - 0.3;
+		assertTrue(front > 0.5, "would stand inside the box");
+		assertTrue(front < 0.75, "too far to reach in");
+	}
+
+	@Test
+	void hisYawFacesTheMailbox() {
+		Vec3 box = new Vec3(0, 64, 0);
+		// Minecraft yaw: 0 faces south (+z), 90 west (-x), 180 north (-z), -90 east (+x)
+		assertEquals(180, Math.floorMod((int) Math.round(DeliveryRun.yawToward(new Vec3(0, 64, 2), box)), 360));
+		assertEquals(0, Math.floorMod((int) Math.round(DeliveryRun.yawToward(new Vec3(0, 64, -2), box)), 360));
+		assertEquals(90, Math.floorMod((int) Math.round(DeliveryRun.yawToward(new Vec3(2, 64, 0), box)), 360));
+		assertEquals(270, Math.floorMod((int) Math.round(DeliveryRun.yawToward(new Vec3(-2, 64, 0), box)), 360));
 	}
 
 	@Test

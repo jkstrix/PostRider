@@ -171,14 +171,13 @@ public class PostmanEntity extends PathfinderMob {
 		EntityType<PostmanEntity> type = ModEntities.POSTMAN.get();
 		BlockPos mailbox = delivery.from().pos();
 		level.getChunkAt(mailbox);
-		BlockPos stand = DeliveryRun.standingSpot(level, mailbox);
-		for (int up = 0; up <= 3 && !level.noCollision(type.getSpawnAABB(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5)); up++)
-			stand = stand.above();
-		if (!level.noCollision(type.getSpawnAABB(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5)))
+		Vec3 stand = DeliveryRun.standingSpot(level, mailbox);
+		for (int up = 0; up <= 3 && !level.noCollision(type.getSpawnAABB(stand.x, stand.y, stand.z)); up++)
+			stand = stand.add(0, 1, 0);
+		if (!level.noCollision(type.getSpawnAABB(stand.x, stand.y, stand.z)))
 			return null;
-		Vec3 toBox = Vec3.atCenterOf(mailbox).subtract(Vec3.atCenterOf(stand));
-		float yaw = (float) (Math.toDegrees(Math.atan2(toBox.z, toBox.x)) - 90);
-		PostmanEntity rider = appear(type, level, stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5, yaw);
+		float yaw = DeliveryRun.yawToward(stand, Vec3.atBottomCenterOf(mailbox));
+		PostmanEntity rider = appear(type, level, stand.x, stand.y, stand.z, yaw);
 		if (rider != null)
 			rider.run = DeliveryRun.plan(level, delivery);
 		return rider;

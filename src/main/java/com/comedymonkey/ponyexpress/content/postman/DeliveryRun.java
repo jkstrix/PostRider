@@ -101,11 +101,33 @@ public class DeliveryRun {
 
 	// ---------------------------------------------------------------- where things are
 
-	/** Where to stand in front of a mailbox (two blocks out from its door), on the mailbox's own level. */
-	public static BlockPos standingSpot(ServerLevel level, BlockPos mailbox) {
+	/** How far from the middle of the mailbox's post he stands: right up at the door, close enough to reach in. */
+	public static final double STAND_OFF = 0.85;
+
+	/** Where to stand at a mailbox: square in front of its door, on the mailbox's own level. */
+	public static Vec3 standingSpot(BlockPos mailbox, Direction facing) {
+		return Vec3.atBottomCenterOf(mailbox).add(facing.getStepX() * STAND_OFF, 0, facing.getStepZ() * STAND_OFF);
+	}
+
+	public static Vec3 standingSpot(ServerLevel level, BlockPos mailbox) {
 		BlockState state = level.getBlockState(mailbox);
 		Direction facing = state.getBlock() instanceof MailboxBlock ? state.getValue(MailboxBlock.FACING) : Direction.NORTH;
-		return mailbox.relative(facing, 2);
+		return standingSpot(mailbox, facing);
+	}
+
+	/** The way to face to look straight at a point, as a Minecraft yaw. */
+	public static float yawToward(Vec3 from, Vec3 to) {
+		return (float) Math.toDegrees(Math.atan2(to.z - from.z, to.x - from.x)) - 90;
+	}
+
+	/** Turns him, body and head, square to the mailbox's door, and keeps him from wandering off it. */
+	private static void faceMailbox(PostmanEntity rider, BlockPos mailbox) {
+		float yaw = yawToward(rider.position(), Vec3.atBottomCenterOf(mailbox));
+		rider.getNavigation().stop();
+		rider.setYRot(yaw);
+		rider.setYBodyRot(yaw);
+		rider.setYHeadRot(yaw);
+		rider.getLookControl().setLookAt(Vec3.atCenterOf(mailbox.above()));
 	}
 
 	@Nullable
@@ -113,7 +135,7 @@ public class DeliveryRun {
 		if (destination == null)
 			return null;
 		level.getChunkAt(destination.pos());
-		return Vec3.atBottomCenterOf(standingSpot(level, destination.pos()));
+		return standingSpot(level, destination.pos());
 	}
 
 	// ---------------------------------------------------------------- each tick
@@ -143,10 +165,9 @@ public class DeliveryRun {
 	}
 
 	private void pickUp(PostmanEntity rider, ServerLevel level) {
-		if (stageTicks == 1) {
-			rider.getLookControl().setLookAt(Vec3.atCenterOf(delivery.from().pos().above()));
+		faceMailbox(rider, delivery.from().pos());
+		if (stageTicks == 1)
 			rider.playGesture(PostmanEntity.Gesture.PICKUP);
-		}
 		if (stageTicks == SATCHEL_FILLS_AT)
 			rider.setCarrying(true);
 		if (stageTicks >= PICKUP_TICKS) {
@@ -236,9 +257,9 @@ public class DeliveryRun {
 			return;
 		double distance = Journey.horizontalDistance(rider.position(), target);
 		if (distance <= Journey.DELIVER_DISTANCE || stageTicks >= WALK_UP_TICKS) {
-			if (distance > Journey.DELIVER_DISTANCE)
-				rider.teleportTo(target.x, target.y, target.z);
+			// The last step up to the door, so his hands reach into the box
 			rider.getNavigation().stop();
+			rider.teleportTo(target.x, target.y, target.z);
 			enter(Stage.DELIVERING);
 			return;
 		}
@@ -250,10 +271,9 @@ public class DeliveryRun {
 		if (destination == null)
 			return;
 		BlockPos box = destination.pos();
-		if (stageTicks == 1) {
-			rider.getLookControl().setLookAt(Vec3.atCenterOf(box.above()));
+		faceMailbox(rider, box);
+		if (stageTicks == 1)
 			rider.playGesture(PostmanEntity.Gesture.DELIVER);
-		}
 		if (stageTicks == MAIL_IN_AT && !postMail(rider, level, box))
 			return;
 		if (stageTicks >= DELIVER_TICKS) {
