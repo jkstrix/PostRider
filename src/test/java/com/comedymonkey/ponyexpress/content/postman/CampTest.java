@@ -16,6 +16,9 @@ import com.comedymonkey.ponyexpress.post.PostOfficeHours;
 import com.comedymonkey.ponyexpress.registry.ModEntities;
 import com.comedymonkey.ponyexpress.testutil.ModResourceFiles;
 
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
+
 class CampTest {
 	@Test
 	void heTurnsInWhenMonstersComeOutAndIsUpAtSix() {
@@ -47,6 +50,21 @@ class CampTest {
 		assertTrue(DeliveryRun.TENT_DISTANCE < 16);
 		assertTrue(DeliveryRun.HAMMER_TICKS > 0);
 		assertEquals(1.75F, ModEntities.TENT.get().getWidth());
+	}
+
+	@Test
+	void heSleepsWithHisBootsOutOfTheDoorAndHisHeadInside() {
+		Vec3 tent = new Vec3(100.5, 64, -20.5);
+		for (Direction facing : Direction.Plane.HORIZONTAL) {
+			Vec3 door = Vec3.atLowerCornerOf(facing.getNormal());
+			// How far along the tent from its middle towards the door
+			double soles = DeliveryRun.sleepingSpot(tent, facing.toYRot()).subtract(tent).dot(door);
+			double crown = soles - DeliveryRun.SLEEPER_LENGTH;
+			assertTrue(soles > DeliveryRun.TENT_HALF_LENGTH, "boots out of the door, facing " + facing);
+			assertTrue(soles - DeliveryRun.TENT_HALF_LENGTH <= 0.5, "only his boots, facing " + facing);
+			assertTrue(crown > -DeliveryRun.TENT_HALF_LENGTH, "head inside the back wall, facing " + facing);
+			assertEquals(tent.y, DeliveryRun.sleepingSpot(tent, facing.toYRot()).y, 1e-9);
+		}
 	}
 
 	@Test

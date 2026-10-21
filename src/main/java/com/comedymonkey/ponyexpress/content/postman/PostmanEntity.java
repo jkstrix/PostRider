@@ -27,9 +27,6 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
-import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
 /**
@@ -43,7 +40,8 @@ public class PostmanEntity extends PathfinderMob {
 		CAMP_HAMMER,
 		CAMP_REST,
 		ROW,
-		HARMONICA
+		HARMONICA,
+		SLEEP
 	}
 
 	/** A one-off movement, sent to clients as an entity event. Lengths match the Blockbench animations. */
@@ -111,8 +109,6 @@ public class PostmanEntity extends PathfinderMob {
 	@Override
 	protected void registerGoals() {
 		goalSelector.addGoal(0, new FloatGoal(this));
-		goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0F));
-		goalSelector.addGoal(9, new RandomLookAroundGoal(this));
 	}
 
 	// ---------------------------------------------------------------- state

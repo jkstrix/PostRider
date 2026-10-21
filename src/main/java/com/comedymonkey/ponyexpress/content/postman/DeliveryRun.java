@@ -330,6 +330,12 @@ public class DeliveryRun {
 	public static final int HAMMER_TICKS = 100;
 	/** How far behind him the middle of the tent stands, with its open front facing him. */
 	public static final double TENT_DISTANCE = 2.2;
+	/** The tent runs this far either side of its middle, from the open door to the back wall (18 pixels). */
+	public static final double TENT_HALF_LENGTH = 18 / 16.0;
+	/** Lying flat he's this long from his soles to the top of his head. */
+	public static final double SLEEPER_LENGTH = 2.0;
+	/** How far past the door his boots stick out. */
+	public static final double BOOTS_OUT = 0.3;
 	/** How long he walks towards his pitch before stepping onto it. */
 	public static final int WALK_TO_CAMP_TICKS = 200;
 	/** How far players hear the harmonica, for stopping it when he turns in. */
@@ -443,16 +449,23 @@ public class DeliveryRun {
 		tentId = tent.getUUID();
 	}
 
-	/** Into the tent for the night (or, with no tent, curled up where he is). */
+	/** Into the tent for the night, flat on his back with his boots out of the door (or, with no tent, dozing where he sits). */
 	private void turnIn(PostmanEntity rider, ServerLevel level) {
 		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent) {
-			Vec3 inside = tent.position().add(Vec3.directionFromRotation(0, tent.getYRot()).scale(-0.3));
-			rider.moveTo(inside.x, inside.y, inside.z, tent.getYRot(), 0);
+			Vec3 soles = sleepingSpot(tent.position(), tent.getYRot());
+			rider.moveTo(soles.x, soles.y, soles.z, tent.getYRot(), 0);
 			face(rider, tent.getYRot());
 			rider.setInTent(true);
+			rider.setActivity(PostmanEntity.Activity.SLEEP);
+		} else {
+			rider.setActivity(PostmanEntity.Activity.CAMP_REST);
 		}
-		rider.setActivity(PostmanEntity.Activity.CAMP_REST);
 		step(CampStep.SLEEPING);
+	}
+
+	/** Where his soles go when he lies down in a tent: just out of the door, so his head is inside by the back wall. */
+	public static Vec3 sleepingSpot(Vec3 tent, float tentYaw) {
+		return tent.add(Vec3.directionFromRotation(0, tentYaw).scale(TENT_HALF_LENGTH + BOOTS_OUT));
 	}
 
 	private void breakCamp(PostmanEntity rider, ServerLevel level) {

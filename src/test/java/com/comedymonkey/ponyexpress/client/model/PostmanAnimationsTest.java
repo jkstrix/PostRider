@@ -23,7 +23,7 @@ class PostmanAnimationsTest {
 		Map.entry("whistle", PostmanAnimations.WHISTLE), Map.entry("camp_hammer", PostmanAnimations.CAMP_HAMMER),
 		Map.entry("camp_rest", PostmanAnimations.CAMP_REST), Map.entry("row", PostmanAnimations.ROW),
 		Map.entry("hurt", PostmanAnimations.HURT), Map.entry("wave", PostmanAnimations.WAVE),
-		Map.entry("harmonica", PostmanAnimations.HARMONICA));
+		Map.entry("harmonica", PostmanAnimations.HARMONICA), Map.entry("sleep", PostmanAnimations.SLEEP));
 
 	private static Set<String> partNames() {
 		ModelPart root = PostmanModel.createBodyLayer().bakeRoot();
@@ -34,7 +34,7 @@ class PostmanAnimationsTest {
 
 	private static void collect(ModelPart part, Set<String> names) {
 		for (String child : new String[] {"root", "body", "head", "right_arm", "left_arm", "satchel", "satchel_flat", "satchel_full",
-			"right_leg", "left_leg", "hat_brim_right_r1", "hat_brim_left_r1", "harmonica"})
+			"right_leg", "left_leg", "hat", "hat_brim_right_r1", "hat_brim_left_r1", "harmonica", "hammer"})
 			if (part.hasChild(child)) {
 				names.add(child);
 				collect(part.getChild(child), names);
@@ -42,8 +42,8 @@ class PostmanAnimationsTest {
 	}
 
 	@Test
-	void allThirteenApprovedAnimationsAreThere() {
-		assertEquals(13, ALL.size());
+	void allFourteenApprovedAnimationsAreThere() {
+		assertEquals(14, ALL.size());
 	}
 
 	@Test
@@ -63,7 +63,7 @@ class PostmanAnimationsTest {
 
 	@Test
 	void continuousAnimationsLoopAndGesturesPlayOnce() {
-		for (String looping : new String[] {"walk", "idle", "ride", "ride_idle", "camp_hammer", "camp_rest", "row", "harmonica"})
+		for (String looping : new String[] {"walk", "idle", "ride", "ride_idle", "camp_hammer", "camp_rest", "row", "harmonica", "sleep"})
 			assertTrue(ALL.get(looping).looping(), looping);
 		for (String once : new String[] {"pickup", "deliver", "whistle", "hurt", "wave"})
 			assertFalse(ALL.get(once).looping(), once);
@@ -82,6 +82,25 @@ class PostmanAnimationsTest {
 		assertEquals(0.75F, PostmanAnimations.RIDE.lengthInSeconds());
 		assertEquals(2.2F, PostmanAnimations.PICKUP.lengthInSeconds(), 1e-4);
 		assertEquals(6.0F, PostmanAnimations.CAMP_REST.lengthInSeconds());
+	}
+
+	@Test
+	void heHoldsAHammerAndHisHatCanTipOverHisFace() {
+		Set<String> parts = partNames();
+		assertTrue(parts.contains("hammer"));
+		assertTrue(PostmanModel.createBodyLayer().bakeRoot().getChild("root").getChild("body").getChild("right_arm").hasChild("hammer"));
+		assertTrue(PostmanAnimations.SLEEP.boneAnimations().containsKey("hat"), "the hat tips over his face while he sleeps");
+		assertTrue(PostmanAnimations.SLEEP.looping());
+		assertEquals(4.0F, PostmanAnimations.SLEEP.lengthInSeconds());
+	}
+
+	@Test
+	void heOnlyLooksAroundWhenHeIsntBusy() {
+		assertTrue(PostmanModel.headTurns(PostmanEntity.Activity.NONE, false));
+		assertFalse(PostmanModel.headTurns(PostmanEntity.Activity.NONE, true), "eyes on the mailbox while he's at it");
+		for (PostmanEntity.Activity activity : PostmanEntity.Activity.values())
+			if (activity != PostmanEntity.Activity.NONE)
+				assertFalse(PostmanModel.headTurns(activity, false), activity.name());
 	}
 
 	@Test
