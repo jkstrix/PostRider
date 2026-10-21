@@ -3,6 +3,7 @@ package com.comedymonkey.ponyexpress.registry;
 import com.comedymonkey.ponyexpress.PonyExpress;
 import com.comedymonkey.ponyexpress.content.postman.PostmanEntity;
 import com.comedymonkey.ponyexpress.content.postman.PostmanHorse;
+import com.comedymonkey.ponyexpress.content.postman.TentEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
@@ -32,6 +33,14 @@ public final class ModEntities {
 			.passengerAttachments(1.31875F)
 			.clientTrackingRange(10)
 			.build(PonyExpress.asResource("postman_horse").toString()));
+
+	public static final DeferredHolder<EntityType<?>, EntityType<TentEntity>> TENT = ENTITIES.register("tent",
+		() -> EntityType.Builder.<TentEntity>of(TentEntity::new, MobCategory.MISC)
+			.sized(1.75F, 1.3F)
+			.fireImmune()
+			.noSummon()
+			.clientTrackingRange(10)
+			.build(PonyExpress.asResource("tent").toString()));
 
 	private ModEntities() {}
 

@@ -22,7 +22,8 @@ class PostmanAnimationsTest {
 		Map.entry("pickup", PostmanAnimations.PICKUP), Map.entry("deliver", PostmanAnimations.DELIVER),
 		Map.entry("whistle", PostmanAnimations.WHISTLE), Map.entry("camp_hammer", PostmanAnimations.CAMP_HAMMER),
 		Map.entry("camp_rest", PostmanAnimations.CAMP_REST), Map.entry("row", PostmanAnimations.ROW),
-		Map.entry("hurt", PostmanAnimations.HURT), Map.entry("wave", PostmanAnimations.WAVE));
+		Map.entry("hurt", PostmanAnimations.HURT), Map.entry("wave", PostmanAnimations.WAVE),
+		Map.entry("harmonica", PostmanAnimations.HARMONICA));
 
 	private static Set<String> partNames() {
 		ModelPart root = PostmanModel.createBodyLayer().bakeRoot();
@@ -33,7 +34,7 @@ class PostmanAnimationsTest {
 
 	private static void collect(ModelPart part, Set<String> names) {
 		for (String child : new String[] {"root", "body", "head", "right_arm", "left_arm", "satchel", "satchel_flat", "satchel_full",
-			"right_leg", "left_leg", "hat_brim_right_r1", "hat_brim_left_r1"})
+			"right_leg", "left_leg", "hat_brim_right_r1", "hat_brim_left_r1", "harmonica"})
 			if (part.hasChild(child)) {
 				names.add(child);
 				collect(part.getChild(child), names);
@@ -41,8 +42,15 @@ class PostmanAnimationsTest {
 	}
 
 	@Test
-	void allTwelveApprovedAnimationsAreThere() {
-		assertEquals(12, ALL.size());
+	void allThirteenApprovedAnimationsAreThere() {
+		assertEquals(13, ALL.size());
+	}
+
+	@Test
+	void theHarmonicaIsAtHisMouthAndHeLoopsTheTune() {
+		assertTrue(partNames().contains("harmonica"));
+		assertTrue(PostmanAnimations.HARMONICA.looping());
+		assertEquals(2.0F, PostmanAnimations.HARMONICA.lengthInSeconds());
 	}
 
 	@Test
@@ -55,7 +63,7 @@ class PostmanAnimationsTest {
 
 	@Test
 	void continuousAnimationsLoopAndGesturesPlayOnce() {
-		for (String looping : new String[] {"walk", "idle", "ride", "ride_idle", "camp_hammer", "camp_rest", "row"})
+		for (String looping : new String[] {"walk", "idle", "ride", "ride_idle", "camp_hammer", "camp_rest", "row", "harmonica"})
 			assertTrue(ALL.get(looping).looping(), looping);
 		for (String once : new String[] {"pickup", "deliver", "whistle", "hurt", "wave"})
 			assertFalse(ALL.get(once).looping(), once);

@@ -6,8 +6,10 @@ import com.comedymonkey.ponyexpress.client.gui.LetterReadScreen;
 import com.comedymonkey.ponyexpress.client.gui.MailboxScreen;
 import com.comedymonkey.ponyexpress.client.model.MochilaModel;
 import com.comedymonkey.ponyexpress.client.model.PostmanModel;
+import com.comedymonkey.ponyexpress.client.model.TentModel;
 import com.comedymonkey.ponyexpress.client.renderer.PostmanHorseRenderer;
 import com.comedymonkey.ponyexpress.client.renderer.PostmanRenderer;
+import com.comedymonkey.ponyexpress.client.renderer.TentRenderer;
 import com.comedymonkey.ponyexpress.registry.ModEntities;
 import com.comedymonkey.ponyexpress.content.letter.LetterScreens;
 import com.comedymonkey.ponyexpress.content.mailbox.MailboxBlock;
@@ -51,11 +53,13 @@ public class PonyExpressClient {
 	private void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
 		event.registerLayerDefinition(PostmanModel.LAYER, PostmanModel::createBodyLayer);
 		event.registerLayerDefinition(MochilaModel.LAYER, MochilaModel::createBodyLayer);
+		event.registerLayerDefinition(TentModel.LAYER, TentModel::createBodyLayer);
 	}
 
 	private void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
 		event.registerEntityRenderer(ModEntities.POSTMAN.get(), PostmanRenderer::new);
 		event.registerEntityRenderer(ModEntities.POSTMAN_HORSE.get(), PostmanHorseRenderer::new);
+		event.registerEntityRenderer(ModEntities.TENT.get(), TentRenderer::new);
 	}
 
 	private void registerScreens(RegisterMenuScreensEvent event) {

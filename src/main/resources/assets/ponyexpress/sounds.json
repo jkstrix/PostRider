@@ -1,0 +1,11 @@
+{
+  "harmonica": {
+    "subtitle": "subtitles.ponyexpress.harmonica",
+    "sounds": [
+      {
+        "name": "ponyexpress:harmonica",
+        "stream": true
+      }
+    ]
+  }
+}

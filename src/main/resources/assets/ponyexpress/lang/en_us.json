@@ -20,6 +20,8 @@
 
   "entity.ponyexpress.postman": "Pony Express Rider",
   "entity.ponyexpress.postman_horse": "Pony Express Horse",
+  "entity.ponyexpress.tent": "Rider's Tent",
+  "subtitles.ponyexpress.harmonica": "Harmonica plays",
   "command.ponyexpress.spawned": "%s, Pony Express rider, appears.",
   "command.ponyexpress.no_rider": "There's no Pony Express rider within %s blocks.",
   "command.ponyexpress.dispatched": "%s riders set out.",

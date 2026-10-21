@@ -24,6 +24,7 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 
 	private final ModelPart root;
 	private final ModelPart head;
+	private final ModelPart harmonica;
 	private final ModelPart satchelFlat;
 	private final ModelPart satchelFull;
 
@@ -31,6 +32,7 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		this.root = root;
 		ModelPart body = root.getChild("root").getChild("body");
 		this.head = body.getChild("head");
+		this.harmonica = head.getChild("harmonica");
 		ModelPart satchel = body.getChild("satchel");
 		this.satchelFlat = satchel.getChild("satchel_flat");
 		this.satchelFull = satchel.getChild("satchel_full");
@@ -54,6 +56,8 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 			PartPose.offsetAndRotation(4.5F, -7.5F, 0.0F, 0.0F, 0.0F, -0.3927F));
 		head.addOrReplaceChild("hat_brim_left_r1", CubeListBuilder.create().texOffs(96, 48).addBox(-3.0F, -0.5F, -5.5F, 3.0F, 1.0F, 11.0F, new CubeDeformation(0.0F)),
 			PartPose.offsetAndRotation(-4.5F, -7.5F, 0.0F, 0.0F, 0.0F, 0.3927F));
+		head.addOrReplaceChild("harmonica", CubeListBuilder.create().texOffs(112, 28).addBox(-1.5F, -0.5F, -0.5F, 3.0F, 1.0F, 1.0F, new CubeDeformation(0.0F)),
+			PartPose.offset(0.0F, -1.5F, -4.5F));
 
 		body.addOrReplaceChild("right_arm", CubeListBuilder.create().texOffs(40, 16).addBox(-1.0F, -2.0F, -2.0F, 4.0F, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(5.0F, -10.0F, 0.0F));
 		body.addOrReplaceChild("left_arm", CubeListBuilder.create().texOffs(32, 48).addBox(-3.0F, -2.0F, -2.0F, 4.0F, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(-5.0F, -10.0F, 0.0F));
@@ -88,10 +92,12 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		animate(entity.activityAnimations.get(PostmanEntity.Activity.CAMP_HAMMER), PostmanAnimations.CAMP_HAMMER, ageInTicks);
 		animate(entity.activityAnimations.get(PostmanEntity.Activity.CAMP_REST), PostmanAnimations.CAMP_REST, ageInTicks);
 		animate(entity.activityAnimations.get(PostmanEntity.Activity.ROW), PostmanAnimations.ROW, ageInTicks);
+		animate(entity.activityAnimations.get(PostmanEntity.Activity.HARMONICA), PostmanAnimations.HARMONICA, ageInTicks);
 		for (PostmanEntity.Gesture gesture : PostmanEntity.Gesture.values())
 			animate(entity.gestureAnimations.get(gesture), gestureAnimation(gesture), ageInTicks);
 		animate(entity.hurtAnimation, PostmanAnimations.HURT, ageInTicks);
 
+		harmonica.visible = entity.getActivity() == PostmanEntity.Activity.HARMONICA;
 		satchelFlat.visible = !entity.isCarrying();
 		satchelFull.visible = entity.isCarrying();
 	}

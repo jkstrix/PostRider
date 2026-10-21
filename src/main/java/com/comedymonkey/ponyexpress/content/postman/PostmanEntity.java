@@ -20,6 +20,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -39,7 +40,8 @@ public class PostmanEntity extends PathfinderMob {
 		NONE,
 		CAMP_HAMMER,
 		CAMP_REST,
-		ROW
+		ROW,
+		HARMONICA
 	}
 
 	/** A one-off movement, sent to clients as an entity event. Lengths match the Blockbench animations. */
@@ -221,6 +223,33 @@ public class PostmanEntity extends PathfinderMob {
 		entity.discard();
 	}
 
+	// ---------------------------------------------------------------- the tent
+
+	/** Inside his tent, mobs only notice him this close. */
+	public static final double TENT_NOTICE_RANGE = 4.0;
+	private boolean inTent;
+
+	public boolean isInTent() {
+		return inTent;
+	}
+
+	public void setInTent(boolean inTent) {
+		this.inTent = inTent;
+	}
+
+	/** How much of their usual sight range a mob needs to notice him: all of it, or just 4 blocks' worth in his tent. */
+	public static double tentVisibility(double lookerRange) {
+		return lookerRange <= TENT_NOTICE_RANGE ? 1.0 : TENT_NOTICE_RANGE / lookerRange;
+	}
+
+	@Override
+	public double getVisibilityPercent(@Nullable Entity looker) {
+		double visibility = super.getVisibilityPercent(looker);
+		if (inTent && looker instanceof LivingEntity living && living.getAttributes().hasAttribute(Attributes.FOLLOW_RANGE))
+			visibility = Math.min(visibility, tentVisibility(living.getAttributeValue(Attributes.FOLLOW_RANGE)));
+		return visibility;
+	}
+
 	@Nullable
 	public PostmanHorse getHorse() {
 		return getVehicle() instanceof PostmanHorse horse ? horse : null;
@@ -328,6 +357,7 @@ public class PostmanEntity extends PathfinderMob {
 		super.addAdditionalSaveData(tag);
 		tag.putString("activity", getActivity().name());
 		tag.putBoolean("carrying", isCarrying());
+		tag.putBoolean("in_tent", inTent);
 		if (run != null)
 			tag.put("run", run.save(registryAccess()));
 	}
@@ -341,6 +371,7 @@ public class PostmanEntity extends PathfinderMob {
 			setActivity(Activity.NONE);
 		}
 		setCarrying(tag.getBoolean("carrying"));
+		inTent = tag.getBoolean("in_tent");
 		run = tag.contains("run") ? DeliveryRun.load(tag.getCompound("run"), registryAccess()) : null;
 	}
 

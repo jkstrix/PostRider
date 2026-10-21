@@ -16,6 +16,7 @@ import com.comedymonkey.ponyexpress.registry.ModDataComponents;
 import com.comedymonkey.ponyexpress.registry.ModEntities;
 import com.comedymonkey.ponyexpress.registry.ModItems;
 import com.comedymonkey.ponyexpress.registry.ModMenus;
+import com.comedymonkey.ponyexpress.registry.ModSounds;
 import com.mojang.logging.LogUtils;
 
 import net.minecraft.resources.ResourceLocation;
@@ -41,6 +42,7 @@ public class PonyExpress {
 		ModMenus.MENUS.register(modBus);
 		ModCreativeTabs.TABS.register(modBus);
 		ModEntities.ENTITIES.register(modBus);
+		ModSounds.SOUNDS.register(modBus);
 		modBus.addListener(this::registerPayloads);
 		modBus.addListener(ModEntities::registerAttributes);
 		modBus.addListener((RegisterTicketControllersEvent event) -> event.register(RiderChunks.CONTROLLER));

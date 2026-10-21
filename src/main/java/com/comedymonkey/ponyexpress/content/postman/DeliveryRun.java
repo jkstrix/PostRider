@@ -1,6 +1,5 @@
 package com.comedymonkey.ponyexpress.content.postman;
 
-import java.util.List;
 import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
@@ -15,6 +14,8 @@ import com.comedymonkey.ponyexpress.post.Notices;
 import com.comedymonkey.ponyexpress.post.PendingDelivery;
 import com.comedymonkey.ponyexpress.post.PostOffice;
 import com.comedymonkey.ponyexpress.post.PostOfficeHours;
+import com.comedymonkey.ponyexpress.registry.ModEntities;
+import com.comedymonkey.ponyexpress.registry.ModSounds;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -22,9 +23,13 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -218,6 +223,8 @@ public class DeliveryRun {
 			return;
 		boolean onFoot = rider.getHorse() == null;
 		rider.setSprinting(onFoot);
+		if (!onFoot)
+			jumpGaps(rider.getHorse(), level);
 		if (--aimCooldown <= 0 || rider.getNavigation().isDone()) {
 			aimCooldown = AIM_INTERVAL;
 			Vec3 aim = chooseAim(level, rider.position(), target);
@@ -225,34 +232,160 @@ public class DeliveryRun {
 		}
 	}
 
-	/** The first stretch ahead that ends on dry ground, or straight ahead if every way is water. */
+	/** The first stretch ahead that ends on safe, dry ground, or straight ahead if every way is water or worse. */
 	static Vec3 chooseAim(ServerLevel level, Vec3 from, Vec3 target) {
-		List<Vec3> aims = Journey.aims(from, target);
-		Vec3 first = null;
-		for (Vec3 aim : aims) {
-			BlockPos column = BlockPos.containing(aim);
-			int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column.getX(), column.getZ());
-			Vec3 ground = new Vec3(aim.x, y, aim.z);
-			if (first == null)
-				first = ground;
-			if (level.getFluidState(new BlockPos(column.getX(), y - 1, column.getZ())).isEmpty())
-				return ground;
-		}
-		return first;
+		Vec3 safe = safeAim(level, from, target);
+		return safe != null ? safe : surface(level, Journey.nextAim(from, target));
 	}
 
+	/** The first stretch ahead ending somewhere safe to stand, or null if there's none. */
+	@Nullable
+	static Vec3 safeAim(ServerLevel level, Vec3 from, Vec3 target) {
+		for (Vec3 aim : Journey.aims(from, target)) {
+			Vec3 ground = surface(level, aim);
+			if (!Hazards.isDangerous(level, BlockPos.containing(ground)))
+				return ground;
+		}
+		return null;
+	}
+
+	private static Vec3 surface(ServerLevel level, Vec3 aim) {
+		BlockPos column = BlockPos.containing(aim);
+		return new Vec3(aim.x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column.getX(), column.getZ()), aim.z);
+	}
+
+	// ---------------------------------------------------------------- jumping gaps
+
+	/** How fast the horse must already be going before it will leap, so it never jumps from a standstill. */
+	private static final double JUMP_MIN_SPEED = 0.15;
+
+	/** When the ground ahead drops into a gap with safe ground just beyond, the horse leaps it. */
+	private static void jumpGaps(PostmanHorse horse, ServerLevel level) {
+		Vec3 motion = horse.getDeltaMovement();
+		double speed = motion.horizontalDistance();
+		if (!horse.onGround() || speed < JUMP_MIN_SPEED)
+			return;
+		Vec3 heading = new Vec3(motion.x / speed, 0, motion.z / speed);
+		int here = horse.getBlockY();
+		int[] ahead = new int[GapJump.MAX_GAP + 1];
+		boolean[] safe = new boolean[ahead.length];
+		for (int i = 0; i < ahead.length; i++) {
+			Vec3 spot = horse.position().add(heading.scale(i + 1.2));
+			BlockPos column = BlockPos.containing(spot.x, here, spot.z);
+			ahead[i] = floorAt(level, column);
+			safe[i] = !Hazards.isDangerous(level, column.atY(ahead[i]));
+		}
+		int landing = GapJump.landingDistance(here, ahead, safe);
+		if (landing == 0)
+			return;
+		horse.getJumpControl().jump();
+		double push = 0.35 + 0.12 * landing;
+		horse.setDeltaMovement(heading.x * push, motion.y, heading.z * push);
+	}
+
+	/** The height he'd stand at in this column, searching a little above and well below where he is. */
+	private static int floorAt(ServerLevel level, BlockPos near) {
+		for (int y = near.getY() + 1; y >= near.getY() - 6; y--) {
+			BlockPos feet = near.atY(y);
+			if (level.getBlockState(feet.below()).isFaceSturdy(level, feet.below(), Direction.UP)
+					&& level.getBlockState(feet).getCollisionShape(level, feet).isEmpty())
+				return y;
+		}
+		return near.getY() - 7;
+	}
+
+	/** How long he hammers in the tent pegs before the tent goes up. */
+	public static final int HAMMER_TICKS = 100;
+	/** How far behind him the middle of the tent stands, with its open front facing him. */
+	public static final double TENT_DISTANCE = 2.2;
+	/** How far players hear the harmonica, for stopping it when he turns in. */
+	private static final double HEARING_RANGE = 48;
+
+	@Nullable
+	private UUID tentId;
+	@Nullable
+	private Vec3 campSpot;
+
+	/**
+	 * Dusk: he hammers in the pegs, the tent goes up behind him in a puff of smoke and he sits playing the harmonica
+	 * until monsters come out, then turns in, hidden from all but the closest mobs. At 6am he packs up and rides on.
+	 */
 	private void camp(PostmanEntity rider, ServerLevel level) {
 		progress.pause(level.getGameTime());
 		if (stageTicks == 1) {
 			rider.getNavigation().stop();
 			rider.dismissHorse();
 			rider.setSprinting(false);
-			rider.setActivity(PostmanEntity.Activity.CAMP_REST);
+			campSpot = rider.position();
+			rider.setActivity(PostmanEntity.Activity.CAMP_HAMMER);
+		}
+		if (stageTicks == HAMMER_TICKS) {
+			pitchTent(rider, level);
+			if (PostOfficeHours.isBedtime(level.getDayTime())) {
+				turnIn(rider, level);
+			} else {
+				rider.setActivity(PostmanEntity.Activity.HARMONICA);
+				level.playSound(null, rider, ModSounds.HARMONICA.get(), SoundSource.NEUTRAL, 1.0F, 1.0F);
+			}
+		}
+		if (rider.getActivity() == PostmanEntity.Activity.HARMONICA && PostOfficeHours.isBedtime(level.getDayTime())) {
+			stopHarmonica(rider, level);
+			turnIn(rider, level);
 		}
 		if (PostOfficeHours.isOpen(level.getDayTime())) {
-			rider.setActivity(PostmanEntity.Activity.NONE);
+			breakCamp(rider, level);
 			enter(Stage.CALLING_HORSE);
 		}
+	}
+
+	/** The tent goes up behind him, open end towards him, if there's room for it. */
+	private void pitchTent(PostmanEntity rider, ServerLevel level) {
+		EntityType<TentEntity> type = ModEntities.TENT.get();
+		float yaw = rider.getYRot();
+		Vec3 behind = Vec3.directionFromRotation(0, yaw).scale(-TENT_DISTANCE);
+		Vec3 spot = rider.position().add(behind.x, 0, behind.z);
+		if (!HorseSpots.fits(level, type, spot))
+			return;
+		TentEntity tent = type.create(level);
+		if (tent == null)
+			return;
+		tent.moveTo(spot.x, spot.y, spot.z, yaw, 0);
+		tent.setRider(rider.getUUID());
+		level.addFreshEntity(tent);
+		PostmanEffects.puff(level, tent);
+		tentId = tent.getUUID();
+	}
+
+	/** Into the tent for the night (or, with no tent, curled up where he is). */
+	private void turnIn(PostmanEntity rider, ServerLevel level) {
+		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent) {
+			Vec3 inside = tent.position().add(Vec3.directionFromRotation(0, tent.getYRot()).scale(-0.3));
+			rider.moveTo(inside.x, inside.y, inside.z, tent.getYRot(), 0);
+			rider.setYBodyRot(tent.getYRot());
+			rider.setYHeadRot(tent.getYRot());
+			rider.setInTent(true);
+		}
+		rider.setActivity(PostmanEntity.Activity.CAMP_REST);
+	}
+
+	private void breakCamp(PostmanEntity rider, ServerLevel level) {
+		stopHarmonica(rider, level);
+		rider.setInTent(false);
+		rider.setActivity(PostmanEntity.Activity.NONE);
+		if (campSpot != null)
+			rider.moveTo(campSpot.x, campSpot.y, campSpot.z, rider.getYRot(), 0);
+		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent)
+			tent.packAway(level);
+		tentId = null;
+		campSpot = null;
+	}
+
+	/** Stops the tune for everyone who could hear it. */
+	private static void stopHarmonica(PostmanEntity rider, ServerLevel level) {
+		ClientboundStopSoundPacket stop = new ClientboundStopSoundPacket(ModSounds.HARMONICA.getId(), SoundSource.NEUTRAL);
+		for (ServerPlayer player : level.players())
+			if (player.distanceToSqr(rider) < HEARING_RANGE * HEARING_RANGE)
+				player.connection.send(stop);
 	}
 
 	private void walkUp(PostmanEntity rider, ServerLevel level) {
@@ -317,6 +450,11 @@ public class DeliveryRun {
 			return true;
 		}
 		Vec3 free = freeSpot(level, rider.position(), target, rider.level().canSeeSky(rider.blockPosition()));
+		// Nowhere safe to jump to this time (lava all round, say); it still counts as a try
+		if (free == null) {
+			progress.unstuck(distance, level.getGameTime());
+			return true;
+		}
 		Entity mover = rider.getVehicle() != null ? rider.getVehicle() : rider;
 		PostmanEffects.puff(level, mover);
 		mover.teleportTo(free.x, free.y, free.z);
@@ -327,11 +465,20 @@ public class DeliveryRun {
 		return true;
 	}
 
-	/** Out of a cave: straight up to the surface; otherwise a stretch ahead, on top of whatever is there. */
+	/**
+	 * Out of a cave: straight up to the surface; otherwise a stretch ahead, on top of whatever is there. Never onto
+	 * lava, fire and the like: null if there's nowhere safe.
+	 */
+	@Nullable
 	static Vec3 freeSpot(ServerLevel level, Vec3 from, Vec3 target, boolean underOpenSky) {
-		Vec3 aim = underOpenSky ? chooseAim(level, from, target) : from;
+		Vec3 aim = underOpenSky ? safeAim(level, from, target) : surface(level, from);
+		if (aim == null)
+			return null;
 		BlockPos column = BlockPos.containing(aim);
 		int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column.getX(), column.getZ());
+		BlockPos feet = new BlockPos(column.getX(), y, column.getZ());
+		if (Hazards.isDangerous(level, feet))
+			return underOpenSky ? null : freeSpot(level, from, target, true);
 		return new Vec3(column.getX() + 0.5, y, column.getZ() + 0.5);
 	}
 
@@ -389,6 +536,13 @@ public class DeliveryRun {
 		tag.putInt("stage_ticks", stageTicks);
 		if (loadedChunk != null)
 			tag.putLong("loaded_chunk", loadedChunk.toLong());
+		if (tentId != null)
+			tag.putUUID("tent", tentId);
+		if (campSpot != null) {
+			tag.putDouble("camp_x", campSpot.x);
+			tag.putDouble("camp_y", campSpot.y);
+			tag.putDouble("camp_z", campSpot.z);
+		}
 		return tag;
 	}
 
@@ -409,6 +563,10 @@ public class DeliveryRun {
 		run.stageTicks = tag.getInt("stage_ticks");
 		if (tag.contains("loaded_chunk"))
 			run.loadedChunk = new ChunkPos(tag.getLong("loaded_chunk"));
+		if (tag.hasUUID("tent"))
+			run.tentId = tag.getUUID("tent");
+		if (tag.contains("camp_x"))
+			run.campSpot = new Vec3(tag.getDouble("camp_x"), tag.getDouble("camp_y"), tag.getDouble("camp_z"));
 		return run;
 	}
 }

@@ -36,7 +36,8 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 - Prefers land and takes a land detour of up to 2× the straight-line distance. Otherwise he crosses water on a ferry barge (flat barge with railings and a lantern post) that carries him and the horse.
 - Takes any damage a player would: mobs, lightning, fall, fire, drowning, and players. Every hostile mob that hunts players targets him, and creepers explode on him.
 - If the horse dies, he carries on on foot (still using the barge on water).
-- Camps every night (dusk to dawn) in a tent entity model, with no blocks placed. While camped, mobs only notice him within 4 blocks. If night falls on water, he keeps going until he reaches land. If the night is skipped, he packs up in the morning.
+- Camps every night (dusk to dawn) in a tent entity model, with no blocks placed. At dusk he hammers in the pegs, the tent goes up behind him in a puff of smoke, and he sits playing the harmonica (CREDITS.md) until monsters come out (about 7:11pm), then turns in. While in the tent, mobs only notice him within 4 blocks. At 6am the tent packs away in a puff of smoke and he rides on. If night falls on water, he keeps going until he reaches land. If the night is skipped, he packs up in the morning.
+- His horse gallops at full speed, and leaps gaps of up to 3 blocks onto ground at about the same height. He never aims for, jumps onto or teleports onto lava, fire, magma, cactus, berry bushes, powder snow, dripstone, cobwebs or water.
 - Unstuck: after 30 s with no progress, he teleports himself and his horse/barge up to 16 blocks ahead onto safe ground, or to the surface if he's underground. After 5 tries in a row with no progress, the delivery fails.
 
 ## Failure
