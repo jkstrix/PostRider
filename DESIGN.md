@@ -8,7 +8,8 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 - Anything uncertain gets asked, not assumed.
 
 ## Mailbox
-- Style: US post box on a wooden post, door at the front, side flag that goes up when the inbox has mail.
+- Style: US post box on a wooden post, door at the front, side flag that goes up when the inbox has mail. Two blocks tall. Only the box takes the dye colour.
+- The flag is red on every colour except the red mailbox, which gets a yellow flag so it stands out.
 - All 16 dye colours. Recipe: iron ingots around a chest, with a fence underneath (comes out white). Craft with a dye to recolour, or right-click a placed mailbox with a dye.
 - Placement is always allowed. If it has no sky view, the placer gets a warning that the postman will probably lose mail.
 - Owner types a name in the mailbox screen. Names are 3–24 characters and unique server-wide, ignoring case. A player can own several mailboxes.
