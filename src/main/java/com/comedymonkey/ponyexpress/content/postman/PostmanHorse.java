@@ -97,7 +97,8 @@ public class PostmanHorse extends Horse {
 
 	@Override
 	public void travel(Vec3 input) {
-		if (getControllingPassenger() instanceof PostmanEntity && getMoveControl().hasWanted()) {
+		// The move control has already handed over its push by now (and stopped "wanting"), but it keeps its mark
+		if (getControllingPassenger() instanceof PostmanEntity && input.z > 0) {
 			double dx = getMoveControl().getWantedX() - getX(), dz = getMoveControl().getWantedZ() - getZ();
 			input = new Vec3(input.x, input.y, gallopInput(input.z, Math.sqrt(dx * dx + dz * dz)));
 		}

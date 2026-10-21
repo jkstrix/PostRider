@@ -11,7 +11,6 @@ import com.comedymonkey.ponyexpress.network.SendParcelPayload;
 import com.comedymonkey.ponyexpress.post.MailboxNames;
 
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -27,7 +26,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	private static final int LEDGER_Y = 19;
 	private static final int LEDGER_ROWS = PostOfficeStyle.LEDGER_HEIGHT / PostOfficeStyle.LEDGER_ROW;
 
-	private EditBox nameBox;
+	private InkTextField nameBox;
 	private PostOfficeButton saveButton;
 	private PostOfficeButton sendButton;
 	private int seenInfoVersion = -1;
@@ -48,10 +47,8 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	@Override
 	protected void init() {
 		super.init();
-		nameBox = new EditBox(font, leftPos + 11, topPos + 33, 150, 10, Component.translatable("gui.ponyexpress.mailbox.address"));
-		nameBox.setBordered(false);
+		nameBox = new InkTextField(font, leftPos + 11, topPos + 32, 150, 9, Component.translatable("gui.ponyexpress.mailbox.address"));
 		nameBox.setMaxLength(MailboxNames.MAX_LENGTH);
-		nameBox.setTextColor(PostOfficeStyle.INK);
 		nameBox.setValue(hasName() ? name : "");
 		addRenderableWidget(nameBox);
 		saveButton = addRenderableWidget(new PostOfficeButton(leftPos + 8, topPos + 48,
