@@ -1,10 +1,22 @@
 package com.comedymonkey.ponyexpress;
 
+import com.comedymonkey.ponyexpress.content.mailbox.MailboxEvents;
+import com.comedymonkey.ponyexpress.network.MailboxInfoPayload;
+import com.comedymonkey.ponyexpress.network.RenameMailboxPayload;
+import com.comedymonkey.ponyexpress.network.SendParcelPayload;
+import com.comedymonkey.ponyexpress.registry.ModBlockEntities;
+import com.comedymonkey.ponyexpress.registry.ModBlocks;
+import com.comedymonkey.ponyexpress.registry.ModCreativeTabs;
+import com.comedymonkey.ponyexpress.registry.ModItems;
+import com.comedymonkey.ponyexpress.registry.ModMenus;
 import com.mojang.logging.LogUtils;
+
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import org.slf4j.Logger;
 
 @Mod(PonyExpress.MOD_ID)
@@ -13,10 +25,24 @@ public class PonyExpress {
 	public static final Logger LOGGER = LogUtils.getLogger();
 
 	public PonyExpress(IEventBus modBus, ModContainer container) {
-		modBus.addListener(this::commonSetup);
+		ModBlocks.BLOCKS.register(modBus);
+		ModItems.ITEMS.register(modBus);
+		ModBlockEntities.BLOCK_ENTITIES.register(modBus);
+		ModMenus.MENUS.register(modBus);
+		ModCreativeTabs.TABS.register(modBus);
+		modBus.addListener(this::registerPayloads);
+
+		NeoForge.EVENT_BUS.addListener(MailboxEvents::onBreak);
 	}
 
-	private void commonSetup(FMLCommonSetupEvent event) {
-		LOGGER.info("Pony Express loaded");
+	public static ResourceLocation asResource(String path) {
+		return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+	}
+
+	private void registerPayloads(RegisterPayloadHandlersEvent event) {
+		var registrar = event.registrar("1");
+		registrar.playToClient(MailboxInfoPayload.TYPE, MailboxInfoPayload.STREAM_CODEC, MailboxInfoPayload::handle);
+		registrar.playToServer(RenameMailboxPayload.TYPE, RenameMailboxPayload.STREAM_CODEC, RenameMailboxPayload::handle);
+		registrar.playToServer(SendParcelPayload.TYPE, SendParcelPayload.STREAM_CODEC, SendParcelPayload::handle);
 	}
 }

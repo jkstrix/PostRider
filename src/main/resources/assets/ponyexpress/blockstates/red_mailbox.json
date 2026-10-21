@@ -1,0 +1,137 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "half": "lower",
+        "facing": "north"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_base"
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "north",
+        "flag": "false"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_flag_down_yellow"
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "north",
+        "flag": "true"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_flag_up_yellow"
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "east"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_base",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "east",
+        "flag": "false"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_flag_down_yellow",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "east",
+        "flag": "true"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_flag_up_yellow",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "south"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_base",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "south",
+        "flag": "false"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_flag_down_yellow",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "south",
+        "flag": "true"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_flag_up_yellow",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "west"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_base",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "west",
+        "flag": "false"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_flag_down_yellow",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "west",
+        "flag": "true"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_flag_up_yellow",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_upper"
+      }
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "parent": "ponyexpress:item/mailbox",
+  "textures": {
+    "flag": "ponyexpress:block/mailbox_flag_yellow"
+  }
+}

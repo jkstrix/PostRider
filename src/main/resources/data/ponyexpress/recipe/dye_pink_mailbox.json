@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "group": "ponyexpress_dye_mailbox",
+  "ingredients": [
+    {
+      "tag": "ponyexpress:mailboxes"
+    },
+    {
+      "tag": "c:dyes/pink"
+    }
+  ],
+  "result": {
+    "id": "ponyexpress:pink_mailbox",
+    "count": 1
+  }
+}

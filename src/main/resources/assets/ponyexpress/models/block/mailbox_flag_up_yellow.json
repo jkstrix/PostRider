@@ -1,0 +1,7 @@
+{
+  "parent": "ponyexpress:block/mailbox_flag_up",
+  "textures": {
+    "flag": "ponyexpress:block/mailbox_flag_yellow",
+    "particle": "ponyexpress:block/mailbox_flag_yellow"
+  }
+}

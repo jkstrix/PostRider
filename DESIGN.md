@@ -19,6 +19,9 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 
 ## Parcel and letters
 - Parcel item: sealed, holds up to 9 stacks. Right-click to unpack into your inventory (overflow drops at your feet).
+- Letters: craft a blank Letter, use it to open its own writing screen, and finish it to get a Written Letter. Using a Written Letter opens it to read. It stays a readable item you can keep.
+- Put a Written Letter in the parcel slots to send it. If the parcel holds nothing but one letter, it travels and arrives as just the letter. If there's anything else in it, everything (letter included) arrives inside a Parcel.
+- Every screen shares the old-time post office look: walnut panelling, a parchment work surface, brass fittings, postage-stamp tabs, red wax for the main action, and ledger pages for lists (`client/gui/PostOfficeStyle`, `textures/gui/post_office.png`).
 - Failure letter: a readable Letter item (book-style page) giving the reason (e.g. "killed by a Zombie"), the Lost Parcel's X/Y/Z and the addressee.
 
 ## Postman
