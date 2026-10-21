@@ -1,6 +1,7 @@
 package com.comedymonkey.ponyexpress.post;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -56,6 +57,42 @@ class PostOfficeTest {
 		items.add(new ItemStack(Items.DIAMOND));
 		assertEquals(1, pending.items().size());
 		assertThrows(UnsupportedOperationException.class, () -> pending.items().add(ItemStack.EMPTY));
+	}
+
+	@Test
+	void tracksWhichRiderCarriesWhichDelivery() {
+		PostOffice office = new PostOffice();
+		PendingDelivery pending = delivery("Inn", new ItemStack(Items.APPLE));
+		UUID rider = UUID.randomUUID();
+		office.setOut(pending, rider);
+		assertTrue(office.isActive(pending.id()));
+		assertTrue(office.isRider(rider));
+		assertEquals(1, office.activeCount());
+		office.finish(pending.id());
+		assertFalse(office.isRider(rider));
+		assertEquals(0, office.activeCount());
+	}
+
+	@Test
+	void aParcelPutBackGoesToTheFrontOfTheQueue() {
+		PostOffice office = new PostOffice();
+		PendingDelivery first = delivery("Inn", new ItemStack(Items.APPLE));
+		PendingDelivery second = delivery("Hall", new ItemStack(Items.BREAD));
+		office.enqueue(second);
+		office.putBack(first);
+		assertSame(first, office.poll());
+	}
+
+	@Test
+	void ridersOnTheRoadSurviveSaving() {
+		var registries = VanillaRegistries.createLookup();
+		PostOffice office = new PostOffice();
+		PendingDelivery pending = delivery("Inn", new ItemStack(Items.APPLE));
+		UUID rider = UUID.randomUUID();
+		office.setOut(pending, rider);
+		PostOffice loaded = PostOffice.load(office.save(new CompoundTag(), registries), registries);
+		assertTrue(loaded.isRider(rider));
+		assertEquals("Inn", loaded.active().iterator().next().delivery().toName());
 	}
 
 	@Test

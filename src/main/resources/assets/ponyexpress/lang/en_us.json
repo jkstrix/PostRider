@@ -22,6 +22,10 @@
   "entity.ponyexpress.postman_horse": "Pony Express Horse",
   "command.ponyexpress.spawned": "%s, Pony Express rider, appears.",
   "command.ponyexpress.no_rider": "There's no Pony Express rider within %s blocks.",
+  "command.ponyexpress.dispatched": "%s riders set out.",
+  "message.ponyexpress.delivered.sender": "Your mail for %s has been delivered by %s.",
+  "message.ponyexpress.delivered.recipient": "Mail has arrived at %s, from %s.",
+  "message.ponyexpress.failed.sender": "Your mail for %s went astray near X %s, Y %s, Z %s. A letter is waiting in your mailbox.",
 
   "block.ponyexpress.lost_parcel": "Lost Parcel",
   "message.ponyexpress.lost_parcel.label": "A lost parcel, sent by %s from %s to %s on day %s.",

@@ -2,6 +2,9 @@ package com.comedymonkey.ponyexpress;
 
 import com.comedymonkey.ponyexpress.command.PonyExpressCommand;
 import com.comedymonkey.ponyexpress.content.PostalBlockEvents;
+import com.comedymonkey.ponyexpress.content.postman.RiderChunks;
+import com.comedymonkey.ponyexpress.content.postman.RiderHunting;
+import com.comedymonkey.ponyexpress.post.PostDispatcher;
 import com.comedymonkey.ponyexpress.network.EditLetterPayload;
 import com.comedymonkey.ponyexpress.network.MailboxInfoPayload;
 import com.comedymonkey.ponyexpress.network.RenameMailboxPayload;
@@ -20,6 +23,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.world.chunk.RegisterTicketControllersEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import org.slf4j.Logger;
@@ -39,8 +43,11 @@ public class PonyExpress {
 		ModEntities.ENTITIES.register(modBus);
 		modBus.addListener(this::registerPayloads);
 		modBus.addListener(ModEntities::registerAttributes);
+		modBus.addListener((RegisterTicketControllersEvent event) -> event.register(RiderChunks.CONTROLLER));
 
 		NeoForge.EVENT_BUS.addListener(PostalBlockEvents::onBreak);
+		NeoForge.EVENT_BUS.addListener(PostDispatcher::onServerTick);
+		NeoForge.EVENT_BUS.addListener(RiderHunting::onJoin);
 		NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> PonyExpressCommand.register(event.getDispatcher()));
 	}
 

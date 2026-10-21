@@ -5,8 +5,10 @@ import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.ponyexpress.post.PendingDelivery;
 import com.comedymonkey.ponyexpress.registry.ModEntities;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -157,6 +159,36 @@ public class PostmanEntity extends PathfinderMob {
 		return postman;
 	}
 
+	@Nullable
+	private DeliveryRun run;
+
+	/**
+	 * Sends a rider out with a delivery: he appears in front of the sender's mailbox and the run begins. Null if
+	 * there's nowhere for him to stand.
+	 */
+	@Nullable
+	public static PostmanEntity setOut(ServerLevel level, PendingDelivery delivery) {
+		EntityType<PostmanEntity> type = ModEntities.POSTMAN.get();
+		BlockPos mailbox = delivery.from().pos();
+		level.getChunkAt(mailbox);
+		BlockPos stand = DeliveryRun.standingSpot(level, mailbox);
+		for (int up = 0; up <= 3 && !level.noCollision(type.getSpawnAABB(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5)); up++)
+			stand = stand.above();
+		if (!level.noCollision(type.getSpawnAABB(stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5)))
+			return null;
+		Vec3 toBox = Vec3.atCenterOf(mailbox).subtract(Vec3.atCenterOf(stand));
+		float yaw = (float) (Math.toDegrees(Math.atan2(toBox.z, toBox.x)) - 90);
+		PostmanEntity rider = appear(type, level, stand.getX() + 0.5, stand.getY(), stand.getZ() + 0.5, yaw);
+		if (rider != null)
+			rider.run = DeliveryRun.plan(level, delivery);
+		return rider;
+	}
+
+	@Nullable
+	public DeliveryRun getRun() {
+		return run;
+	}
+
 	/** He whistles; a moment later his horse appears beside him in a puff of smoke and he climbs on. */
 	public void whistleForHorse() {
 		if (getVehicle() != null || horseCountdown > 0 || arrivingHorse != null)
@@ -216,6 +248,8 @@ public class PostmanEntity extends PathfinderMob {
 
 	@Override
 	public void die(DamageSource source) {
+		if (run != null && !run.isOver() && level() instanceof ServerLevel server)
+			run.killed(this, server, source);
 		// His horse goes with him; a horse that has lost its rider has no one to carry
 		if (getVehicle() instanceof PostmanHorse horse) {
 			stopRiding();
@@ -248,8 +282,14 @@ public class PostmanEntity extends PathfinderMob {
 		super.tick();
 		if (level().isClientSide)
 			updateAnimations();
-		else if (level() instanceof ServerLevel server)
+		else if (level() instanceof ServerLevel server) {
 			tickHorse(server);
+			if (run != null && !isRemoved()) {
+				run.tick(this, server);
+				if (run.isOver())
+					run = null;
+			}
+		}
 	}
 
 	/** Whether a one-off gesture is still playing, which pauses the idle breathing. */
@@ -289,6 +329,8 @@ public class PostmanEntity extends PathfinderMob {
 		super.addAdditionalSaveData(tag);
 		tag.putString("activity", getActivity().name());
 		tag.putBoolean("carrying", isCarrying());
+		if (run != null)
+			tag.put("run", run.save(registryAccess()));
 	}
 
 	@Override
@@ -300,6 +342,7 @@ public class PostmanEntity extends PathfinderMob {
 			setActivity(Activity.NONE);
 		}
 		setCarrying(tag.getBoolean("carrying"));
+		run = tag.contains("run") ? DeliveryRun.load(tag.getCompound("run"), registryAccess()) : null;
 	}
 
 	@Override

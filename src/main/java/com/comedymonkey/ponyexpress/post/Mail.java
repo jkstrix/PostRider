@@ -2,12 +2,14 @@ package com.comedymonkey.ponyexpress.post;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.comedymonkey.ponyexpress.content.letter.LetterContent;
 import com.comedymonkey.ponyexpress.content.parcel.ParcelLabel;
 import com.comedymonkey.ponyexpress.registry.ModDataComponents;
 import com.comedymonkey.ponyexpress.registry.ModItems;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemContainerContents;
@@ -41,6 +43,28 @@ public final class Mail {
 		parcel.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(items));
 		parcel.set(ModDataComponents.PARCEL_LABEL.get(), new ParcelLabel(delivery.fromName(), delivery.toName(), delivery.senderName(), day));
 		return parcel;
+	}
+
+	public static final String COMPANY = "Pony Express Co.";
+
+	/**
+	 * The letter the post office sends when mail goes astray: what happened, and where the Lost Parcel lies (or, if
+	 * there was nowhere to leave one, where its contents fell).
+	 */
+	public static ItemStack failureLetter(PendingDelivery delivery, String reason, BlockPos at, boolean parcelLeft, long day) {
+		String what = isLetterOnly(delivery.items()) ? "letter" : "parcel";
+		String where = "X " + at.getX() + ", Y " + at.getY() + ", Z " + at.getZ();
+		String first = "Dear " + delivery.senderName() + ",\n\nWe regret that your " + what + " to " + delivery.toName()
+			+ " did not arrive. " + reason + "\n\n" + (parcelLeft
+				? "It lies at " + where + ", marked LOST."
+				: "There was nowhere to leave it, so its contents lie scattered near " + where + ".");
+		String second = parcelLeft
+			? "Only you, the addressee or whoever bested the rider may open it.\n\nWith apologies,\nthe " + COMPANY
+			: "Ride out soon, before somebody else finds them.\n\nWith apologies,\nthe " + COMPANY;
+		ItemStack letter = new ItemStack(ModItems.WRITTEN_LETTER.get());
+		letter.set(ModDataComponents.LETTER.get(), new LetterContent(List.of(first, second), COMPANY,
+			Optional.of(new LetterContent.Postmark(COMPANY, day))));
+		return letter;
 	}
 
 	private static ItemStack postmarked(ItemStack item, LetterContent.Postmark postmark) {

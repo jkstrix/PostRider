@@ -94,6 +94,29 @@ class MailTest {
 	}
 
 	@Test
+	void theFailureLetterSaysWhatHappenedAndWhere() {
+		ItemStack letter = Mail.failureLetter(delivery(new ItemStack(Items.BREAD)), "Wyatt Holloway was slain by Zombie.",
+			new BlockPos(1204, 71, -388), true, 9);
+		LetterContent content = letter.get(ModDataComponents.LETTER.get());
+		String text = String.join("\n", content.pages());
+		assertTrue(text.contains("Dear Steve"));
+		assertTrue(text.contains("parcel to Alex's Inn"));
+		assertTrue(text.contains("slain by Zombie"));
+		assertTrue(text.contains("X 1204, Y 71, Z -388"));
+		assertTrue(text.contains("marked LOST"));
+		assertEquals(Mail.COMPANY, content.author());
+		assertEquals(9, content.postmark().orElseThrow().day());
+	}
+
+	@Test
+	void theFailureLetterSaysWhenThereWasNowhereToLeaveIt() {
+		ItemStack letter = Mail.failureLetter(delivery(letter("Hi")), "Lost.", BlockPos.ZERO, false, 1);
+		String text = String.join("\n", letter.get(ModDataComponents.LETTER.get()).pages());
+		assertTrue(text.contains("your letter to"));
+		assertTrue(text.contains("scattered"));
+	}
+
+	@Test
 	void daysCountFromOne() {
 		assertEquals(1, Mail.day(0));
 		assertEquals(1, Mail.day(23999));

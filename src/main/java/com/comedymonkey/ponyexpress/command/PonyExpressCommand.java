@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 import com.comedymonkey.ponyexpress.content.postman.PostmanEntity;
+import com.comedymonkey.ponyexpress.post.PostDispatcher;
 import com.comedymonkey.ponyexpress.registry.ModEntities;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -33,6 +34,15 @@ public final class PonyExpressCommand {
 		root.then(Commands.literal("whistle").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::whistleForHorse)));
 		root.then(Commands.literal("dismount").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::dismissHorse)));
 		root.then(Commands.literal("vanish").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::vanish)));
+		root.then(Commands.literal("dispatch").executes(ctx -> {
+			int sent = PostDispatcher.dispatch(ctx.getSource().getServer());
+			ctx.getSource().sendSuccess(() -> Component.translatable("command.ponyexpress.dispatched", sent), true);
+			return sent;
+		}));
+		root.then(Commands.literal("giveup").executes(ctx -> withNearest(ctx.getSource(), rider -> {
+			if (rider.getRun() != null && rider.level() instanceof ServerLevel level)
+				rider.getRun().giveUp(rider, level);
+		})));
 
 		LiteralArgumentBuilder<CommandSourceStack> gesture = Commands.literal("gesture");
 		for (PostmanEntity.Gesture each : PostmanEntity.Gesture.values())
