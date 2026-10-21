@@ -101,18 +101,22 @@ public class DeliveryRun {
 
 	// ---------------------------------------------------------------- where things are
 
-	/** How far from the middle of the mailbox's post he stands: right up at the door, close enough to reach in. */
-	public static final double STAND_OFF = 0.85;
+	/**
+	 * How far from the middle of the mailbox's post he stands, so his hands meet the door: the pickup animation
+	 * reaches further than the deliver one.
+	 */
+	public static final double PICKUP_STAND_OFF = 1.35;
+	public static final double DELIVER_STAND_OFF = 1.1;
 
-	/** Where to stand at a mailbox: square in front of its door, on the mailbox's own level. */
-	public static Vec3 standingSpot(BlockPos mailbox, Direction facing) {
-		return Vec3.atBottomCenterOf(mailbox).add(facing.getStepX() * STAND_OFF, 0, facing.getStepZ() * STAND_OFF);
+	/** Where to stand at a mailbox: square in front of its door, this far from the post, on the mailbox's own level. */
+	public static Vec3 standingSpot(BlockPos mailbox, Direction facing, double standOff) {
+		return Vec3.atBottomCenterOf(mailbox).add(facing.getStepX() * standOff, 0, facing.getStepZ() * standOff);
 	}
 
-	public static Vec3 standingSpot(ServerLevel level, BlockPos mailbox) {
+	public static Vec3 standingSpot(ServerLevel level, BlockPos mailbox, double standOff) {
 		BlockState state = level.getBlockState(mailbox);
 		Direction facing = state.getBlock() instanceof MailboxBlock ? state.getValue(MailboxBlock.FACING) : Direction.NORTH;
-		return standingSpot(mailbox, facing);
+		return standingSpot(mailbox, facing, standOff);
 	}
 
 	/** The way to face to look straight at a point, as a Minecraft yaw. */
@@ -135,7 +139,7 @@ public class DeliveryRun {
 		if (destination == null)
 			return null;
 		level.getChunkAt(destination.pos());
-		return standingSpot(level, destination.pos());
+		return standingSpot(level, destination.pos(), DELIVER_STAND_OFF);
 	}
 
 	// ---------------------------------------------------------------- each tick

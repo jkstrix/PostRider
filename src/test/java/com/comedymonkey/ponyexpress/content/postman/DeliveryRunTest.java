@@ -65,24 +65,27 @@ class DeliveryRunTest {
 	}
 
 	@Test
-	void heStandsRightUpAtTheDoorCloseEnoughToReachIn() {
+	void heStandsSquareInFrontOfTheDoor() {
 		BlockPos mailbox = new BlockPos(10, 64, 10);
+		Vec3 post = Vec3.atBottomCenterOf(mailbox);
 		for (Direction facing : Direction.Plane.HORIZONTAL) {
-			Vec3 spot = DeliveryRun.standingSpot(mailbox, facing);
-			Vec3 post = Vec3.atBottomCenterOf(mailbox);
-			assertEquals(DeliveryRun.STAND_OFF, spot.distanceTo(post), 1e-9, facing.getName());
-			// On the door's side, in front of it rather than beside it
-			assertEquals(facing.getStepX() * DeliveryRun.STAND_OFF, spot.x - post.x, 1e-9);
-			assertEquals(facing.getStepZ() * DeliveryRun.STAND_OFF, spot.z - post.z, 1e-9);
+			for (double standOff : new double[] {DeliveryRun.PICKUP_STAND_OFF, DeliveryRun.DELIVER_STAND_OFF}) {
+				Vec3 spot = DeliveryRun.standingSpot(mailbox, facing, standOff);
+				assertEquals(standOff, spot.distanceTo(post), 1e-9, facing.getName());
+				// On the door's side, in front of it rather than beside it
+				assertEquals(facing.getStepX() * standOff, spot.x - post.x, 1e-9);
+				assertEquals(facing.getStepZ() * standOff, spot.z - post.z, 1e-9);
+			}
 		}
 	}
 
 	@Test
-	void heDoesNotBumpIntoTheBoxStandingThere() {
+	void heStandsWhereEachAnimationReachesTheDoor() {
+		// Tuned by eye in game: the pickup reaches half a block further than the delivery's quarter
+		assertEquals(1.35, DeliveryRun.PICKUP_STAND_OFF, 1e-9);
+		assertEquals(1.1, DeliveryRun.DELIVER_STAND_OFF, 1e-9);
 		// Half a player's width in front of him, and the box's door is at the edge of the mailbox's block
-		double front = DeliveryRun.STAND_OFF - 0.3;
-		assertTrue(front > 0.5, "would stand inside the box");
-		assertTrue(front < 0.75, "too far to reach in");
+		assertTrue(DeliveryRun.DELIVER_STAND_OFF - 0.3 > 0.5, "would stand inside the box");
 	}
 
 	@Test

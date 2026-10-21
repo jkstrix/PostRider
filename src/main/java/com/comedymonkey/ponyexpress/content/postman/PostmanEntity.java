@@ -171,7 +171,7 @@ public class PostmanEntity extends PathfinderMob {
 		EntityType<PostmanEntity> type = ModEntities.POSTMAN.get();
 		BlockPos mailbox = delivery.from().pos();
 		level.getChunkAt(mailbox);
-		Vec3 stand = DeliveryRun.standingSpot(level, mailbox);
+		Vec3 stand = DeliveryRun.standingSpot(level, mailbox, DeliveryRun.PICKUP_STAND_OFF);
 		for (int up = 0; up <= 3 && !level.noCollision(type.getSpawnAABB(stand.x, stand.y, stand.z)); up++)
 			stand = stand.add(0, 1, 0);
 		if (!level.noCollision(type.getSpawnAABB(stand.x, stand.y, stand.z)))
