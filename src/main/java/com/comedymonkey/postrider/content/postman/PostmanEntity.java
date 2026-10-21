@@ -20,6 +20,7 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.entity.Entity;
@@ -52,7 +53,27 @@ public class PostmanEntity extends PathfinderMob {
 		DELIVER(101, 2.4F),
 		WHISTLE(102, 1.6F),
 		WAVE(103, 1.6F),
-		DRINK(104, 1.6F);
+		DRINK(104, 1.6F),
+		// Mannerisms on the road
+		WIPE_BROW(105, 2.0F),
+		TIP_HAT(106, 1.4F),
+		PAT_HORSE(107, 2.0F),
+		CHECK_SATCHEL(108, 1.8F),
+		STRETCH(109, 2.4F),
+		YAWN(110, 2.0F),
+		LOOK_BACK(111, 2.2F),
+		SCRATCH_HEAD(112, 2.0F),
+		SWAT_FLY(113, 1.2F),
+		ADJUST_HAT(114, 1.4F),
+		PULL_HAT_DOWN(115, 1.4F),
+		SHADE_EYES(116, 2.6F),
+		SHIVER(117, 2.0F),
+		SWIG(118, 2.2F),
+		POCKET_WATCH(119, 2.4F),
+		READ_LETTER(120, 2.8F),
+		HUM(121, 3.0F),
+		NECK_ROLL(122, 2.2F),
+		CRACK_KNUCKLES(123, 1.6F);
 
 		public final byte eventId;
 		public final float seconds;
@@ -137,6 +158,16 @@ public class PostmanEntity extends PathfinderMob {
 	/** Plays a one-off movement for everyone watching. */
 	public void playGesture(Gesture gesture) {
 		level().broadcastEntityEvent(this, gesture.eventId);
+		gestureEndsAt = tickCount + Mth.ceil(gesture.seconds * 20);
+	}
+
+	/** Server side: whether he's in the middle of a gesture or a drink, so nothing else should start. */
+	public boolean isBusy() {
+		return tickCount < gestureEndsAt || drinkTicks > 0;
+	}
+
+	public Mannerisms mannerisms() {
+		return mannerisms;
 	}
 
 	// ---------------------------------------------------------------- arriving, leaving and the horse (server)
@@ -281,6 +312,8 @@ public class PostmanEntity extends PathfinderMob {
 	/** The day his satchel was last restocked, or -1 before his first. */
 	private long potionDay = -1;
 	private int drinkTicks;
+	private int gestureEndsAt;
+	private final Mannerisms mannerisms = new Mannerisms();
 
 	public int getPotions() {
 		return potions;

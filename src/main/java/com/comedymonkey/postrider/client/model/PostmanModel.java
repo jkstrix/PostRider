@@ -29,6 +29,9 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 	private final ModelPart hammer;
 	private final ModelPart rightArm;
 	private final ModelPart potion;
+	private final ModelPart canteen;
+	private final ModelPart pocketWatch;
+	private final ModelPart letter;
 	private final ModelPart satchelFlat;
 	private final ModelPart satchelFull;
 
@@ -42,6 +45,10 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		this.rightArm = body.getChild("right_arm");
 		this.hammer = rightArm.getChild("hammer");
 		this.potion = rightArm.getChild("potion");
+		this.canteen = rightArm.getChild("canteen");
+		ModelPart leftArm = body.getChild("left_arm");
+		this.pocketWatch = leftArm.getChild("pocket_watch");
+		this.letter = leftArm.getChild("letter");
 		ModelPart satchel = body.getChild("satchel");
 		this.satchelFlat = satchel.getChild("satchel_flat");
 		this.satchelFull = satchel.getChild("satchel_full");
@@ -75,7 +82,11 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		rightArm.addOrReplaceChild("potion", CubeListBuilder.create().texOffs(32, 8).addBox(-1.5F, -1.5F, -5.0F, 3.0F, 3.0F, 3.0F, new CubeDeformation(0.0F))
 			.texOffs(44, 8).addBox(-0.5F, -0.5F, -7.0F, 1.0F, 1.0F, 2.0F, new CubeDeformation(0.0F))
 			.texOffs(50, 8).addBox(-0.5F, -0.5F, -8.0F, 1.0F, 1.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(1.0F, 9.5F, 0.0F));
-		body.addOrReplaceChild("left_arm", CubeListBuilder.create().texOffs(32, 48).addBox(-3.0F, -2.0F, -2.0F, 4.0F, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(-5.0F, -10.0F, 0.0F));
+		rightArm.addOrReplaceChild("canteen", CubeListBuilder.create().texOffs(56, 0).addBox(-0.5F, -1.5F, -5.0F, 1.0F, 3.0F, 3.0F, new CubeDeformation(0.0F))
+			.texOffs(48, 5).addBox(-0.5F, -0.5F, -6.0F, 1.0F, 1.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(1.0F, 9.5F, 0.0F));
+		PartDefinition leftArm = body.addOrReplaceChild("left_arm", CubeListBuilder.create().texOffs(32, 48).addBox(-3.0F, -2.0F, -2.0F, 4.0F, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(-5.0F, -10.0F, 0.0F));
+		leftArm.addOrReplaceChild("pocket_watch", CubeListBuilder.create().texOffs(58, 11).addBox(-1.0F, -1.0F, -3.0F, 2.0F, 2.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(-1.0F, 9.5F, 0.0F));
+		leftArm.addOrReplaceChild("letter", CubeListBuilder.create().texOffs(44, 11).addBox(-1.5F, 1.0F, -6.0F, 4.0F, 0.0F, 3.0F, new CubeDeformation(0.0F)), PartPose.offset(-1.0F, 9.5F, 0.0F));
 
 		PartDefinition satchel = body.addOrReplaceChild("satchel", CubeListBuilder.create(), PartPose.offset(-2.5F, -3.0F, 2.0F));
 		satchel.addOrReplaceChild("satchel_flat", CubeListBuilder.create().texOffs(100, 28).addBox(-2.0F, 0.0F, 0.0F, 4.0F, 5.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(0.0F, 0.0F, 0.0F));
@@ -115,19 +126,24 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 			if (!overridesUpperBody(gesture))
 				animate(entity.gestureAnimations.get(gesture), gestureAnimation(gesture), ageInTicks);
 		animate(entity.hurtAnimation, PostmanAnimations.HURT, ageInTicks);
-		// A drink can come mid-gallop: his arm and head drop whatever they were doing, and the rest of him carries on
+		// A drink or a mannerism can come mid-gallop: the parts it moves drop whatever they were doing, and the rest of
+		// him carries on
 		for (PostmanEntity.Gesture gesture : PostmanEntity.Gesture.values()) {
 			AnimationState state = entity.gestureAnimations.get(gesture);
 			if (overridesUpperBody(gesture) && state.isStarted()) {
-				rightArm.resetPose();
-				head.resetPose();
-				animate(state, gestureAnimation(gesture), ageInTicks);
+				AnimationDefinition animation = gestureAnimation(gesture);
+				for (String bone : animation.boneAnimations().keySet())
+					getAnyDescendantWithName(bone).ifPresent(ModelPart::resetPose);
+				animate(state, animation, ageInTicks);
 			}
 		}
 
 		harmonica.visible = entity.getActivity() == PostmanEntity.Activity.HARMONICA;
 		hammer.visible = entity.getActivity() == PostmanEntity.Activity.CAMP_HAMMER;
 		potion.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.DRINK).isStarted();
+		canteen.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.SWIG).isStarted();
+		pocketWatch.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.POCKET_WATCH).isStarted();
+		letter.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.READ_LETTER).isStarted();
 		satchelFlat.visible = !entity.isCarrying();
 		satchelFull.visible = entity.isCarrying();
 	}
@@ -137,9 +153,15 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		return activity == PostmanEntity.Activity.NONE && !gesturing;
 	}
 
-	/** Gestures that take over his right arm and head rather than adding to what they're doing. */
+	/**
+	 * Gestures that take over the parts they move rather than adding to what those parts are doing, so they look
+	 * right on horseback or on the move. Only the work at the mailbox and the whistle use his whole body.
+	 */
 	public static boolean overridesUpperBody(PostmanEntity.Gesture gesture) {
-		return gesture == PostmanEntity.Gesture.DRINK;
+		return switch (gesture) {
+			case PICKUP, DELIVER, WHISTLE -> false;
+			default -> true;
+		};
 	}
 
 	public static AnimationDefinition gestureAnimation(PostmanEntity.Gesture gesture) {
@@ -149,6 +171,25 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 			case WHISTLE -> PostmanAnimations.WHISTLE;
 			case WAVE -> PostmanAnimations.WAVE;
 			case DRINK -> PostmanAnimations.DRINK;
+			case WIPE_BROW -> PostmanAnimations.WIPE_BROW;
+			case TIP_HAT -> PostmanAnimations.TIP_HAT;
+			case PAT_HORSE -> PostmanAnimations.PAT_HORSE;
+			case CHECK_SATCHEL -> PostmanAnimations.CHECK_SATCHEL;
+			case STRETCH -> PostmanAnimations.STRETCH;
+			case YAWN -> PostmanAnimations.YAWN;
+			case LOOK_BACK -> PostmanAnimations.LOOK_BACK;
+			case SCRATCH_HEAD -> PostmanAnimations.SCRATCH_HEAD;
+			case SWAT_FLY -> PostmanAnimations.SWAT_FLY;
+			case ADJUST_HAT -> PostmanAnimations.ADJUST_HAT;
+			case PULL_HAT_DOWN -> PostmanAnimations.PULL_HAT_DOWN;
+			case SHADE_EYES -> PostmanAnimations.SHADE_EYES;
+			case SHIVER -> PostmanAnimations.SHIVER;
+			case SWIG -> PostmanAnimations.SWIG;
+			case POCKET_WATCH -> PostmanAnimations.POCKET_WATCH;
+			case READ_LETTER -> PostmanAnimations.READ_LETTER;
+			case HUM -> PostmanAnimations.HUM;
+			case NECK_ROLL -> PostmanAnimations.NECK_ROLL;
+			case CRACK_KNUCKLES -> PostmanAnimations.CRACK_KNUCKLES;
 		};
 	}
 }

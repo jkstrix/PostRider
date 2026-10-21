@@ -32,7 +32,26 @@ class PostmanAnimationsTest {
 		Map.entry("camp_rest", PostmanAnimations.CAMP_REST), Map.entry("row", PostmanAnimations.ROW),
 		Map.entry("hurt", PostmanAnimations.HURT), Map.entry("wave", PostmanAnimations.WAVE),
 		Map.entry("harmonica", PostmanAnimations.HARMONICA), Map.entry("sleep", PostmanAnimations.SLEEP),
-		Map.entry("drink", PostmanAnimations.DRINK));
+		Map.entry("drink", PostmanAnimations.DRINK),
+		Map.entry("wipe_brow", PostmanAnimations.WIPE_BROW),
+		Map.entry("tip_hat", PostmanAnimations.TIP_HAT),
+		Map.entry("pat_horse", PostmanAnimations.PAT_HORSE),
+		Map.entry("check_satchel", PostmanAnimations.CHECK_SATCHEL),
+		Map.entry("stretch", PostmanAnimations.STRETCH),
+		Map.entry("yawn", PostmanAnimations.YAWN),
+		Map.entry("look_back", PostmanAnimations.LOOK_BACK),
+		Map.entry("scratch_head", PostmanAnimations.SCRATCH_HEAD),
+		Map.entry("swat_fly", PostmanAnimations.SWAT_FLY),
+		Map.entry("adjust_hat", PostmanAnimations.ADJUST_HAT),
+		Map.entry("pull_hat_down", PostmanAnimations.PULL_HAT_DOWN),
+		Map.entry("shade_eyes", PostmanAnimations.SHADE_EYES),
+		Map.entry("shiver", PostmanAnimations.SHIVER),
+		Map.entry("swig", PostmanAnimations.SWIG),
+		Map.entry("pocket_watch", PostmanAnimations.POCKET_WATCH),
+		Map.entry("read_letter", PostmanAnimations.READ_LETTER),
+		Map.entry("hum", PostmanAnimations.HUM),
+		Map.entry("neck_roll", PostmanAnimations.NECK_ROLL),
+		Map.entry("crack_knuckles", PostmanAnimations.CRACK_KNUCKLES));
 
 	private static Set<String> partNames() {
 		ModelPart root = PostmanModel.createBodyLayer().bakeRoot();
@@ -43,7 +62,7 @@ class PostmanAnimationsTest {
 
 	private static void collect(ModelPart part, Set<String> names) {
 		for (String child : new String[] {"root", "body", "head", "right_arm", "left_arm", "satchel", "satchel_flat", "satchel_full",
-			"right_leg", "left_leg", "hat", "hat_brim_right_r1", "hat_brim_left_r1", "harmonica", "hammer", "potion"})
+			"right_leg", "left_leg", "hat", "hat_brim_right_r1", "hat_brim_left_r1", "harmonica", "hammer", "potion", "canteen", "pocket_watch", "letter"})
 			if (part.hasChild(child)) {
 				names.add(child);
 				collect(part.getChild(child), names);
@@ -51,8 +70,8 @@ class PostmanAnimationsTest {
 	}
 
 	@Test
-	void allFifteenApprovedAnimationsAreThere() {
-		assertEquals(15, ALL.size());
+	void allThirtyFourApprovedAnimationsAreThere() {
+		assertEquals(34, ALL.size());
 	}
 
 	@Test
@@ -74,7 +93,7 @@ class PostmanAnimationsTest {
 	void continuousAnimationsLoopAndGesturesPlayOnce() {
 		for (String looping : new String[] {"walk", "idle", "ride", "ride_idle", "camp_hammer", "camp_rest", "row", "harmonica", "sleep"})
 			assertTrue(ALL.get(looping).looping(), looping);
-		for (String once : new String[] {"pickup", "deliver", "whistle", "hurt", "wave", "drink"})
+		for (String once : new String[] {"pickup", "deliver", "whistle", "hurt", "wave", "drink", "wipe_brow", "tip_hat", "pat_horse", "check_satchel", "stretch", "yawn", "look_back", "scratch_head", "swat_fly", "adjust_hat", "pull_hat_down", "shade_eyes", "shiver", "swig", "pocket_watch", "read_letter", "hum", "neck_roll", "crack_knuckles"})
 			assertFalse(ALL.get(once).looping(), once);
 	}
 
@@ -148,6 +167,35 @@ class PostmanAnimationsTest {
 			for (int y = 8; y < 14; y++)
 				if (x < 44 || (x < 50 && y < 11) || y < 10)
 					assertEquals(255, image.getRGB(x, y) >>> 24, "bottle pixel " + x + "," + y);
+	}
+
+	@Test
+	void mannerismsOnlyMoveHisHeadArmsAndHatSoTheyWorkInTheSaddle() {
+		Set<String> upperBody = Set.of("head", "right_arm", "left_arm", "hat");
+		for (PostmanEntity.Gesture gesture : PostmanEntity.Gesture.values()) {
+			if (gesture.ordinal() < PostmanEntity.Gesture.WIPE_BROW.ordinal())
+				continue;
+			assertTrue(PostmanModel.overridesUpperBody(gesture), gesture.name());
+			for (String bone : PostmanModel.gestureAnimation(gesture).boneAnimations().keySet())
+				assertTrue(upperBody.contains(bone), gesture.name() + " moves " + bone);
+			assertFalse(PostmanModel.gestureAnimation(gesture).looping(), gesture.name());
+		}
+		assertFalse(PostmanModel.overridesUpperBody(PostmanEntity.Gesture.PICKUP), "the pickup uses his whole body");
+	}
+
+	@Test
+	void hisPropsArePaintedOnTheSkin() throws IOException {
+		Path skin = ModResourceFiles.find("assets", "postrider", "textures", "entity", "postman.png");
+		BufferedImage image;
+		try (InputStream in = Files.newInputStream(skin)) {
+			image = ImageIO.read(in);
+		}
+		// Canteen and its cap, the pocket watch, and the letter's two faces
+		int[][] areas = {{56, 0, 8, 6}, {48, 5, 4, 2}, {58, 11, 6, 3}, {47, 11, 4, 3}, {51, 11, 4, 3}};
+		for (int[] area : areas)
+			for (int x = area[0]; x < area[0] + area[2]; x++)
+				for (int y = area[1]; y < area[1] + area[3]; y++)
+					assertEquals(255, image.getRGB(x, y) >>> 24, "prop pixel " + x + "," + y);
 	}
 
 	@Test

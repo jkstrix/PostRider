@@ -32,12 +32,17 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 - He appears and vanishes in a puff of smoke, and his horse arrives (when he whistles) and leaves the same way.
 - Every rider and every horse gets a random Old West name.
 - Delivery: he dismounts, puts the parcel in the inbox and vanishes in smoke with his horse.
-- Same dimension only, no distance cap. He loads a 3×3 area of chunks around himself. At most 32 postmen out at once; extra mail waits its turn.
+- Same dimension only, no distance cap. He loads a 3×3 area of chunks around himself. At most 20 riders out at once; extra mail waits its turn.
 - Prefers land and takes a land detour of up to 2× the straight-line distance. Otherwise he crosses water on a ferry barge (flat barge with railings and a lantern post) that carries him and the horse. It's about 3 blocks wide by 5 long: he sits on a bench at the bow rowing with a pair of oars (the row animation), facing forward like a boat, and the horse stands on the deck behind him. The barge appears in a puff of smoke at the water's edge and vanishes in smoke on the far shore. Its lantern's flame is drawn full-bright so it glows at night (it doesn't light the surroundings).
 - Takes any damage a player would: mobs, lightning, fall, fire, drowning, and players. Every hostile mob that hunts players targets him, and creepers explode on him.
 - He carries two potions of Instant Health II a day (restocked at 6am). Whenever he drops below half health he drinks one on the spot (1.6 s, even mid-gallop), healing 4 hearts. They're for him only, not the horse, and any left when he dies break with him.
 - If the horse dies, he carries on on foot (still using the barge on water).
 - At dusk he looks up to 8 blocks around for a flat pitch big enough for the tent (pegs included) and a seat in front, with at least two clear blocks before any drop, and walks to it. With nowhere suitable he plays and sleeps in the open.
+- Mannerisms on the road give him life. They only move his head, arms and hat, so they play on horseback or on foot:
+  - Greetings: a player who comes within 12 blocks in sight gets a wave or a tip of the hat, once per encounter (it resets after 32+ blocks apart). Villagers within 8 blocks get a hat tip now and then (30%).
+  - Every 20-45 seconds he does something that suits where he is: wipe his brow and swig from his canteen in hot biomes by day, shiver in the cold, pull his hat down when rain starts, yawn and stretch in the evening, scratch his head on a detour (and after being teleported free when stuck), shade his eyes or check his pocket watch on a long ride, swat flies in swamps and jungles, pat his horse and look back over his shoulder while riding, and anywhere check his satchel, adjust his hat, hum along, roll his neck or crack his knuckles. Never the same one twice running.
+  - Once within 100 blocks of the destination he reads the letter's address.
+  - Only while travelling: never while fleeing, camping, at a mailbox, or drinking.
 - Nothing can shove him while he's planted on a job (camping, in the tent, or at a mailbox picking up, whistling or delivering); on the move he's jostled like anyone else.
 - He keeps his eyes on his work: he never turns to watch players, and his head only follows where he's looking while he isn't busy with an animation.
 - If anything attacks him while he's camping, he abandons camp (the tent packs away) and flees on foot from it and any hostile mob nearby until daylight, then whistles up his horse and rides on.

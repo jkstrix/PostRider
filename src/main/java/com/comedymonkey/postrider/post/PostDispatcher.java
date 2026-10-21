@@ -9,7 +9,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /** Sends a rider out for each waiting parcel during the day, up to {@link #MAX_RIDERS} on the road at once. */
 public final class PostDispatcher {
-	public static final int MAX_RIDERS = 32;
+	public static final int MAX_RIDERS = 20;
 	/** How often the post office looks for mail to send out. */
 	public static final int INTERVAL = 40;
 

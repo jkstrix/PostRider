@@ -80,6 +80,7 @@ public class DeliveryRun {
 	private ChunkPos loadedChunk;
 	private final Journey.Progress progress = new Journey.Progress();
 	private int aimCooldown;
+	private boolean detouring;
 
 	public DeliveryRun(PendingDelivery delivery, @Nullable GlobalPos destination) {
 		this.delivery = delivery;
@@ -261,8 +262,16 @@ public class DeliveryRun {
 		if (--aimCooldown <= 0 || rider.getNavigation().isDone()) {
 			aimCooldown = AIM_INTERVAL;
 			Vec3 aim = chooseAim(level, rider.position(), target);
+			detouring = isDetour(rider.position(), aim, target);
 			rider.getNavigation().moveTo(aim.x, aim.y, aim.z, onFoot ? RUN_SPEED : 1.0);
 		}
+		rider.mannerisms().tick(rider, level, distance, detouring);
+	}
+
+	/** Whether an aim takes him off the straight line to the destination, round water or a hazard. */
+	public static boolean isDetour(Vec3 from, Vec3 aim, Vec3 target) {
+		Vec3 straight = Journey.nextAim(from, target);
+		return Journey.horizontalDistance(aim, straight) > DETOUR_SLACK;
 	}
 
 	/** The first stretch ahead that ends on safe, dry ground, or straight ahead if every way is water or worse. */
@@ -337,6 +346,8 @@ public class DeliveryRun {
 	public static final double SLEEPER_LENGTH = 2.0;
 	/** How far past the door his boots stick out. */
 	public static final double BOOTS_OUT = 0.3;
+	/** How far an aim can stray from straight ahead before he counts it as a detour (and scratches his head). */
+	public static final double DETOUR_SLACK = 3.0;
 	/** How long he walks towards his pitch before stepping onto it. */
 	public static final int WALK_TO_CAMP_TICKS = 200;
 	/** How far players hear the harmonica, for stopping it when he turns in. */
@@ -612,6 +623,7 @@ public class DeliveryRun {
 		rider.getNavigation().stop();
 		aimCooldown = 0;
 		progress.unstuck(Journey.horizontalDistance(free, target), level.getGameTime());
+		rider.mannerisms().prompt(PostmanEntity.Gesture.SCRATCH_HEAD);
 		return true;
 	}
 

@@ -116,10 +116,11 @@ class DeliveryRunTest {
 	}
 
 	@Test
-	void atMostThirtyTwoRidersAreOutAtOnce() {
+	void atMostTwentyRidersAreOutAtOnce() {
+		assertEquals(20, PostDispatcher.MAX_RIDERS);
 		assertTrue(PostDispatcher.canSendMore(0, 1));
-		assertTrue(PostDispatcher.canSendMore(31, 5));
-		assertFalse(PostDispatcher.canSendMore(32, 5));
+		assertTrue(PostDispatcher.canSendMore(19, 5));
+		assertFalse(PostDispatcher.canSendMore(20, 5));
 		assertFalse(PostDispatcher.canSendMore(3, 0));
 	}
 
