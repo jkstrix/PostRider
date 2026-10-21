@@ -11,7 +11,9 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.comedymonkey.postrider.client.gui.PostOfficeStyle;
 import com.comedymonkey.postrider.content.letter.LetterContent;
+import com.comedymonkey.postrider.content.letter.LetterText;
 import com.comedymonkey.postrider.content.parcel.ParcelLabel;
 import com.comedymonkey.postrider.registry.ModDataComponents;
 import com.comedymonkey.postrider.registry.ModItems;
@@ -132,5 +134,24 @@ class MailTest {
 		assertEquals(1, Mail.day(0));
 		assertEquals(1, Mail.day(23999));
 		assertEquals(2, Mail.day(24000));
+	}
+
+	@Test
+	void theFailureLetterAlwaysFitsItsPagesWithTheLocationUpFront() {
+		// The longest names and account there can be, and a generous six pixels a character
+		PendingDelivery longest = new PendingDelivery(UUID.randomUUID(), UUID.randomUUID(), "Sixteen_Letters_",
+			"Twenty Four Letter Place", GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO),
+			"Another Twenty-Four Spot", List.of(new ItemStack(Items.BREAD)), 0);
+		String reason = "\"One-Eyed\" Nell Harper found the mailbox at Another Twenty-Four Spot too full to take it.";
+		for (boolean left : new boolean[] {true, false}) {
+			LetterContent content = Mail.failureLetter(longest, reason, new BlockPos(-29999984, -64, -29999984), left, 9999)
+				.get(ModDataComponents.LETTER.get());
+			for (String page : content.pages()) {
+				LetterText layout = new LetterText(s -> s.length() * 6, PostOfficeStyle.PAGE_TEXT_WIDTH, 100, 10000);
+				layout.setText(page);
+				assertTrue(layout.lines().size() <= PostOfficeStyle.PAGE_LINES, "a page runs over: " + page);
+			}
+			assertTrue(content.pages().get(0).contains("-29999984"), "where to find it is on the first page");
+		}
 	}
 }

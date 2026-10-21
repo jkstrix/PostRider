@@ -73,4 +73,9 @@ class MailboxMenuTest {
 			found |= inventory.getItem(i).is(Items.PAPER);
 		assertTrue(found);
 	}
+
+	@Test
+	void theMenuKnowsTheAddressItOpenedWith() {
+		assertEquals(mailbox.getName(), menu.getOpenedName());
+	}
 }

@@ -84,6 +84,23 @@ public class PostmanHorse extends Horse {
 		return Math.max(FOLLOW_RANGE, stretch + 16);
 	}
 
+	/** A horse with no rider for this long (he died, or was taken away) vanishes rather than wander for ever. */
+	public static final int RIDERLESS_TICKS = 5 * 20;
+	private int riderless;
+
+	@Override
+	public void tick() {
+		super.tick();
+		if (level() instanceof ServerLevel server) {
+			boolean working = getFirstPassenger() instanceof PostmanEntity || getVehicle() instanceof BargeEntity;
+			riderless = working ? 0 : riderless + 1;
+			if (riderless >= RIDERLESS_TICKS) {
+				PostmanEffects.puff(server, this);
+				discard();
+			}
+		}
+	}
+
 	@Override
 	public boolean canUsePortal(boolean allowPassengers) {
 		return false;

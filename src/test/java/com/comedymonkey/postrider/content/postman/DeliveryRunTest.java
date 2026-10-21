@@ -154,4 +154,18 @@ class DeliveryRunTest {
 		assertFalse(RiderHunting.huntsOnlyInTheDark(Zombie.class), "zombies hunt day or night");
 		assertEquals(0.5F, RiderHunting.SPIDER_LIGHT, "the same light rule as vanilla spiders");
 	}
+
+	@Test
+	void aRidersLoadedSquareCanBeAnySize() {
+		ChunkPos centre = new ChunkPos(0, 0);
+		assertEquals(9, RiderChunks.around(centre, 1).size());
+		assertEquals(81, RiderChunks.around(centre, 4).size());
+		assertTrue(RiderChunks.around(centre, 4).containsAll(RiderChunks.around(centre, 3)), "the bigger square covers the smaller");
+	}
+
+	@Test
+	void aHorseLeftWithoutItsRiderDoesntLinger() {
+		assertTrue(PostmanHorse.RIDERLESS_TICKS > PostmanEntity.MOUNTS_AFTER, "time for him to climb on");
+		assertTrue(PostmanHorse.RIDERLESS_TICKS <= 10 * 20);
+	}
 }

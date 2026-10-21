@@ -28,14 +28,24 @@ public record LetterDraft(List<String> pages) {
 	 * Cleans pages that came from a player: at most {@link #MAX_PAGES} pages of {@link #MAX_PAGE_LENGTH} characters,
 	 * no formatting codes or control characters except line breaks, and no empty pages at the end.
 	 */
+	/** Whether a character can go in a letter: anything printable except formatting codes, and line breaks. */
+	public static boolean isAllowed(char c) {
+		return c == '\n' || (c >= ' ' && c != '§' && c != '\u007f');
+	}
+
+	/** Line endings from anywhere (Windows, old Macs) as plain line breaks. */
+	public static String normaliseLineEndings(String text) {
+		return text.replace("\r\n", "\n").replace('\r', '\n');
+	}
+
 	public static List<String> sanitize(List<String> raw) {
 		List<String> pages = new ArrayList<>();
 		for (int i = 0; i < raw.size() && i < MAX_PAGES; i++) {
 			StringBuilder page = new StringBuilder();
-			for (char c : raw.get(i).toCharArray()) {
+			for (char c : normaliseLineEndings(raw.get(i)).toCharArray()) {
 				if (page.length() >= MAX_PAGE_LENGTH)
 					break;
-				if (c == '\n' || (c >= ' ' && c != '§' && c != '\u007f'))
+				if (isAllowed(c))
 					page.append(c);
 			}
 			pages.add(page.toString());

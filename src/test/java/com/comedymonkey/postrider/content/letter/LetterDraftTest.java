@@ -65,4 +65,12 @@ class LetterDraftTest {
 		assertEquals("Steve", marked.author());
 		assertEquals("Ranch", marked.postmark().orElseThrow().from());
 	}
+
+	@Test
+	void sanitisingKeepsLineBreaksWhateverTheLineEndings() {
+		assertEquals(List.of("one\ntwo\nthree"), LetterDraft.sanitize(List.of("one\r\ntwo\rthree")));
+		assertTrue(LetterDraft.isAllowed('a') && LetterDraft.isAllowed('\n'));
+		assertFalse(LetterDraft.isAllowed('\u00a7'), "no formatting codes");
+		assertFalse(LetterDraft.isAllowed('\t'));
+	}
 }

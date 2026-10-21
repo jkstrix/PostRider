@@ -135,4 +135,11 @@ class LetterTextTest {
 		assertEquals("a\nb\nc", text.getText());
 		assertEquals(text.getText().length(), text.getCursor());
 	}
+
+	@Test
+	void pastedLineEndingsFromAnywhereBecomeLineBreaks() {
+		LetterText text = new LetterText(s -> s.length(), 100, 10, 500);
+		text.insert("one\r\ntwo\rthree");
+		assertEquals("one\ntwo\nthree", text.getText());
+	}
 }

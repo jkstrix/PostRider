@@ -28,6 +28,7 @@
   "message.postrider.delivered.sender": "Your mail for %s has been delivered by %s.",
   "message.postrider.delivered.recipient": "Mail has arrived at %s, from %s.",
   "message.postrider.failed.sender": "Your mail for %s went astray near X %s, Y %s, Z %s. A letter is waiting in your mailbox.",
+  "message.postrider.failed.sender_no_letter": "Your mail for %s went astray near X %s, Y %s, Z %s. There was no room in your mailbox for the letter about it.",
 
   "block.postrider.lost_parcel": "Lost Parcel",
   "block.postrider.lost_parcel_wreck": "Lost Parcel (Wreck)",

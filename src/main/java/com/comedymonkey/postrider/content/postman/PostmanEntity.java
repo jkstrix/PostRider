@@ -445,10 +445,14 @@ public class PostmanEntity extends PathfinderMob {
 	public void die(DamageSource source) {
 		if (run != null && !run.isOver() && level() instanceof ServerLevel server)
 			run.killed(this, server, source);
-		// His horse goes with him; a horse that has lost its rider has no one to carry
+		// His horse goes with him, even one still on its way; a horse that has lost its rider has no one to carry
 		if (getVehicle() instanceof PostmanHorse horse) {
 			stopRiding();
 			vanish(horse);
+		}
+		if (arrivingHorse != null) {
+			vanish(arrivingHorse);
+			arrivingHorse = null;
 		}
 		super.die(source);
 	}

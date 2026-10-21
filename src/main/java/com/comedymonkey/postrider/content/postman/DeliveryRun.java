@@ -176,6 +176,11 @@ public class DeliveryRun {
 		keepChunksLoaded(rider, level);
 		logChanges(rider);
 		stageTicks++;
+		// No address to go to (it went while a vanished rider was being brought back, say): undeliverable, right here
+		if (destination == null && stage != Stage.PICKING_UP) {
+			fail(rider, level, LostCause.UNDELIVERABLE, noMailbox(rider), null, rider.blockPosition());
+			return;
+		}
 		switch (stage) {
 			case PICKING_UP -> pickUp(rider, level);
 			case CALLING_HORSE -> callHorse(rider, level);
@@ -223,6 +228,10 @@ public class DeliveryRun {
 		}
 	}
 
+	private String noMailbox(PostmanEntity rider) {
+		return rider.getName().getString() + " found that " + delivery.toName() + " no longer has a mailbox.";
+	}
+
 	private void pickUp(PostmanEntity rider, ServerLevel level) {
 		faceMailbox(rider, delivery.from().pos());
 		if (stageTicks == 1)
@@ -231,8 +240,7 @@ public class DeliveryRun {
 			rider.setCarrying(true);
 		if (stageTicks >= PICKUP_TICKS) {
 			if (destination == null) {
-				fail(rider, level, LostCause.UNDELIVERABLE, rider.getName().getString() + " found that " + delivery.toName()
-					+ " no longer has a mailbox.", null, delivery.from().pos());
+				fail(rider, level, LostCause.UNDELIVERABLE, noMailbox(rider), null, delivery.from().pos());
 				return;
 			}
 			enter(Stage.CALLING_HORSE);

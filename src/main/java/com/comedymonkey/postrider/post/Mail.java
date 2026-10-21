@@ -59,15 +59,17 @@ public final class Mail {
 	public static ItemStack failureLetter(PendingDelivery delivery, String reason, BlockPos at, boolean parcelLeft, long day) {
 		String what = isLetterOnly(delivery.items()) ? "letter" : "parcel";
 		String where = "X " + at.getX() + ", Y " + at.getY() + ", Z " + at.getZ();
+		// Where to find it goes on the first page, so long names or a long account can never push it off the page
 		String first = "Dear " + delivery.senderName() + ",\n\nWe regret that your " + what + " to " + delivery.toName()
-			+ " did not arrive. " + reason + "\n\n" + (parcelLeft
+			+ " did not arrive.\n\n" + (parcelLeft
 				? "It lies at " + where + ", marked LOST."
-				: "There was nowhere to leave it, so its contents lie scattered near " + where + ".");
-		String second = parcelLeft
-			? "Only you, the addressee or whoever bested the rider may open it.\n\nWith apologies,\nthe " + COMPANY
-			: "Ride out soon, before somebody else finds them.\n\nWith apologies,\nthe " + COMPANY;
+				: "Its contents lie scattered near " + where + ".");
+		String second = reason;
+		String third = (parcelLeft
+			? "Only you, the addressee or whoever bested the rider may open it."
+			: "There was nowhere to leave it. Ride out soon, before somebody else finds them.") + "\n\nWith apologies,\nthe " + COMPANY;
 		ItemStack letter = new ItemStack(ModItems.WRITTEN_LETTER.get());
-		letter.set(ModDataComponents.LETTER.get(), new LetterContent(List.of(first, second), COMPANY,
+		letter.set(ModDataComponents.LETTER.get(), new LetterContent(List.of(first, second, third), COMPANY,
 			Optional.of(new LetterContent.Postmark(COMPANY, day))));
 		return letter;
 	}

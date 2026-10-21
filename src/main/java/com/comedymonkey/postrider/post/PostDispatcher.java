@@ -39,7 +39,8 @@ public final class PostDispatcher {
 	public static int dispatch(MinecraftServer server) {
 		PostOffice office = PostOffice.get(server);
 		int sent = 0;
-		while (canSendMore(office.activeCount(), office.size())) {
+		// Each waiting parcel gets one go per round, so one that can't set out doesn't hold up the rest
+		for (int tries = office.size(); tries > 0 && canSendMore(office.activeCount(), office.size()); tries--) {
 			Roster.Rider who = Roster.pickFree(office.busyRiders(), server.overworld().getRandom());
 			if (who == null)
 				break;
@@ -48,8 +49,8 @@ public final class PostDispatcher {
 			PostmanEntity rider = level == null ? null : PostmanEntity.setOut(level, next, who);
 			if (rider == null) {
 				PostRider.LOGGER.warn("No rider could set out from {} for {}; trying again later", next.fromName(), next.toName());
-				office.putBack(next);
-				break;
+				office.enqueue(next);
+				continue;
 			}
 			office.setOut(next, rider.getUUID(), who.id());
 			sent++;

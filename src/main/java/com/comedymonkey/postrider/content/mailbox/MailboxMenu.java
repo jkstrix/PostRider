@@ -43,24 +43,26 @@ public class MailboxMenu extends AbstractContainerMenu {
 	@Nullable
 	private final MailboxBlockEntity mailbox;
 	private int tab = TAB_INBOX;
+	/** The address it had when opened ("" if none yet); the screen keeps up with changes from there. */
+	private final String openedName;
 
 	/** Server side, on the real mailbox. */
 	public MailboxMenu(int containerId, Inventory inventory, MailboxBlockEntity mailbox) {
-		this(containerId, inventory, mailbox.getBlockPos(), mailbox, mailbox.getInbox(), mailbox.getParcel());
+		this(containerId, inventory, mailbox.getBlockPos(), mailbox, mailbox.getInbox(), mailbox.getParcel(), mailbox.getName());
 	}
 
 	/** Client side, from the position the server sent. */
 	public MailboxMenu(int containerId, Inventory inventory, RegistryFriendlyByteBuf buf) {
 		this(containerId, inventory, buf.readBlockPos(), null,
-			new ItemStackHandler(MailboxBlockEntity.INBOX_SIZE), new ItemStackHandler(MailboxBlockEntity.PARCEL_SIZE));
-		buf.readUtf();
+			new ItemStackHandler(MailboxBlockEntity.INBOX_SIZE), new ItemStackHandler(MailboxBlockEntity.PARCEL_SIZE), buf.readUtf());
 	}
 
 	private MailboxMenu(int containerId, Inventory inventory, BlockPos pos, @Nullable MailboxBlockEntity mailbox,
-			IItemHandler inbox, IItemHandler parcel) {
+			IItemHandler inbox, IItemHandler parcel, String openedName) {
 		super(ModMenus.MAILBOX.get(), containerId);
 		this.pos = pos;
 		this.mailbox = mailbox;
+		this.openedName = openedName;
 
 		for (int row = 0; row < 3; row++)
 			for (int col = 0; col < 9; col++)
@@ -73,6 +75,10 @@ public class MailboxMenu extends AbstractContainerMenu {
 				addSlot(new Slot(inventory, col + row * 9 + 9, GRID_X + col * 18, INVENTORY_Y + row * 18));
 		for (int col = 0; col < 9; col++)
 			addSlot(new Slot(inventory, col, GRID_X + col * 18, HOTBAR_Y));
+	}
+
+	public String getOpenedName() {
+		return openedName;
 	}
 
 	public BlockPos getPos() {

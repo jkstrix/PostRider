@@ -30,14 +30,15 @@ public final class Notices {
 	 * is. With no room or no mailbox, the chat message is all they get.
 	 */
 	public static void failed(MinecraftServer server, PendingDelivery delivery, String reason, BlockPos at, boolean parcelLeft, long day) {
-		tell(server, delivery.sender(), Component.translatable("message.postrider.failed.sender", delivery.toName(),
-			at.getX(), at.getY(), at.getZ()).withStyle(ChatFormatting.GOLD));
+		boolean lettered = false;
 		ServerLevel home = server.getLevel(delivery.from().dimension());
-		if (home == null)
-			return;
-		home.getChunkAt(delivery.from().pos());
-		if (home.getBlockEntity(delivery.from().pos()) instanceof MailboxBlockEntity mailbox)
-			mailbox.deliver(Mail.failureLetter(delivery, reason, at, parcelLeft, day));
+		if (home != null) {
+			home.getChunkAt(delivery.from().pos());
+			if (home.getBlockEntity(delivery.from().pos()) instanceof MailboxBlockEntity mailbox)
+				lettered = mailbox.deliver(Mail.failureLetter(delivery, reason, at, parcelLeft, day));
+		}
+		tell(server, delivery.sender(), Component.translatable(lettered ? "message.postrider.failed.sender" : "message.postrider.failed.sender_no_letter",
+			delivery.toName(), at.getX(), at.getY(), at.getZ()).withStyle(ChatFormatting.GOLD));
 	}
 
 	private static void tell(MinecraftServer server, UUID player, Component message) {

@@ -50,9 +50,9 @@ public class LetterText {
 	/** Types text at the cursor. False, and nothing changes, if it wouldn't fit on the page. */
 	public boolean insert(String typed) {
 		StringBuilder clean = new StringBuilder();
-		for (char c : typed.toCharArray())
-			if (c == '\n' || (c >= ' ' && c != '§' && c != '\u007f'))
-				clean.append(c == '\r' ? '\n' : c);
+		for (char c : LetterDraft.normaliseLineEndings(typed).toCharArray())
+			if (LetterDraft.isAllowed(c))
+				clean.append(c);
 		if (clean.isEmpty())
 			return false;
 		String candidate = text.substring(0, cursor) + clean + text.substring(cursor);

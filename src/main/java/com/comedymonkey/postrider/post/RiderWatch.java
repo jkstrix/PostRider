@@ -66,7 +66,7 @@ public final class RiderWatch {
 		if (back == null)
 			return;
 		MISSING_SINCE.remove(delivery);
-		RiderChunks.forget(level, gone.rider());
+		RiderChunks.forget(level, gone.rider(), gone.lastSeen().orElse(null));
 		office.replaceRider(delivery, back.getUUID(), who.id());
 		PostRider.LOGGER.warn("Rider {} vanished with mail for {}; brought back at {}", who.id(), gone.delivery().toName(), back.blockPosition());
 	}

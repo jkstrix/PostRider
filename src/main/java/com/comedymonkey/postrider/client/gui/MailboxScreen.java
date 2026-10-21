@@ -48,7 +48,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 		super(menu, inventory, title);
 		imageWidth = MailboxMenu.WIDTH;
 		imageHeight = MailboxMenu.HEIGHT;
-		name = title.getString();
+		name = menu.getOpenedName();
 	}
 
 	@Override
@@ -67,7 +67,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	}
 
 	private boolean hasName() {
-		return !name.isEmpty() && !name.equals(Component.translatable("container.postrider.mailbox").getString());
+		return !name.isEmpty();
 	}
 
 	private void refreshInfo() {

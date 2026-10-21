@@ -67,6 +67,8 @@ public class LetterEditScreen extends Screen {
 	}
 
 	private void pressLeft() {
+		// Let go of the keyboard, or the next space or Enter would press this button again
+		setFocused(null);
 		if (confirmingSeal) {
 			confirmingSeal = false;
 			updateButtons();
@@ -76,6 +78,8 @@ public class LetterEditScreen extends Screen {
 	}
 
 	private void pressRight() {
+		// Let go of the keyboard, or the next space or Enter would press this button again
+		setFocused(null);
 		if (!confirmingSeal) {
 			confirmingSeal = true;
 			updateButtons();
