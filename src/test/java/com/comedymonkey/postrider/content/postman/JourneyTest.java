@@ -85,4 +85,48 @@ class JourneyTest {
 		progress.pause(10_000);
 		assertFalse(progress.isStuck(500, 10_000 + Journey.Progress.PATIENCE - 1));
 	}
+
+	@Test
+	void heTakesTheFirstWayHeCanActuallyGetTo() {
+		List<Journey.Route> routes = List.of(new Journey.Route(false, 10), new Journey.Route(true, 40), new Journey.Route(true, 30));
+		assertEquals(1, Journey.pickRoute(routes, 100), "straight on is blocked; the first swerve he can reach");
+	}
+
+	@Test
+	void withNoWayThroughHeGetsAsCloseAsHeCan() {
+		List<Journey.Route> routes = List.of(new Journey.Route(false, 90), new Journey.Route(false, 70), new Journey.Route(false, 80));
+		assertEquals(1, Journey.pickRoute(routes, 100));
+		assertEquals(-1, Journey.pickRoute(List.of(new Journey.Route(false, 100), new Journey.Route(false, 120)), 100),
+			"nothing gets him any closer");
+		assertEquals(-1, Journey.pickRoute(List.of(), 100));
+	}
+
+	@Test
+	void standingStillForFiveSecondsCountsAsStuck() {
+		Journey.Progress progress = new Journey.Progress();
+		assertFalse(progress.isStalled(0, 0, 0));
+		assertFalse(progress.isStalled(0.5, 0.5, 60), "shuffling on the spot");
+		assertTrue(progress.isStalled(1, 0, Journey.Progress.STALL_TICKS), "wedged in a ravine");
+		Journey.Progress moving = new Journey.Progress();
+		for (long tick = 0; tick <= 400; tick += 20)
+			assertFalse(moving.isStalled(tick / 4.0, 0, tick), "a block a second is still going somewhere");
+	}
+
+	@Test
+	void afterJumpingFreeTheStallClockStartsAgain() {
+		Journey.Progress progress = new Journey.Progress();
+		progress.isStalled(0, 0, 0);
+		assertTrue(progress.isStalled(0, 0, 200));
+		progress.unstuck(50, 200);
+		assertFalse(progress.isStalled(0, 0, 220));
+		assertFalse(progress.isStalled(0, 0, 220 + Journey.Progress.STALL_TICKS - 1));
+	}
+
+	@Test
+	void whenStuckHeTriesAheadThenShorterHopsThenAllRound() {
+		List<Vec3> escapes = Journey.escapes(HOME, FAR);
+		assertEquals(Journey.aims(HOME, FAR), escapes.subList(0, Journey.aims(HOME, FAR).size()), "the usual aims first");
+		assertEquals(Journey.STRETCH / 2, Journey.horizontalDistance(HOME, escapes.get(Journey.aims(HOME, FAR).size())), 1e-9);
+		assertTrue(escapes.stream().anyMatch(e -> e.x < HOME.x - 1), "even back the way he came, as a last resort");
+	}
 }

@@ -32,9 +32,48 @@ public final class Journey {
 
 	/** The straight-ahead aim, then swerves left and right of it, for when straight ahead is no good. */
 	public static List<Vec3> aims(Vec3 from, Vec3 destination) {
+		return aims(from, destination, STRETCH);
+	}
+
+	/**
+	 * Places to jump to when he's stuck, best first: the usual aims, then half as far the same ways, then a ring all
+	 * round him (even back the way he came) for when everything ahead is water or worse.
+	 */
+	public static List<Vec3> escapes(Vec3 from, Vec3 destination) {
+		List<Vec3> escapes = new ArrayList<>(aims(from, destination, STRETCH));
+		escapes.addAll(aims(from, destination, STRETCH / 2));
+		for (int degrees = 0; degrees < 360; degrees += 30) {
+			double angle = Math.toRadians(degrees);
+			escapes.add(new Vec3(from.x + Math.cos(angle) * STRETCH / 2, from.y, from.z + Math.sin(angle) * STRETCH / 2));
+		}
+		return escapes;
+	}
+
+	/** A way on he's found a path along: whether the path gets all the way to its aim, and how far it leaves him to go. */
+	public record Route(boolean reaches, double leftToGo) {}
+
+	/**
+	 * Which way to go: the first route that gets all the way to its aim; otherwise the one that leaves him least far to
+	 * go, as long as that's closer than he is now. -1 if none gets him anywhere.
+	 */
+	public static int pickRoute(List<Route> routes, double distanceNow) {
+		for (int i = 0; i < routes.size(); i++)
+			if (routes.get(i).reaches())
+				return i;
+		int best = -1;
+		double bestLeft = distanceNow - 1;
+		for (int i = 0; i < routes.size(); i++)
+			if (routes.get(i).leftToGo() < bestLeft) {
+				bestLeft = routes.get(i).leftToGo();
+				best = i;
+			}
+		return best;
+	}
+
+	private static List<Vec3> aims(Vec3 from, Vec3 destination, double stretch) {
 		double distance = horizontalDistance(from, destination);
 		List<Vec3> aims = new ArrayList<>();
-		if (distance <= STRETCH) {
+		if (distance <= stretch) {
 			aims.add(new Vec3(destination.x, from.y, destination.z));
 			return aims;
 		}
@@ -43,7 +82,7 @@ public final class Journey {
 			double angle = Math.toRadians(degrees);
 			double rx = dx * Math.cos(angle) - dz * Math.sin(angle);
 			double rz = dx * Math.sin(angle) + dz * Math.cos(angle);
-			aims.add(new Vec3(from.x + rx * STRETCH, from.y, from.z + rz * STRETCH));
+			aims.add(new Vec3(from.x + rx * stretch, from.y, from.z + rz * stretch));
 		}
 		return aims;
 	}
@@ -56,10 +95,15 @@ public final class Journey {
 		public static final int PATIENCE = 30 * 20;
 		public static final double MIN_PROGRESS = 4.0;
 		public static final int MAX_TRIES = 5;
+		/** Not moving this far in this long means he's wedged somewhere, however close he is. */
+		public static final double STALL_DISTANCE = 2.0;
+		public static final int STALL_TICKS = 5 * 20;
 
 		private double bestDistance = Double.MAX_VALUE;
 		private long bestSince;
 		private int triesInARow;
+		private double stallX = Double.NaN, stallZ;
+		private long stallSince;
 
 		/** Records how far he is from the destination now; true if he's been stuck too long. */
 		public boolean isStuck(double distance, long tick) {
@@ -73,16 +117,29 @@ public final class Journey {
 			return tick - bestSince >= PATIENCE;
 		}
 
-		/** He has jumped free once more; the clock starts again from where he lands. */
+		/** Records where he is now; true if he's hardly moved for {@link #STALL_TICKS}. */
+		public boolean isStalled(double x, double z, long tick) {
+			if (Double.isNaN(stallX) || Math.hypot(x - stallX, z - stallZ) > STALL_DISTANCE) {
+				stallX = x;
+				stallZ = z;
+				stallSince = tick;
+				return false;
+			}
+			return tick - stallSince >= STALL_TICKS;
+		}
+
+		/** He has jumped free once more; the clocks start again from where he lands. */
 		public void unstuck(double distance, long tick) {
 			triesInARow++;
 			bestDistance = distance;
 			bestSince = tick;
+			stallX = Double.NaN;
 		}
 
 		/** Time didn't pass for him (camping at night), so don't count it. */
 		public void pause(long tick) {
 			bestSince = tick;
+			stallX = Double.NaN;
 		}
 
 		public boolean outOfTries() {

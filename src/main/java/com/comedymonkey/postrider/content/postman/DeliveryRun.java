@@ -1,5 +1,6 @@
 package com.comedymonkey.postrider.content.postman;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,6 +43,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -273,13 +275,20 @@ public class DeliveryRun {
 		trackDetour(rider, distance);
 		if (--aimCooldown <= 0 || rider.getNavigation().isDone()) {
 			aimCooldown = AIM_INTERVAL;
-			Vec3 safe = safeAim(level, rider.position(), target);
+			List<Vec3> dry = safeAims(level, rider.position(), target);
 			// No dry way on, or riding round has stopped paying: over the water by barge, if there's water to launch it on
-			if ((safe == null || Crossing.detourTooLong(detourRidden, detourStart, distance)) && launchBarge(rider, level, target))
+			if ((dry.isEmpty() || Crossing.detourTooLong(detourRidden, detourStart, distance)) && launchBarge(rider, level, target))
 				return;
-			Vec3 aim = safe != null ? safe : surface(level, Journey.nextAim(rider.position(), target));
-			detouring = isDetour(rider.position(), aim, target);
-			rider.getNavigation().moveTo(aim.x, aim.y, aim.z, onFoot ? RUN_SPEED : 1.0);
+			double speed = onFoot ? RUN_SPEED : 1.0;
+			Path path = bestPath(rider, target, dry, distance);
+			if (path != null) {
+				detouring = isDetour(rider.position(), Vec3.atBottomCenterOf(path.getTarget()), target);
+				rider.getNavigation().moveTo(path, speed);
+			} else {
+				Vec3 aim = dry.isEmpty() ? surface(level, Journey.nextAim(rider.position(), target)) : dry.get(0);
+				detouring = isDetour(rider.position(), aim, target);
+				rider.getNavigation().moveTo(aim.x, aim.y, aim.z, speed);
+			}
 		}
 		rider.mannerisms().tick(rider, level, distance, detouring);
 	}
@@ -305,15 +314,38 @@ public class DeliveryRun {
 		return Journey.horizontalDistance(aim, straight) > DETOUR_SLACK;
 	}
 
-	/** The first stretch ahead ending somewhere safe to stand, or null if there's none. */
-	@Nullable
-	static Vec3 safeAim(ServerLevel level, Vec3 from, Vec3 target) {
-		for (Vec3 aim : Journey.aims(from, target)) {
+	/** The stretches ahead (straight on, then swerves) that end somewhere safe to stand, best first. */
+	static List<Vec3> safeAims(ServerLevel level, Vec3 from, Vec3 target) {
+		return safeOf(level, Journey.aims(from, target));
+	}
+
+	private static List<Vec3> safeOf(ServerLevel level, List<Vec3> aims) {
+		List<Vec3> safe = new ArrayList<>();
+		for (Vec3 aim : aims) {
 			Vec3 ground = surface(level, aim);
 			if (!Hazards.isDangerous(level, BlockPos.containing(ground)))
-				return ground;
+				safe.add(ground);
 		}
-		return null;
+		return safe;
+	}
+
+	/**
+	 * Of the dry ways on, the first his horse (or he, on foot) can find a path all the way to, so he goes round a
+	 * ravine or a cliff rather than into it; failing that, whichever path gets him nearest. Null if none gets him closer.
+	 */
+	@Nullable
+	private static Path bestPath(PostmanEntity rider, Vec3 target, List<Vec3> aims, double distance) {
+		List<Path> paths = new ArrayList<>();
+		List<Journey.Route> routes = new ArrayList<>();
+		for (Vec3 aim : aims) {
+			Path path = rider.getNavigation().createPath(BlockPos.containing(aim), 1);
+			if (path == null || path.getEndNode() == null)
+				continue;
+			paths.add(path);
+			routes.add(new Journey.Route(path.canReach(), Journey.horizontalDistance(Vec3.atBottomCenterOf(path.getEndNode().asBlockPos()), target)));
+		}
+		int best = Journey.pickRoute(routes, distance);
+		return best < 0 ? null : paths.get(best);
 	}
 
 	private static Vec3 surface(ServerLevel level, Vec3 aim) {
@@ -729,7 +761,10 @@ public class DeliveryRun {
 	// ---------------------------------------------------------------- getting stuck
 
 	private boolean checkStuck(PostmanEntity rider, ServerLevel level, double distance, Vec3 target) {
-		if (stageTicks % 20 != 0 || !progress.isStuck(distance, level.getGameTime()))
+		if (stageTicks % 20 != 0)
+			return false;
+		long now = level.getGameTime();
+		if (!progress.isStuck(distance, now) && !progress.isStalled(rider.getX(), rider.getZ(), now))
 			return false;
 		if (progress.outOfTries()) {
 			fail(rider, level, LostCause.STUCK, rider.getName().getString()
@@ -754,14 +789,16 @@ public class DeliveryRun {
 	}
 
 	/**
-	 * Out of a cave: straight up to the surface; otherwise a stretch ahead, on top of whatever is there. Never onto
-	 * lava, fire and the like: null if there's nowhere safe.
+	 * Out of a cave: straight up to the surface; otherwise the best of {@link Journey#escapes} (a stretch ahead, a
+	 * shorter hop, anywhere round about), on top of whatever is there. Never onto water, lava, fire and the like: null
+	 * if there's nowhere safe at all.
 	 */
 	@Nullable
 	static Vec3 freeSpot(ServerLevel level, Vec3 from, Vec3 target, boolean underOpenSky) {
-		Vec3 aim = underOpenSky ? safeAim(level, from, target) : surface(level, from);
-		if (aim == null)
+		List<Vec3> safe = underOpenSky ? safeOf(level, Journey.escapes(from, target)) : List.of(surface(level, from));
+		if (safe.isEmpty())
 			return null;
+		Vec3 aim = safe.get(0);
 		BlockPos column = BlockPos.containing(aim);
 		int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column.getX(), column.getZ());
 		BlockPos feet = new BlockPos(column.getX(), y, column.getZ());
