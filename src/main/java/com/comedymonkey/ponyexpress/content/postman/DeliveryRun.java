@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.ponyexpress.PonyExpress;
 import com.comedymonkey.ponyexpress.content.lost.LostCause;
 import com.comedymonkey.ponyexpress.content.lost.LostParcels;
 import com.comedymonkey.ponyexpress.content.mailbox.MailboxBlock;
@@ -29,7 +30,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.targeting.TargetingConditions;
+import net.minecraft.world.entity.ai.util.DefaultRandomPos;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -47,6 +51,7 @@ public class DeliveryRun {
 		CALLING_HORSE,
 		RIDING,
 		CAMPING,
+		FLEEING,
 		WALKING_TO_BOX,
 		DELIVERING,
 		DONE
@@ -153,16 +158,43 @@ public class DeliveryRun {
 		if (stage == Stage.DONE)
 			return;
 		keepChunksLoaded(rider, level);
+		logChanges(rider);
 		stageTicks++;
 		switch (stage) {
 			case PICKING_UP -> pickUp(rider, level);
 			case CALLING_HORSE -> callHorse(rider, level);
 			case RIDING -> ride(rider, level);
 			case CAMPING -> camp(rider, level);
+			case FLEEING -> flee(rider, level);
 			case WALKING_TO_BOX -> walkUp(rider, level);
 			case DELIVERING -> deliver(rider, level);
 			default -> {}
 		}
+	}
+
+	@Nullable
+	private Stage loggedStage;
+	@Nullable
+	private CampStep loggedStep;
+
+	/** Notes in the log each time he moves on to the next part of the job, for working out what went wrong. */
+	private void logChanges(PostmanEntity rider) {
+		CampStep step = stage == Stage.CAMPING ? campStep : null;
+		if (stage != loggedStage || step != loggedStep) {
+			PonyExpress.LOGGER.info("Rider {} with mail for {}: {}{}", rider.getName().getString(), delivery.toName(), stage,
+				step != null ? " (" + step + ")" : "");
+			loggedStage = stage;
+			loggedStep = step;
+		}
+	}
+
+	/** What he's up to, for /ponyexpress status. */
+	public String describe(PostmanEntity rider, ServerLevel level) {
+		Vec3 target = destination != null ? Vec3.atCenterOf(destination.pos()) : null;
+		String distance = target != null ? (int) Journey.horizontalDistance(rider.position(), target) + " blocks" : "unknown";
+		return rider.getName().getString() + ": " + stage + (stage == Stage.CAMPING ? " (" + campStep + ")" : "")
+			+ " for " + stageTicks + " ticks, activity " + rider.getActivity() + (rider.isInTent() ? ", in his tent" : "")
+			+ ", " + distance + " to " + delivery.toName() + ", time of day " + PostOfficeHours.timeOfDay(level.getDayTime());
 	}
 
 	private void keepChunksLoaded(PostmanEntity rider, ServerLevel level) {
@@ -298,58 +330,113 @@ public class DeliveryRun {
 	public static final int HAMMER_TICKS = 100;
 	/** How far behind him the middle of the tent stands, with its open front facing him. */
 	public static final double TENT_DISTANCE = 2.2;
+	/** How long he walks towards his pitch before stepping onto it. */
+	public static final int WALK_TO_CAMP_TICKS = 200;
 	/** How far players hear the harmonica, for stopping it when he turns in. */
 	private static final double HEARING_RANGE = 48;
 
+	/** The evening, step by step: find a pitch, walk to it, hammer in the pegs, play, sleep. */
+	public enum CampStep {
+		FINDING,
+		WALKING,
+		HAMMERING,
+		PLAYING,
+		SLEEPING
+	}
+
+	private CampStep campStep = CampStep.FINDING;
+	private int stepTicks;
+	@Nullable
+	private CampSites.Site campSite;
 	@Nullable
 	private UUID tentId;
-	@Nullable
-	private Vec3 campSpot;
+
+	private void step(CampStep next) {
+		campStep = next;
+		stepTicks = 0;
+	}
 
 	/**
-	 * Dusk: he hammers in the pegs, the tent goes up behind him in a puff of smoke and he sits playing the harmonica
-	 * until monsters come out, then turns in, hidden from all but the closest mobs. At 6am he packs up and rides on.
+	 * Dusk: he finds a flat pitch with room for the tent, walks to it and hammers in the pegs; the tent goes up behind
+	 * him in a puff of smoke and he sits playing the harmonica until monsters come out, then turns in, hidden from all
+	 * but the closest mobs. At 6am he packs up and rides on. With nowhere to pitch, he plays and sleeps in the open.
 	 */
 	private void camp(PostmanEntity rider, ServerLevel level) {
 		progress.pause(level.getGameTime());
-		if (stageTicks == 1) {
-			rider.getNavigation().stop();
-			rider.dismissHorse();
-			rider.setSprinting(false);
-			campSpot = rider.position();
-			rider.setActivity(PostmanEntity.Activity.CAMP_HAMMER);
-		}
-		if (stageTicks == HAMMER_TICKS) {
-			pitchTent(rider, level);
-			if (PostOfficeHours.isBedtime(level.getDayTime())) {
-				turnIn(rider, level);
-			} else {
-				rider.setActivity(PostmanEntity.Activity.HARMONICA);
-				level.playSound(null, rider, ModSounds.HARMONICA.get(), SoundSource.NEUTRAL, 1.0F, 1.0F);
-			}
-		}
-		if (rider.getActivity() == PostmanEntity.Activity.HARMONICA && PostOfficeHours.isBedtime(level.getDayTime())) {
-			stopHarmonica(rider, level);
-			turnIn(rider, level);
-		}
 		if (PostOfficeHours.isOpen(level.getDayTime())) {
 			breakCamp(rider, level);
 			enter(Stage.CALLING_HORSE);
+			return;
+		}
+		stepTicks++;
+		switch (campStep) {
+			case FINDING -> {
+				rider.getNavigation().stop();
+				rider.dismissHorse();
+				rider.setSprinting(false);
+				BlockPos here = rider.blockPosition();
+				campSite = CampSites.find(here, (x, z) -> CampSites.floorIn(level, x, z, here.getY()));
+				if (campSite != null)
+					step(CampStep.WALKING);
+				else
+					startEvening(rider, level);
+			}
+			case WALKING -> {
+				Vec3 seat = campSite.seatPos();
+				if (Journey.horizontalDistance(rider.position(), seat) < 0.6 || stepTicks >= WALK_TO_CAMP_TICKS) {
+					rider.getNavigation().stop();
+					rider.moveTo(seat.x, seat.y, seat.z, campSite.yaw() + 180, 0);
+					face(rider, campSite.yaw() + 180);
+					rider.setActivity(PostmanEntity.Activity.CAMP_HAMMER);
+					step(CampStep.HAMMERING);
+				} else if (stepTicks % 20 == 1) {
+					rider.getNavigation().moveTo(seat.x, seat.y, seat.z, 1.0);
+				}
+			}
+			case HAMMERING -> {
+				// Facing the tent as he knocks the pegs in, then he turns round to sit at its door
+				face(rider, campSite.yaw() + 180);
+				if (stepTicks >= HAMMER_TICKS) {
+					pitchTent(rider, level);
+					face(rider, campSite.yaw());
+					startEvening(rider, level);
+				}
+			}
+			case PLAYING -> {
+				if (PostOfficeHours.isBedtime(level.getDayTime())) {
+					stopHarmonica(rider, level);
+					turnIn(rider, level);
+				}
+			}
+			case SLEEPING -> {}
 		}
 	}
 
-	/** The tent goes up behind him, open end towards him, if there's room for it. */
-	private void pitchTent(PostmanEntity rider, ServerLevel level) {
-		EntityType<TentEntity> type = ModEntities.TENT.get();
-		float yaw = rider.getYRot();
-		Vec3 behind = Vec3.directionFromRotation(0, yaw).scale(-TENT_DISTANCE);
-		Vec3 spot = rider.position().add(behind.x, 0, behind.z);
-		if (!HorseSpots.fits(level, type, spot))
+	/** The harmonica until monsters come out; straight to bed if they already have. */
+	private void startEvening(PostmanEntity rider, ServerLevel level) {
+		if (PostOfficeHours.isBedtime(level.getDayTime())) {
+			turnIn(rider, level);
 			return;
-		TentEntity tent = type.create(level);
+		}
+		rider.setActivity(PostmanEntity.Activity.HARMONICA);
+		level.playSound(null, rider, ModSounds.HARMONICA.get(), SoundSource.NEUTRAL, 1.0F, 1.0F);
+		step(CampStep.PLAYING);
+	}
+
+	private static void face(PostmanEntity rider, float yaw) {
+		rider.getNavigation().stop();
+		rider.setYRot(yaw);
+		rider.setYBodyRot(yaw);
+		rider.setYHeadRot(yaw);
+	}
+
+	/** The tent goes up on the pitch behind him, open end towards him. */
+	private void pitchTent(PostmanEntity rider, ServerLevel level) {
+		TentEntity tent = campSite == null ? null : ModEntities.TENT.get().create(level);
 		if (tent == null)
 			return;
-		tent.moveTo(spot.x, spot.y, spot.z, yaw, 0);
+		Vec3 spot = campSite.tentPos();
+		tent.moveTo(spot.x, spot.y, spot.z, campSite.yaw(), 0);
 		tent.setRider(rider.getUUID());
 		level.addFreshEntity(tent);
 		PostmanEffects.puff(level, tent);
@@ -361,23 +448,72 @@ public class DeliveryRun {
 		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent) {
 			Vec3 inside = tent.position().add(Vec3.directionFromRotation(0, tent.getYRot()).scale(-0.3));
 			rider.moveTo(inside.x, inside.y, inside.z, tent.getYRot(), 0);
-			rider.setYBodyRot(tent.getYRot());
-			rider.setYHeadRot(tent.getYRot());
+			face(rider, tent.getYRot());
 			rider.setInTent(true);
 		}
 		rider.setActivity(PostmanEntity.Activity.CAMP_REST);
+		step(CampStep.SLEEPING);
 	}
 
 	private void breakCamp(PostmanEntity rider, ServerLevel level) {
 		stopHarmonica(rider, level);
+		if (rider.isInTent() && campSite != null) {
+			Vec3 seat = campSite.seatPos();
+			rider.moveTo(seat.x, seat.y, seat.z, rider.getYRot(), 0);
+		}
 		rider.setInTent(false);
 		rider.setActivity(PostmanEntity.Activity.NONE);
-		if (campSpot != null)
-			rider.moveTo(campSpot.x, campSpot.y, campSpot.z, rider.getYRot(), 0);
 		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent)
 			tent.packAway(level);
 		tentId = null;
-		campSpot = null;
+		campSite = null;
+		step(CampStep.FINDING);
+	}
+
+	// ---------------------------------------------------------------- fleeing
+
+	/** How far he runs from whatever attacked him each time he picks somewhere to run to. */
+	private static final int FLEE_DISTANCE = 16;
+	/** He keeps running from anything hostile this close. */
+	private static final double THREAT_RANGE = 16;
+
+	@Nullable
+	private UUID attacker;
+
+	/** Something hurt him. At camp, he leaves everything and runs for it on foot until daylight. */
+	public void attacked(PostmanEntity rider, ServerLevel level, LivingEntity by) {
+		if (stage != Stage.CAMPING && stage != Stage.FLEEING)
+			return;
+		attacker = by.getUUID();
+		if (stage == Stage.CAMPING) {
+			breakCamp(rider, level);
+			enter(Stage.FLEEING);
+		}
+	}
+
+	private void flee(PostmanEntity rider, ServerLevel level) {
+		progress.pause(level.getGameTime());
+		if (PostOfficeHours.isOpen(level.getDayTime())) {
+			rider.setSprinting(false);
+			attacker = null;
+			enter(Stage.CALLING_HORSE);
+			return;
+		}
+		if (stageTicks % 20 != 1 && !rider.getNavigation().isDone())
+			return;
+		Entity threat = attacker != null ? level.getEntity(attacker) : null;
+		if (threat == null || !threat.isAlive() || threat.distanceTo(rider) > THREAT_RANGE * 2)
+			threat = level.getNearestEntity(Monster.class, TargetingConditions.forCombat().range(THREAT_RANGE), rider,
+				rider.getX(), rider.getY(), rider.getZ(), rider.getBoundingBox().inflate(THREAT_RANGE));
+		if (threat == null) {
+			rider.setSprinting(false);
+			return;
+		}
+		Vec3 away = DefaultRandomPos.getPosAway(rider, FLEE_DISTANCE, 7, threat.position());
+		if (away != null) {
+			rider.setSprinting(true);
+			rider.getNavigation().moveTo(away.x, away.y, away.z, RUN_SPEED);
+		}
 	}
 
 	/** Stops the tune for everyone who could hear it. */
@@ -536,13 +672,16 @@ public class DeliveryRun {
 		tag.putInt("stage_ticks", stageTicks);
 		if (loadedChunk != null)
 			tag.putLong("loaded_chunk", loadedChunk.toLong());
+		tag.putString("camp_step", campStep.name());
+		tag.putInt("step_ticks", stepTicks);
+		if (campSite != null) {
+			tag.putLong("camp_seat", campSite.seat().asLong());
+			tag.putString("camp_facing", campSite.facing().getName());
+		}
 		if (tentId != null)
 			tag.putUUID("tent", tentId);
-		if (campSpot != null) {
-			tag.putDouble("camp_x", campSpot.x);
-			tag.putDouble("camp_y", campSpot.y);
-			tag.putDouble("camp_z", campSpot.z);
-		}
+		if (attacker != null)
+			tag.putUUID("attacker", attacker);
 		return tag;
 	}
 
@@ -563,10 +702,22 @@ public class DeliveryRun {
 		run.stageTicks = tag.getInt("stage_ticks");
 		if (tag.contains("loaded_chunk"))
 			run.loadedChunk = new ChunkPos(tag.getLong("loaded_chunk"));
+		try {
+			run.campStep = CampStep.valueOf(tag.getString("camp_step"));
+		} catch (IllegalArgumentException e) {
+			run.campStep = CampStep.FINDING;
+		}
+		run.stepTicks = tag.getInt("step_ticks");
+		Direction facing = Direction.byName(tag.getString("camp_facing"));
+		if (tag.contains("camp_seat") && facing != null)
+			run.campSite = new CampSites.Site(BlockPos.of(tag.getLong("camp_seat")), facing);
+		// A pitch that didn't survive saving: start the evening over
+		if (run.campSite == null && (run.campStep == CampStep.WALKING || run.campStep == CampStep.HAMMERING))
+			run.campStep = CampStep.FINDING;
 		if (tag.hasUUID("tent"))
 			run.tentId = tag.getUUID("tent");
-		if (tag.contains("camp_x"))
-			run.campSpot = new Vec3(tag.getDouble("camp_x"), tag.getDouble("camp_y"), tag.getDouble("camp_z"));
+		if (tag.hasUUID("attacker"))
+			run.attacker = tag.getUUID("attacker");
 		return run;
 	}
 }

@@ -300,6 +300,14 @@ public class PostmanEntity extends PathfinderMob {
 	}
 
 	@Override
+	public boolean hurt(DamageSource source, float amount) {
+		boolean hurt = super.hurt(source, amount);
+		if (hurt && run != null && source.getEntity() instanceof LivingEntity attacker && level() instanceof ServerLevel server)
+			run.attacked(this, server, attacker);
+		return hurt;
+	}
+
+	@Override
 	public void handleDamageEvent(DamageSource source) {
 		super.handleDamageEvent(source);
 		hurtAnimation.start(tickCount);

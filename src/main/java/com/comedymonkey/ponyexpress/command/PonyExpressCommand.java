@@ -39,6 +39,12 @@ public final class PonyExpressCommand {
 			ctx.getSource().sendSuccess(() -> Component.translatable("command.ponyexpress.dispatched", sent), true);
 			return sent;
 		}));
+		root.then(Commands.literal("status").executes(ctx -> withNearest(ctx.getSource(), rider -> {
+			String status = rider.getRun() != null && rider.level() instanceof ServerLevel level
+				? rider.getRun().describe(rider, level)
+				: rider.getName().getString() + ": no delivery (activity " + rider.getActivity() + ")";
+			ctx.getSource().sendSuccess(() -> Component.literal(status), false);
+		})));
 		root.then(Commands.literal("giveup").executes(ctx -> withNearest(ctx.getSource(), rider -> {
 			if (rider.getRun() != null && rider.level() instanceof ServerLevel level)
 				rider.getRun().giveUp(rider, level);
