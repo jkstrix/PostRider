@@ -5,7 +5,12 @@ import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.ponyexpress.registry.ModEntities;
+
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -127,6 +132,97 @@ public class PostmanEntity extends PathfinderMob {
 		level().broadcastEntityEvent(this, gesture.eventId);
 	}
 
+	// ---------------------------------------------------------------- arriving, leaving and the horse (server)
+
+	/** How long after he starts whistling his horse appears, and how long after that he climbs on. */
+	public static final int HORSE_ARRIVES_AFTER = 20;
+	public static final int MOUNTS_AFTER = 10;
+
+	private int horseCountdown;
+	private int mountCountdown;
+	@Nullable
+	private PostmanHorse arrivingHorse;
+
+	/** Brings a new rider into the world in a puff of smoke, with a name of his own. */
+	@Nullable
+	public static PostmanEntity appear(EntityType<PostmanEntity> type, ServerLevel level, double x, double y, double z, float yaw) {
+		PostmanEntity postman = type.create(level);
+		if (postman == null)
+			return null;
+		postman.moveTo(x, y, z, yaw, 0);
+		postman.setYHeadRot(yaw);
+		postman.setCustomName(Component.literal(PostmanNames.rider(level.random)));
+		level.addFreshEntity(postman);
+		PostmanEffects.puff(level, postman);
+		return postman;
+	}
+
+	/** He whistles; a moment later his horse appears beside him in a puff of smoke and he climbs on. */
+	public void whistleForHorse() {
+		if (getVehicle() != null || horseCountdown > 0 || arrivingHorse != null)
+			return;
+		playGesture(Gesture.WHISTLE);
+		horseCountdown = HORSE_ARRIVES_AFTER;
+	}
+
+	/** He gets down and his horse vanishes in a puff of smoke. */
+	public void dismissHorse() {
+		if (getVehicle() instanceof PostmanHorse horse) {
+			stopRiding();
+			vanish(horse);
+		}
+		if (arrivingHorse != null) {
+			vanish(arrivingHorse);
+			arrivingHorse = null;
+		}
+		horseCountdown = 0;
+	}
+
+	/** He and his horse vanish in a puff of smoke. */
+	public void vanish() {
+		dismissHorse();
+		vanish(this);
+	}
+
+	private void vanish(Entity entity) {
+		if (level() instanceof ServerLevel server)
+			PostmanEffects.puff(server, entity);
+		entity.discard();
+	}
+
+	@Nullable
+	public PostmanHorse getHorse() {
+		return getVehicle() instanceof PostmanHorse horse ? horse : null;
+	}
+
+	private void tickHorse(ServerLevel level) {
+		if (horseCountdown > 0 && --horseCountdown == 0) {
+			Vec3 side = Vec3.directionFromRotation(0, getYRot() + 90).scale(2);
+			PostmanHorse horse = PostmanHorse.create(ModEntities.POSTMAN_HORSE.get(), level, getX() + side.x, getY(), getZ() + side.z, getYRot());
+			if (horse != null) {
+				level.addFreshEntity(horse);
+				PostmanEffects.puff(level, horse);
+				arrivingHorse = horse;
+				mountCountdown = MOUNTS_AFTER;
+			}
+		}
+		if (arrivingHorse != null && --mountCountdown <= 0) {
+			if (arrivingHorse.isAlive())
+				startRiding(arrivingHorse, true);
+			arrivingHorse = null;
+		}
+	}
+
+	@Override
+	public void die(DamageSource source) {
+		// His horse goes with him; a horse that has lost its rider has no one to carry
+		if (getVehicle() instanceof PostmanHorse horse) {
+			stopRiding();
+			vanish(horse);
+		}
+		super.die(source);
+	}
+
 	// ---------------------------------------------------------------- animations (client)
 
 	@Override
@@ -151,6 +247,8 @@ public class PostmanEntity extends PathfinderMob {
 		super.tick();
 		if (level().isClientSide)
 			updateAnimations();
+		else if (level() instanceof ServerLevel server)
+			tickHorse(server);
 	}
 
 	/** Whether a one-off gesture is still playing, which pauses the idle breathing. */

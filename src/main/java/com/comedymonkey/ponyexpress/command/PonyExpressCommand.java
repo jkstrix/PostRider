@@ -30,6 +30,9 @@ public final class PonyExpressCommand {
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 		LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("ponyexpress").requires(source -> source.hasPermission(2));
 		root.then(Commands.literal("spawn").executes(ctx -> spawn(ctx.getSource())));
+		root.then(Commands.literal("whistle").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::whistleForHorse)));
+		root.then(Commands.literal("dismount").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::dismissHorse)));
+		root.then(Commands.literal("vanish").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::vanish)));
 
 		LiteralArgumentBuilder<CommandSourceStack> gesture = Commands.literal("gesture");
 		for (PostmanEntity.Gesture each : PostmanEntity.Gesture.values())
@@ -55,12 +58,10 @@ public final class PonyExpressCommand {
 		ServerPlayer player = source.getPlayerOrException();
 		ServerLevel level = player.serverLevel();
 		Vec3 ahead = player.position().add(player.getLookAngle().multiply(3, 0, 3));
-		PostmanEntity postman = ModEntities.POSTMAN.get().create(level);
+		PostmanEntity postman = PostmanEntity.appear(ModEntities.POSTMAN.get(), level, ahead.x, player.getY(), ahead.z, player.getYRot() + 180);
 		if (postman == null)
 			return 0;
-		postman.moveTo(ahead.x, player.getY(), ahead.z, player.getYRot() + 180, 0);
-		level.addFreshEntity(postman);
-		source.sendSuccess(() -> Component.translatable("command.ponyexpress.spawned"), true);
+		source.sendSuccess(() -> Component.translatable("command.ponyexpress.spawned", postman.getName()), true);
 		return 1;
 	}
 

@@ -19,7 +19,8 @@
   "block.ponyexpress.black_mailbox": "Black Mailbox",
 
   "entity.ponyexpress.postman": "Pony Express Rider",
-  "command.ponyexpress.spawned": "A Pony Express rider appears.",
+  "entity.ponyexpress.postman_horse": "Pony Express Horse",
+  "command.ponyexpress.spawned": "%s, Pony Express rider, appears.",
   "command.ponyexpress.no_rider": "There's no Pony Express rider within %s blocks.",
 
   "block.ponyexpress.lost_parcel": "Lost Parcel",

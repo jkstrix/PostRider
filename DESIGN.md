@@ -25,7 +25,8 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 - Failure letter: a readable Letter item (book-style page) giving the reason (e.g. "killed by a Zombie"), the Lost Parcel's X/Y/Z and the addressee.
 
 ## Postman
-- A custom player-like mob with a Pony Express rider skin (wide-brimmed hat, bandana, leather vest), riding a vanilla-style horse with saddlebags at average horse speed (about 9.5 blocks/s).
+- A custom player-like mob with a Pony Express rider skin (wide-brimmed hat, bandana, leather vest), riding a vanilla-style horse.
+- His horse wears a Pony Express mochila: a leather cover over the saddle with four boxy mail pockets (two on each side). Each horse gets a random vanilla coat and markings, and a random speed that is never below 7 blocks/s.
 - Pickup: he appears in a puff of smoke at the sender's mailbox, takes the parcel and summons his horse.
 - Delivery: he dismounts, puts the parcel in the inbox and vanishes in smoke with his horse.
 - Same dimension only, no distance cap. He loads a 3×3 area of chunks around himself. At most 32 postmen out at once; extra mail waits its turn.
