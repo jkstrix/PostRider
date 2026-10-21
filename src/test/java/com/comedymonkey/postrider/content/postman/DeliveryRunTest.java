@@ -107,12 +107,23 @@ class DeliveryRunTest {
 	}
 
 	@Test
-	void ridersKeepAThreeByThreeSquareOfChunksLoaded() {
-		var chunks = RiderChunks.around(new ChunkPos(10, -4));
-		assertEquals(9, chunks.size());
-		assertTrue(chunks.contains(new ChunkPos(10, -4)));
-		assertTrue(chunks.contains(new ChunkPos(9, -5)));
-		assertTrue(chunks.contains(new ChunkPos(11, -3)));
+	void ridersKeepASevenBySevenSquareLoadedButOnlyTheMiddleTicks() {
+		ChunkPos centre = new ChunkPos(10, -4);
+		var chunks = RiderChunks.around(centre);
+		assertEquals(49, chunks.size());
+		assertTrue(chunks.contains(new ChunkPos(7, -7)) && chunks.contains(new ChunkPos(13, -1)));
+		// Loaded far enough to plan a whole stretch ahead from anywhere in his chunk
+		assertTrue(RiderChunks.RADIUS * 16 >= Journey.STRETCH);
+		long ticking = chunks.stream().filter(c -> RiderChunks.ticks(centre, c)).count();
+		assertEquals(9, ticking, "only the 3x3 round him grows and spawns things");
+		assertTrue(RiderChunks.ticks(centre, new ChunkPos(9, -5)));
+		assertFalse(RiderChunks.ticks(centre, new ChunkPos(8, -4)));
+	}
+
+	@Test
+	void hisHorseCanPlanAWholeStretchAhead() {
+		assertTrue(PostmanHorse.FOLLOW_RANGE > Journey.STRETCH);
+		assertEquals(48.0, Journey.STRETCH);
 	}
 
 	@Test

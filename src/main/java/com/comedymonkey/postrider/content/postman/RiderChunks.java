@@ -12,12 +12,16 @@ import net.minecraft.world.level.ChunkPos;
 import net.neoforged.neoforge.common.world.chunk.TicketController;
 
 /**
- * Keeps the chunks around a working rider loaded, so he carries on riding when nobody is near him. The tickets are
- * saved with the world; when it loads, any left over from riders who are no longer working are dropped.
+ * Keeps the chunks around a working rider loaded, so he carries on riding when nobody is near him: a square ticking
+ * close round him, and a wider one loaded (but not ticking, so nothing grows or spawns there) for planning his route a
+ * stretch ahead. The tickets are saved with the world; when it loads, any left over from riders who are no longer
+ * working are dropped.
  */
 public final class RiderChunks {
-	/** Chunks loaded in each direction around him: 1 makes a 3x3 square. */
-	public static final int RADIUS = 1;
+	/** Chunks loaded in each direction around him: 3 makes a 7x7 square, reaching past a 48-block stretch. */
+	public static final int RADIUS = 3;
+	/** Of those, the ones that tick (mobs, crops, his own goings-on): 1 makes the 3x3 square he's in the middle of. */
+	public static final int TICKING_RADIUS = 1;
 
 	public static final TicketController CONTROLLER = new TicketController(PostRider.asResource("rider"), (level, tickets) -> {
 		PostOffice office = PostOffice.get(level.getServer());
@@ -37,19 +41,26 @@ public final class RiderChunks {
 		return chunks;
 	}
 
+	/** Whether a chunk in the square round a centre is close enough to tick. */
+	public static boolean ticks(ChunkPos centre, ChunkPos chunk) {
+		return Math.abs(chunk.x - centre.x) <= TICKING_RADIUS && Math.abs(chunk.z - centre.z) <= TICKING_RADIUS;
+	}
+
 	/** Moves a rider's loaded square from where it was (or nowhere) to around his chunk now. */
 	public static void move(ServerLevel level, UUID rider, ChunkPos previous, ChunkPos now) {
 		Set<ChunkPos> keep = around(now);
 		if (previous != null)
-			for (ChunkPos chunk : around(previous))
-				if (!keep.contains(chunk))
-					CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, false, true);
+			for (ChunkPos chunk : around(previous)) {
+				boolean ticked = ticks(previous, chunk);
+				if (!keep.contains(chunk) || ticks(now, chunk) != ticked)
+					CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, false, ticked);
+			}
 		for (ChunkPos chunk : keep)
-			CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, true, true);
+			CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, true, ticks(now, chunk));
 	}
 
 	public static void release(ServerLevel level, UUID rider, ChunkPos centre) {
 		for (ChunkPos chunk : around(centre))
-			CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, false, true);
+			CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, false, ticks(centre, chunk));
 	}
 }

@@ -1,0 +1,117 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "facing": "south"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck"
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cause": "killed"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck_skull"
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cause": "stuck"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck_map"
+      }
+    },
+    {
+      "when": {
+        "facing": "west"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cause": "killed"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck_skull",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cause": "stuck"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck_map",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "north"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cause": "killed"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck_skull",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cause": "stuck"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck_map",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "east"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cause": "killed"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck_skull",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cause": "stuck"
+      },
+      "apply": {
+        "model": "postrider:block/lost_parcel_wreck_map",
+        "y": 270
+      }
+    }
+  ]
+}

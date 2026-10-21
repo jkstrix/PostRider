@@ -22,6 +22,8 @@ import net.minecraft.world.phys.Vec3;
 public final class Crossing {
 	/** A land detour is worth riding while he covers no more than twice the ground he gains on the destination. */
 	public static final double DETOUR_FACTOR = 2.0;
+	/** Slack on top of that, so the first swerve round a pond doesn't count against him. */
+	public static final double DETOUR_SLACK = 16.0;
 	/** How far ahead from the water's edge he looks for open water to launch the barge into. */
 	public static final int LAUNCH_REACH = 8;
 	/** Open water needed on every side of the launch spot: the barge is 3 blocks wide and 5 long. */
@@ -43,10 +45,10 @@ public final class Crossing {
 
 	/**
 	 * Whether the land detour has gone on too long: he has ridden more than twice the ground he's gained since he
-	 * started going round, give or take a stretch.
+	 * started going round, give or take {@link #DETOUR_SLACK}.
 	 */
 	public static boolean detourTooLong(double ridden, double startDistance, double distanceNow) {
-		return ridden > DETOUR_FACTOR * Math.max(0, startDistance - distanceNow) + Journey.STRETCH;
+		return ridden > DETOUR_FACTOR * Math.max(0, startDistance - distanceNow) + DETOUR_SLACK;
 	}
 
 	/** The first open water ahead, towards the destination, with room all round for the barge; null if there's none. */

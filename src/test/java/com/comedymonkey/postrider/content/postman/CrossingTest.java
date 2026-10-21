@@ -27,8 +27,8 @@ class CrossingTest {
 		// Riding up and down the shore getting nowhere: barge
 		assertTrue(Crossing.detourTooLong(60, 100, 100));
 		// Twice the gain plus a stretch of slack is the limit
-		assertFalse(Crossing.detourTooLong(2 * 20 + Journey.STRETCH, 100, 80));
-		assertTrue(Crossing.detourTooLong(2 * 20 + Journey.STRETCH + 1, 100, 80));
+		assertFalse(Crossing.detourTooLong(2 * 20 + Crossing.DETOUR_SLACK, 100, 80));
+		assertTrue(Crossing.detourTooLong(2 * 20 + Crossing.DETOUR_SLACK + 1, 100, 80));
 		// Not going round anything
 		assertFalse(Crossing.detourTooLong(0, -1, 50));
 	}

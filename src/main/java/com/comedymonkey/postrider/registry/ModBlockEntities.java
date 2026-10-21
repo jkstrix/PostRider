@@ -21,7 +21,7 @@ public final class ModBlockEntities {
 
 	@SuppressWarnings("DataFlowIssue")
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LostParcelBlockEntity>> LOST_PARCEL =
-		BLOCK_ENTITIES.register("lost_parcel", () -> BlockEntityType.Builder.of(LostParcelBlockEntity::new, ModBlocks.LOST_PARCEL.get()).build(null));
+		BLOCK_ENTITIES.register("lost_parcel", () -> BlockEntityType.Builder.of(LostParcelBlockEntity::new, ModBlocks.LOST_PARCEL.get(), ModBlocks.LOST_PARCEL_WRECK.get()).build(null));
 
 	private ModBlockEntities() {}
 }

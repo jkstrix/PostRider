@@ -7,8 +7,8 @@ import net.minecraft.world.phys.Vec3;
 
 /** The sums for getting a rider from A to B: where to aim next, and whether he's making progress. */
 public final class Journey {
-	/** How far ahead each stretch of riding aims; kept inside the chunks he keeps loaded. */
-	public static final double STRETCH = 16.0;
+	/** How far ahead each stretch of riding aims (and pathfinding plans the way round things); inside the chunks he keeps loaded. */
+	public static final double STRETCH = 48.0;
 	/** How close to the mailbox he gets down from his horse, and how close he walks before delivering. */
 	public static final double DISMOUNT_DISTANCE = 6.0;
 	public static final double DELIVER_DISTANCE = 1.8;

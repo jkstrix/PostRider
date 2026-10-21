@@ -30,6 +30,7 @@
   "message.postrider.failed.sender": "Your mail for %s went astray near X %s, Y %s, Z %s. A letter is waiting in your mailbox.",
 
   "block.postrider.lost_parcel": "Lost Parcel",
+  "block.postrider.lost_parcel_wreck": "Lost Parcel (Wreck)",
   "message.postrider.lost_parcel.label": "A lost parcel, sent by %s from %s to %s on day %s.",
   "message.postrider.lost_parcel.not_yours": "Only the sender, the addressee or whoever bested the rider can open it.",
   "message.postrider.lost_parcel.recovered": "You recover the lost parcel.",

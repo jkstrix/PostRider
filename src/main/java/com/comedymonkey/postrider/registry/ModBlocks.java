@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.lost.LostParcelBlock;
+import com.comedymonkey.postrider.content.lost.LostParcelWreckBlock;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
 
 import net.minecraft.world.item.DyeColor;
@@ -39,6 +40,14 @@ public final class ModBlocks {
 			.mapColor(MapColor.WOOD)
 			.strength(1.0F, 1200.0F)
 			.sound(SoundType.WOOL)
+			.noOcclusion()
+			.noLootTable()
+			.pushReaction(PushReaction.BLOCK)));
+	public static final DeferredBlock<LostParcelWreckBlock> LOST_PARCEL_WRECK = BLOCKS.register("lost_parcel_wreck", () -> new LostParcelWreckBlock(
+		BlockBehaviour.Properties.of()
+			.mapColor(MapColor.WOOD)
+			.strength(1.0F, 1200.0F)
+			.sound(SoundType.WET_GRASS)
 			.noOcclusion()
 			.noLootTable()
 			.pushReaction(PushReaction.BLOCK)));

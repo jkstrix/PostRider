@@ -94,10 +94,15 @@ public class LostParcelBlock extends HorizontalDirectionalBlock implements Entit
 		}
 		for (ItemStack item : parcel.takeContents())
 			player.getInventory().placeItemBackInInventory(item);
-		level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+		level.setBlock(pos, emptied(state), Block.UPDATE_ALL);
 		level.playSound(null, pos, SoundEvents.BOOK_PAGE_TURN, SoundSource.BLOCKS, 1, 0.7F);
 		player.sendSystemMessage(Component.translatable("message.postrider.lost_parcel.recovered").withStyle(ChatFormatting.DARK_GREEN));
 		return InteractionResult.CONSUME;
+	}
+
+	/** What's left once the parcel has been taken. */
+	protected BlockState emptied(BlockState state) {
+		return Blocks.AIR.defaultBlockState();
 	}
 
 	static Component label(LostParcelBlockEntity parcel) {

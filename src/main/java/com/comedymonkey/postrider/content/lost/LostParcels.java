@@ -15,7 +15,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Containers;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluids;
 
 /** Leaves a Lost Parcel in the world for a delivery that failed. */
 public final class LostParcels {
@@ -32,19 +34,40 @@ public final class LostParcels {
 	@Nullable
 	public static BlockPos place(ServerLevel level, BlockPos near, PendingDelivery delivery, LostCause cause,
 			@Nullable UUID recipient, @Nullable UUID killer, String killerName) {
-		BlockPos spot = findSpot(near, pos -> canHold(level, pos));
+		// Lost out on the water, it floats where he went down; otherwise it lands on the ground nearby, or failing that
+		// floats on any water close by
+		BlockPos afloat = findSurface(near, pos -> isOpenWater(level, pos));
+		BlockPos spot = afloat != null && isOpenWater(level, near.atY(afloat.getY())) ? afloat : findSpot(near, pos -> canHold(level, pos));
+		if (spot == null)
+			spot = afloat;
 		if (spot == null) {
 			for (ItemStack item : delivery.items())
 				Containers.dropItemStack(level, near.getX() + 0.5, near.getY() + 0.5, near.getZ() + 0.5, item.copy());
 			return null;
 		}
 		Direction facing = Direction.Plane.HORIZONTAL.getRandomDirection(level.random);
-		level.setBlock(spot, ModBlocks.LOST_PARCEL.get().defaultBlockState()
+		Block block = spot.equals(afloat) ? ModBlocks.LOST_PARCEL_WRECK.get() : ModBlocks.LOST_PARCEL.get();
+		level.setBlock(spot, block.defaultBlockState()
 			.setValue(LostParcelBlock.FACING, facing).setValue(LostParcelBlock.CAUSE, cause), Block.UPDATE_ALL);
 		if (level.getBlockEntity(spot) instanceof LostParcelBlockEntity parcel)
 			parcel.fill(delivery.items(), delivery.sender(), delivery.senderName(), delivery.fromName(), delivery.toName(),
 				recipient, killer, killerName, Mail.day(level.getDayTime()));
 		return spot;
+	}
+
+	/** The top of still water with open air above it, where a wreck can float. */
+	static boolean isOpenWater(ServerLevel level, BlockPos pos) {
+		return level.getFluidState(pos).isSourceOfType(Fluids.WATER) && level.getBlockState(pos).is(Blocks.WATER)
+			&& level.getBlockState(pos.above()).isAir();
+	}
+
+	/**
+	 * The nearest water surface: straight up or down from the spot first, then rings further out, the way
+	 * {@link #findSpot} looks for ground.
+	 */
+	@Nullable
+	public static BlockPos findSurface(BlockPos origin, Predicate<BlockPos> isOpenWater) {
+		return findSpot(origin, isOpenWater);
 	}
 
 	/** Empty (or replaceable) space with solid ground under it, and no water or lava. */

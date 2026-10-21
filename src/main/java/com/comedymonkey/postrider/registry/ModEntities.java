@@ -9,6 +9,7 @@ import com.comedymonkey.postrider.content.postman.TentEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
@@ -56,6 +57,6 @@ public final class ModEntities {
 
 	public static void registerAttributes(EntityAttributeCreationEvent event) {
 		event.put(POSTMAN.get(), PostmanEntity.createAttributes().build());
-		event.put(POSTMAN_HORSE.get(), AbstractHorse.createBaseHorseAttributes().build());
+		event.put(POSTMAN_HORSE.get(), AbstractHorse.createBaseHorseAttributes().add(Attributes.FOLLOW_RANGE, PostmanHorse.FOLLOW_RANGE).build());
 	}
 }

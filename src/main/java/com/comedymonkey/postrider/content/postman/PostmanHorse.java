@@ -33,6 +33,8 @@ public class PostmanHorse extends Horse {
 	public static final double BLOCKS_PER_SECOND_PER_SPEED = 42.16;
 	public static final double MIN_BLOCKS_PER_SECOND = 7.0;
 	public static final double MIN_SPEED = MIN_BLOCKS_PER_SECOND / BLOCKS_PER_SECOND_PER_SPEED;
+	/** How far pathfinding will plan a route: past a whole stretch of riding (see {@link Journey#STRETCH}). */
+	public static final double FOLLOW_RANGE = 64.0;
 	private static final int SPEED_ROLLS = 32;
 
 	public PostmanHorse(EntityType<? extends Horse> type, Level level) {
