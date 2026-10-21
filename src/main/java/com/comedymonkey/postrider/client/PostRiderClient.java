@@ -52,6 +52,7 @@ public class PostRiderClient {
 
 	private void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
 		event.registerLayerDefinition(PostmanModel.LAYER, PostmanModel::createBodyLayer);
+		event.registerLayerDefinition(PostmanModel.SLIM_LAYER, PostmanModel::createSlimBodyLayer);
 		event.registerLayerDefinition(MochilaModel.LAYER, MochilaModel::createBodyLayer);
 		event.registerLayerDefinition(TentModel.LAYER, TentModel::createBodyLayer);
 	}

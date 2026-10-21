@@ -194,7 +194,7 @@ public class DeliveryRun {
 		Vec3 target = destination != null ? Vec3.atCenterOf(destination.pos()) : null;
 		String distance = target != null ? (int) Journey.horizontalDistance(rider.position(), target) + " blocks" : "unknown";
 		return rider.getName().getString() + ": " + stage + (stage == Stage.CAMPING ? " (" + campStep + ")" : "")
-			+ " for " + stageTicks + " ticks, activity " + rider.getActivity() + (rider.isInTent() ? ", in his tent" : "")
+			+ " for " + stageTicks + " ticks, activity " + rider.getActivity() + (rider.isInTent() ? ", in the tent" : "")
 			+ ", " + (int) rider.getHealth() + " health and " + rider.getPotions() + " potions"
 			+ ", " + distance + " to " + delivery.toName() + ", time of day " + PostOfficeHours.timeOfDay(level.getDayTime());
 	}
@@ -607,7 +607,7 @@ public class DeliveryRun {
 			return false;
 		if (progress.outOfTries()) {
 			fail(rider, level, LostCause.STUCK, rider.getName().getString()
-				+ " lost his way in the wilds and had to turn back.", null, rider.blockPosition());
+				+ " lost " + rider.possessive() + " way in the wilds and had to turn back.", null, rider.blockPosition());
 			return true;
 		}
 		Vec3 free = freeSpot(level, rider.position(), target, rider.level().canSeeSky(rider.blockPosition()));
@@ -649,7 +649,7 @@ public class DeliveryRun {
 	/** He gives up and turns back, as if he'd got hopelessly stuck (for testing failures). */
 	public void giveUp(PostmanEntity rider, ServerLevel level) {
 		if (stage != Stage.DONE)
-			fail(rider, level, LostCause.STUCK, rider.getName().getString() + " lost his way in the wilds and had to turn back.",
+			fail(rider, level, LostCause.STUCK, rider.getName().getString() + " lost " + rider.possessive() + " way in the wilds and had to turn back.",
 				null, rider.blockPosition());
 	}
 

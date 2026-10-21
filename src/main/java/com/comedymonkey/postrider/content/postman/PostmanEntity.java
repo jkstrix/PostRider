@@ -98,6 +98,8 @@ public class PostmanEntity extends PathfinderMob {
 
 	private static final EntityDataAccessor<Byte> DATA_ACTIVITY = SynchedEntityData.defineId(PostmanEntity.class, EntityDataSerializers.BYTE);
 	private static final EntityDataAccessor<Boolean> DATA_CARRYING = SynchedEntityData.defineId(PostmanEntity.class, EntityDataSerializers.BOOLEAN);
+	/** Which of the crew this is (an id from {@link Roster}), so everyone sees their own face. */
+	private static final EntityDataAccessor<String> DATA_RIDER = SynchedEntityData.defineId(PostmanEntity.class, EntityDataSerializers.STRING);
 
 	// Client side only: the animations currently playing
 	public final AnimationState idleAnimation = new AnimationState();
@@ -128,6 +130,7 @@ public class PostmanEntity extends PathfinderMob {
 		super.defineSynchedData(builder);
 		builder.define(DATA_ACTIVITY, (byte) Activity.NONE.ordinal());
 		builder.define(DATA_CARRYING, false);
+		builder.define(DATA_RIDER, "");
 	}
 
 	@Override
@@ -144,6 +147,23 @@ public class PostmanEntity extends PathfinderMob {
 
 	public void setActivity(Activity activity) {
 		entityData.set(DATA_ACTIVITY, (byte) activity.ordinal());
+	}
+
+	/** Which of the crew this is; null for a rider from before the roster (or a bad id), drawn in the plain uniform. */
+	@Nullable
+	public Roster.Rider getRider() {
+		return Roster.byId(entityData.get(DATA_RIDER));
+	}
+
+	public void setRider(Roster.Rider rider) {
+		entityData.set(DATA_RIDER, rider.id());
+		setCustomName(Component.literal(rider.name()));
+	}
+
+	/** "his" or "her", for messages about this rider. */
+	public String possessive() {
+		Roster.Rider rider = getRider();
+		return rider == null ? "his" : rider.possessive();
 	}
 
 	/** Whether there's mail in his satchel, which makes it bulge. */
@@ -181,15 +201,15 @@ public class PostmanEntity extends PathfinderMob {
 	@Nullable
 	private PostmanHorse arrivingHorse;
 
-	/** Brings a new rider into the world in a puff of smoke, with a name of his own. */
+	/** Brings one of the crew into the world in a puff of smoke. */
 	@Nullable
-	public static PostmanEntity appear(EntityType<PostmanEntity> type, ServerLevel level, double x, double y, double z, float yaw) {
+	public static PostmanEntity appear(EntityType<PostmanEntity> type, ServerLevel level, double x, double y, double z, float yaw, Roster.Rider rider) {
 		PostmanEntity postman = type.create(level);
 		if (postman == null)
 			return null;
 		postman.moveTo(x, y, z, yaw, 0);
 		postman.setYHeadRot(yaw);
-		postman.setCustomName(Component.literal(PostmanNames.rider(level.random)));
+		postman.setRider(rider);
 		level.addFreshEntity(postman);
 		PostmanEffects.puff(level, postman);
 		return postman;
@@ -203,7 +223,7 @@ public class PostmanEntity extends PathfinderMob {
 	 * there's nowhere for him to stand.
 	 */
 	@Nullable
-	public static PostmanEntity setOut(ServerLevel level, PendingDelivery delivery) {
+	public static PostmanEntity setOut(ServerLevel level, PendingDelivery delivery, Roster.Rider who) {
 		EntityType<PostmanEntity> type = ModEntities.POSTMAN.get();
 		BlockPos mailbox = delivery.from().pos();
 		level.getChunkAt(mailbox);
@@ -213,7 +233,7 @@ public class PostmanEntity extends PathfinderMob {
 		if (!level.noCollision(type.getSpawnAABB(stand.x, stand.y, stand.z)))
 			return null;
 		float yaw = DeliveryRun.yawToward(stand, Vec3.atBottomCenterOf(mailbox));
-		PostmanEntity rider = appear(type, level, stand.x, stand.y, stand.z, yaw);
+		PostmanEntity rider = appear(type, level, stand.x, stand.y, stand.z, yaw, who);
 		if (rider != null)
 			rider.run = DeliveryRun.plan(level, delivery);
 		return rider;
@@ -364,6 +384,9 @@ public class PostmanEntity extends PathfinderMob {
 			Vec3 spot = HorseSpots.find(position(), getYRot(), s -> HorseSpots.fits(level, type, s));
 			PostmanHorse horse = spot == null ? null : PostmanHorse.create(type, level, spot.x, spot.y, spot.z, getYRot());
 			if (horse != null) {
+				Roster.Rider rider = getRider();
+				if (rider != null)
+					horse.dressAs(rider.horse());
 				level.addFreshEntity(horse);
 				PostmanEffects.puff(level, horse);
 				arrivingHorse = horse;
@@ -475,6 +498,7 @@ public class PostmanEntity extends PathfinderMob {
 		tag.putString("activity", getActivity().name());
 		tag.putBoolean("carrying", isCarrying());
 		tag.putBoolean("in_tent", inTent);
+		tag.putString("rider", entityData.get(DATA_RIDER));
 		tag.putInt("potions", potions);
 		tag.putLong("potion_day", potionDay);
 		tag.putInt("drink_ticks", drinkTicks);
@@ -492,6 +516,7 @@ public class PostmanEntity extends PathfinderMob {
 		}
 		setCarrying(tag.getBoolean("carrying"));
 		inTent = tag.getBoolean("in_tent");
+		entityData.set(DATA_RIDER, tag.getString("rider"));
 		if (tag.contains("potions")) {
 			potions = tag.getInt("potions");
 			potionDay = tag.getLong("potion_day");

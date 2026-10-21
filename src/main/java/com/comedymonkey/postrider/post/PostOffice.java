@@ -3,12 +3,16 @@ package com.comedymonkey.postrider.post;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
+
+import com.comedymonkey.postrider.content.postman.Roster;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DynamicOps;
@@ -31,11 +35,12 @@ public class PostOffice extends SavedData {
 	public static final String ID = "postrider_post_office";
 	private static final SavedData.Factory<PostOffice> FACTORY = new SavedData.Factory<>(PostOffice::new, PostOffice::load, null);
 
-	/** A delivery a rider has set out with. */
-	public record Active(PendingDelivery delivery, UUID rider) {
+	/** A delivery a rider has set out with: the rider entity, and which of the crew it is (see {@link Roster}). */
+	public record Active(PendingDelivery delivery, UUID rider, String riderId) {
 		public static final Codec<Active> CODEC = RecordCodecBuilder.create(i -> i.group(
 			PendingDelivery.CODEC.fieldOf("delivery").forGetter(Active::delivery),
-			UUIDUtil.CODEC.fieldOf("rider").forGetter(Active::rider)
+			UUIDUtil.CODEC.fieldOf("rider").forGetter(Active::rider),
+			Codec.STRING.optionalFieldOf("rider_id", "").forGetter(Active::riderId)
 		).apply(i, Active::new));
 	}
 
@@ -74,10 +79,18 @@ public class PostOffice extends SavedData {
 		return queue.size();
 	}
 
-	/** Records that a rider has set out with a delivery. */
-	public void setOut(PendingDelivery delivery, UUID rider) {
-		active.put(delivery.id(), new Active(delivery, rider));
+	/** Records that one of the crew has set out with a delivery. */
+	public void setOut(PendingDelivery delivery, UUID rider, String riderId) {
+		active.put(delivery.id(), new Active(delivery, rider, riderId));
 		setDirty();
+	}
+
+	/** The crew members out on the road right now, who can't be sent anywhere else. */
+	public Set<String> busyRiders() {
+		Set<String> busy = new HashSet<>();
+		for (Active each : active.values())
+			busy.add(each.riderId());
+		return busy;
 	}
 
 	/** The delivery is over, whether it arrived or was lost. */

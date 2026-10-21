@@ -1,7 +1,12 @@
 package com.comedymonkey.postrider.client.model;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
+import com.comedymonkey.postrider.content.postman.Roster;
 
 import net.minecraft.client.animation.AnimationDefinition;
 import net.minecraft.world.entity.AnimationState;
@@ -17,11 +22,14 @@ import net.minecraft.client.model.geom.builders.PartDefinition;
 import net.minecraft.util.Mth;
 
 /**
- * The rider's model. The geometry is Blockbench's Mojang-mappings export of blockbench/postman.bbmodel, and the
- * animations come from {@link PostmanAnimations}.
+ * The rider's model. The geometry is Blockbench's Mojang-mappings export of blockbench/postman.bbmodel, or for the
+ * women of the crew blockbench/postman_slim.bbmodel (a narrower head and slim arms); both share the parts and so the
+ * animations from {@link PostmanAnimations}. Long hair is drawn with extra parts on the head, shown for whoever wears it.
  */
 public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 	public static final ModelLayerLocation LAYER = new ModelLayerLocation(PostRider.asResource("postman"), "main");
+	public static final ModelLayerLocation SLIM_LAYER = new ModelLayerLocation(PostRider.asResource("postman"), "slim");
+	public static final List<String> HAIR_PARTS = List.of("hair_back", "hair_bun", "hair_braid", "hair_pigtails");
 
 	private final ModelPart root;
 	private final ModelPart head;
@@ -34,6 +42,7 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 	private final ModelPart letter;
 	private final ModelPart satchelFlat;
 	private final ModelPart satchelFull;
+	private final Map<String, ModelPart> hair = new HashMap<>();
 
 	public PostmanModel(ModelPart baked) {
 		// Animations of the "root" bone go to root(), so that has to be the bone at his feet that Blockbench pivots
@@ -52,9 +61,21 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		ModelPart satchel = body.getChild("satchel");
 		this.satchelFlat = satchel.getChild("satchel_flat");
 		this.satchelFull = satchel.getChild("satchel_full");
+		for (String part : HAIR_PARTS)
+			hair.put(part, head.getChild(part));
 	}
 
 	public static LayerDefinition createBodyLayer() {
+		return createBodyLayer(false);
+	}
+
+	public static LayerDefinition createSlimBodyLayer() {
+		return createBodyLayer(true);
+	}
+
+	/** The two builds differ only in the head's width (8 or 7), the arms' (4 or 3) and where things sit on them. */
+	public static LayerDefinition createBodyLayer(boolean slim) {
+		float armWidth = slim ? 3.0F : 4.0F, handOffset = slim ? 0.5F : 1.0F;
 		MeshDefinition mesh = new MeshDefinition();
 		PartDefinition parts = mesh.getRoot();
 
@@ -64,9 +85,15 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 			.texOffs(64, 28).addBox(-4.5F, -12.0F, -2.5F, 9.0F, 2.0F, 5.0F, new CubeDeformation(0.0F))
 			.texOffs(92, 28).addBox(-1.5F, -10.0F, -3.0F, 3.0F, 2.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(0.0F, -12.0F, 0.0F));
 
-		PartDefinition head = body.addOrReplaceChild("head", CubeListBuilder.create().texOffs(0, 0).addBox(-4.0F, -8.0F, -4.0F, 8.0F, 8.0F, 8.0F, new CubeDeformation(0.0F)), PartPose.offset(0.0F, -12.0F, 0.0F));
+		PartDefinition head = body.addOrReplaceChild("head", CubeListBuilder.create().texOffs(0, 0).addBox(slim ? -3.5F : -4.0F, -8.0F, -4.0F, slim ? 7.0F : 8.0F, 8.0F, 8.0F, new CubeDeformation(0.0F)), PartPose.offset(0.0F, -12.0F, 0.0F));
 		head.addOrReplaceChild("harmonica", CubeListBuilder.create().texOffs(112, 28).addBox(-1.5F, -0.5F, -0.5F, 3.0F, 1.0F, 1.0F, new CubeDeformation(0.0F)),
 			PartPose.offset(0.0F, -1.5F, -4.5F));
+
+		head.addOrReplaceChild("hair_back", CubeListBuilder.create().texOffs(0, 32).addBox(slim ? -4.0F : -4.5F, -6.0F, 4.0F, slim ? 8.0F : 9.0F, 8.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.ZERO);
+		head.addOrReplaceChild("hair_bun", CubeListBuilder.create().texOffs(20, 32).addBox(-1.5F, -4.0F, 4.0F, 3.0F, 3.0F, 2.0F, new CubeDeformation(0.0F)), PartPose.ZERO);
+		head.addOrReplaceChild("hair_braid", CubeListBuilder.create().texOffs(30, 32).addBox(-1.0F, -1.0F, 2.0F, 2.0F, 9.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.ZERO);
+		head.addOrReplaceChild("hair_pigtails", CubeListBuilder.create().texOffs(36, 32).addBox(slim ? 3.5F : 4.0F, -2.0F, 0.0F, 1.0F, 5.0F, 2.0F, new CubeDeformation(0.0F))
+			.texOffs(36, 32).addBox(slim ? -4.5F : -5.0F, -2.0F, 0.0F, 1.0F, 5.0F, 2.0F, new CubeDeformation(0.0F)), PartPose.ZERO);
 
 		PartDefinition hat = head.addOrReplaceChild("hat", CubeListBuilder.create().texOffs(64, 0).addBox(-4.5F, -1.5F, -4.5F, 9.0F, 3.0F, 9.0F, new CubeDeformation(0.0F))
 			.texOffs(64, 44).addBox(-4.0F, -2.5F, -3.5F, 8.0F, 1.0F, 7.0F, new CubeDeformation(0.0F))
@@ -76,17 +103,17 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		hat.addOrReplaceChild("hat_brim_left_r1", CubeListBuilder.create().texOffs(96, 48).addBox(-3.0F, -0.5F, -5.5F, 3.0F, 1.0F, 11.0F, new CubeDeformation(0.0F)),
 			PartPose.offsetAndRotation(-4.5F, 1.0F, 0.0F, 0.0F, 0.0F, 0.3927F));
 
-		PartDefinition rightArm = body.addOrReplaceChild("right_arm", CubeListBuilder.create().texOffs(40, 16).addBox(-1.0F, -2.0F, -2.0F, 4.0F, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(5.0F, -10.0F, 0.0F));
+		PartDefinition rightArm = body.addOrReplaceChild("right_arm", CubeListBuilder.create().texOffs(40, 16).addBox(-1.0F, -2.0F, -2.0F, armWidth, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(5.0F, -10.0F, 0.0F));
 		rightArm.addOrReplaceChild("hammer", CubeListBuilder.create().texOffs(32, 0).addBox(-0.5F, -0.5F, -7.0F, 1.0F, 1.0F, 7.0F, new CubeDeformation(0.0F))
-			.texOffs(48, 0).addBox(-1.0F, -1.5F, -8.0F, 2.0F, 3.0F, 2.0F, new CubeDeformation(0.0F)), PartPose.offset(1.0F, 9.5F, 0.0F));
+			.texOffs(48, 0).addBox(-1.0F, -1.5F, -8.0F, 2.0F, 3.0F, 2.0F, new CubeDeformation(0.0F)), PartPose.offset(handOffset, 9.5F, 0.0F));
 		rightArm.addOrReplaceChild("potion", CubeListBuilder.create().texOffs(32, 8).addBox(-1.5F, -1.5F, -5.0F, 3.0F, 3.0F, 3.0F, new CubeDeformation(0.0F))
 			.texOffs(44, 8).addBox(-0.5F, -0.5F, -7.0F, 1.0F, 1.0F, 2.0F, new CubeDeformation(0.0F))
-			.texOffs(50, 8).addBox(-0.5F, -0.5F, -8.0F, 1.0F, 1.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(1.0F, 9.5F, 0.0F));
+			.texOffs(50, 8).addBox(-0.5F, -0.5F, -8.0F, 1.0F, 1.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(handOffset, 9.5F, 0.0F));
 		rightArm.addOrReplaceChild("canteen", CubeListBuilder.create().texOffs(56, 0).addBox(-0.5F, -1.5F, -5.0F, 1.0F, 3.0F, 3.0F, new CubeDeformation(0.0F))
-			.texOffs(48, 5).addBox(-0.5F, -0.5F, -6.0F, 1.0F, 1.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(1.0F, 9.5F, 0.0F));
-		PartDefinition leftArm = body.addOrReplaceChild("left_arm", CubeListBuilder.create().texOffs(32, 48).addBox(-3.0F, -2.0F, -2.0F, 4.0F, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(-5.0F, -10.0F, 0.0F));
-		leftArm.addOrReplaceChild("pocket_watch", CubeListBuilder.create().texOffs(58, 11).addBox(-1.0F, -1.0F, -3.0F, 2.0F, 2.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(-1.0F, 9.5F, 0.0F));
-		leftArm.addOrReplaceChild("letter", CubeListBuilder.create().texOffs(44, 11).addBox(-1.5F, 1.0F, -6.0F, 4.0F, 0.0F, 3.0F, new CubeDeformation(0.0F)), PartPose.offset(-1.0F, 9.5F, 0.0F));
+			.texOffs(48, 5).addBox(-0.5F, -0.5F, -6.0F, 1.0F, 1.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(handOffset, 9.5F, 0.0F));
+		PartDefinition leftArm = body.addOrReplaceChild("left_arm", CubeListBuilder.create().texOffs(32, 48).addBox(slim ? -2.0F : -3.0F, -2.0F, -2.0F, armWidth, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(-5.0F, -10.0F, 0.0F));
+		leftArm.addOrReplaceChild("pocket_watch", CubeListBuilder.create().texOffs(58, 11).addBox(-1.0F, -1.0F, -3.0F, 2.0F, 2.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(-handOffset, 9.5F, 0.0F));
+		leftArm.addOrReplaceChild("letter", CubeListBuilder.create().texOffs(44, 11).addBox(-1.5F, 1.0F, -6.0F, 4.0F, 0.0F, 3.0F, new CubeDeformation(0.0F)), PartPose.offset(-handOffset, 9.5F, 0.0F));
 
 		PartDefinition satchel = body.addOrReplaceChild("satchel", CubeListBuilder.create(), PartPose.offset(-2.5F, -3.0F, 2.0F));
 		satchel.addOrReplaceChild("satchel_flat", CubeListBuilder.create().texOffs(100, 28).addBox(-2.0F, 0.0F, 0.0F, 4.0F, 5.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(0.0F, 0.0F, 0.0F));
@@ -138,6 +165,9 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 			}
 		}
 
+		Roster.Rider rider = entity.getRider();
+		String hairPart = rider == null ? null : rider.hair().part();
+		hair.forEach((name, part) -> part.visible = name.equals(hairPart));
 		harmonica.visible = entity.getActivity() == PostmanEntity.Activity.HARMONICA;
 		hammer.visible = entity.getActivity() == PostmanEntity.Activity.CAMP_HAMMER;
 		potion.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.DRINK).isStarted();

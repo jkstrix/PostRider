@@ -25,7 +25,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 
 /**
- * The rider's horse: a vanilla horse with a random coat, markings and name, wearing the mochila. It's always saddled
+ * A rider's horse: a vanilla horse with the coat, markings, name and speed its rider always has (see {@link Roster}), wearing the mochila. It's always saddled
  * and only answers to its rider; players can't ride it, open it, feed it or breed it, and it leaves nothing behind.
  */
 public class PostmanHorse extends Horse {
@@ -66,8 +66,14 @@ public class PostmanHorse extends Horse {
 		SpawnGroupData result = super.finalizeSpawn(level, difficulty, type, data);
 		setTamed(true);
 		equipSaddle(new ItemStack(Items.SADDLE), null);
-		setCustomName(Component.literal(PostmanNames.horse(getRandom())));
 		return result;
+	}
+
+	/** Makes this its rider's own horse: the same coat, markings, name and speed every time. */
+	public void dressAs(Roster.Horse horse) {
+		setVariantAndMarkings(horse.coat(), horse.markings());
+		setCustomName(Component.literal(horse.name()));
+		getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(horse.speed());
 	}
 
 	/** Creates a ready-saddled horse at a spot, without adding it to the world yet. */

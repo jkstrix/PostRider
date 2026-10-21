@@ -4,7 +4,10 @@ import java.util.Comparator;
 import java.util.Locale;
 import java.util.function.Consumer;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
+import com.comedymonkey.postrider.content.postman.Roster;
 import com.comedymonkey.postrider.post.PostDispatcher;
 import com.comedymonkey.postrider.registry.ModEntities;
 import com.mojang.brigadier.CommandDispatcher;
@@ -30,7 +33,11 @@ public final class PostRiderCommand {
 
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 		LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("postrider").requires(source -> source.hasPermission(2));
-		root.then(Commands.literal("spawn").executes(ctx -> spawn(ctx.getSource())));
+		LiteralArgumentBuilder<CommandSourceStack> spawn = Commands.literal("spawn");
+		spawn.executes(ctx -> spawn(ctx.getSource(), null));
+		for (Roster.Rider each : Roster.ALL)
+			spawn.then(Commands.literal(each.id()).executes(ctx -> spawn(ctx.getSource(), each)));
+		root.then(spawn);
 		root.then(Commands.literal("whistle").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::whistleForHorse)));
 		root.then(Commands.literal("dismount").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::dismissHorse)));
 		root.then(Commands.literal("vanish").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::vanish)));
@@ -70,11 +77,13 @@ public final class PostRiderCommand {
 		return value.name().toLowerCase(Locale.ROOT);
 	}
 
-	private static int spawn(CommandSourceStack source) throws CommandSyntaxException {
+	/** One of the crew in front of you: whoever you name, or anyone at random. */
+	private static int spawn(CommandSourceStack source, @Nullable Roster.Rider who) throws CommandSyntaxException {
 		ServerPlayer player = source.getPlayerOrException();
 		ServerLevel level = player.serverLevel();
 		Vec3 ahead = player.position().add(player.getLookAngle().multiply(3, 0, 3));
-		PostmanEntity postman = PostmanEntity.appear(ModEntities.POSTMAN.get(), level, ahead.x, player.getY(), ahead.z, player.getYRot() + 180);
+		Roster.Rider rider = who != null ? who : Roster.ALL.get(level.random.nextInt(Roster.ALL.size()));
+		PostmanEntity postman = PostmanEntity.appear(ModEntities.POSTMAN.get(), level, ahead.x, player.getY(), ahead.z, player.getYRot() + 180, rider);
 		if (postman == null)
 			return 0;
 		source.sendSuccess(() -> Component.translatable("command.postrider.spawned", postman.getName()), true);

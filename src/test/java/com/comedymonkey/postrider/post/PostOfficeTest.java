@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -64,13 +65,15 @@ class PostOfficeTest {
 		PostOffice office = new PostOffice();
 		PendingDelivery pending = delivery("Inn", new ItemStack(Items.APPLE));
 		UUID rider = UUID.randomUUID();
-		office.setOut(pending, rider);
+		office.setOut(pending, rider, "chris");
 		assertTrue(office.isActive(pending.id()));
 		assertTrue(office.isRider(rider));
 		assertEquals(1, office.activeCount());
+		assertEquals(Set.of("chris"), office.busyRiders(), "Chris is out, so he can't be sent anywhere else");
 		office.finish(pending.id());
 		assertFalse(office.isRider(rider));
 		assertEquals(0, office.activeCount());
+		assertTrue(office.busyRiders().isEmpty(), "back and free for the next delivery");
 	}
 
 	@Test
@@ -89,9 +92,10 @@ class PostOfficeTest {
 		PostOffice office = new PostOffice();
 		PendingDelivery pending = delivery("Inn", new ItemStack(Items.APPLE));
 		UUID rider = UUID.randomUUID();
-		office.setOut(pending, rider);
+		office.setOut(pending, rider, "nell");
 		PostOffice loaded = PostOffice.load(office.save(new CompoundTag(), registries), registries);
 		assertTrue(loaded.isRider(rider));
+		assertEquals(Set.of("nell"), loaded.busyRiders());
 		assertEquals("Inn", loaded.active().iterator().next().delivery().toName());
 	}
 
