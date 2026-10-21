@@ -28,6 +28,9 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 - A custom player-like mob with a Pony Express rider skin (wide-brimmed hat, bandana, leather vest), riding a vanilla-style horse.
 - His horse wears a Pony Express mochila: a leather cover over the saddle with four boxy mail pockets (two on each side). Each horse gets a random vanilla coat and markings, and a random speed that is never below 7 blocks/s.
 - Pickup: he appears in a puff of smoke at the sender's mailbox, takes the parcel and summons his horse.
+- Riders only collect in daytime: mail posted after dusk (6pm game time) waits in the queue until 6am, and the sender is told so.
+- He appears and vanishes in a puff of smoke, and his horse arrives (when he whistles) and leaves the same way.
+- Every rider and every horse gets a random Old West name.
 - Delivery: he dismounts, puts the parcel in the inbox and vanishes in smoke with his horse.
 - Same dimension only, no distance cap. He loads a 3×3 area of chunks around himself. At most 32 postmen out at once; extra mail waits its turn.
 - Prefers land and takes a land detour of up to 2× the straight-line distance. Otherwise he crosses water on a ferry barge (flat barge with railings and a lantern post) that carries him and the horse.

@@ -10,6 +10,7 @@ import com.comedymonkey.ponyexpress.post.Mail;
 import com.comedymonkey.ponyexpress.post.MailboxDirectory;
 import com.comedymonkey.ponyexpress.post.PendingDelivery;
 import com.comedymonkey.ponyexpress.post.PostOffice;
+import com.comedymonkey.ponyexpress.post.PostOfficeHours;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.ChatFormatting;
@@ -64,6 +65,8 @@ public record SendParcelPayload(String to) implements CustomPacketPayload {
 		PostOffice.get(player.server).enqueue(new PendingDelivery(UUID.randomUUID(), player.getUUID(),
 			player.getGameProfile().getName(), mailbox.getName(), here, target.name(), items, player.serverLevel().getGameTime()));
 		String key = Mail.isLetterOnly(items) ? "message.ponyexpress.mailbox.queued_letter" : "message.ponyexpress.mailbox.queued";
+		if (!PostOfficeHours.isOpen(player.serverLevel().getDayTime()))
+			key += "_night";
 		player.displayClientMessage(Component.translatable(key, target.name()).withStyle(ChatFormatting.DARK_GREEN), true);
 		return null;
 	}

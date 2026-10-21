@@ -83,5 +83,7 @@
   "message.ponyexpress.mailbox.unknown_address": "There's no mailbox called %s any more.",
   "message.ponyexpress.mailbox.other_dimension": "%s is in another dimension. The rider can't get there.",
   "message.ponyexpress.mailbox.queued": "Your parcel for %s is waiting for a rider.",
-  "message.ponyexpress.mailbox.queued_letter": "Your letter for %s is waiting for a rider."
+  "message.ponyexpress.mailbox.queued_letter": "Your letter for %s is waiting for a rider.",
+  "message.ponyexpress.mailbox.queued_night": "Posted after dark. A rider will collect your parcel for %s at 6am.",
+  "message.ponyexpress.mailbox.queued_letter_night": "Posted after dark. A rider will collect your letter for %s at 6am."
 }
