@@ -53,9 +53,27 @@ class MailboxResourcesTest {
 
 	@Test
 	void theBoxIsTintedSoOneTextureCoversEveryColour() {
-		String base = json("assets", "ponyexpress", "models", "block", "mailbox_base.json").toString();
-		assertTrue(base.contains("\"tintindex\":0"));
+		String upper = json("assets", "ponyexpress", "models", "block", "mailbox_upper.json").toString();
+		assertTrue(upper.contains("\"tintindex\":0"));
 		assertFalse(json("assets", "ponyexpress", "models", "block", "mailbox_flag_up.json").toString().contains("tintindex"));
+	}
+
+	@Test
+	void eachHalfIsDrawnInsideItsOwnBlockSoItIsLitCorrectly() {
+		for (String model : new String[] {"mailbox_lower", "mailbox_upper", "mailbox_flag_down", "mailbox_flag_up"}) {
+			for (var element : json("assets", "ponyexpress", "models", "block", model + ".json").getAsJsonArray("elements")) {
+				var from = element.getAsJsonObject().getAsJsonArray("from");
+				var to = element.getAsJsonObject().getAsJsonArray("to");
+				assertTrue(from.get(1).getAsDouble() >= 0 && to.get(1).getAsDouble() <= 16, model + " reaches outside its block");
+			}
+		}
+	}
+
+	@Test
+	void theUpperHalfDrawsTheBoxAndFlag() {
+		String blockstate = json("assets", "ponyexpress", "blockstates", "blue_mailbox.json").toString();
+		assertTrue(blockstate.contains("{\"when\":{\"half\":\"upper\",\"facing\":\"north\",\"flag\":\"true\"},\"apply\":{\"model\":\"ponyexpress:block/mailbox_flag_up\"}}"));
+		assertTrue(blockstate.contains("{\"when\":{\"half\":\"lower\",\"facing\":\"north\"},\"apply\":{\"model\":\"ponyexpress:block/mailbox_lower\"}}"));
 	}
 
 	@Test

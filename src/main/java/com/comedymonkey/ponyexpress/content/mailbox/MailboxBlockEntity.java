@@ -198,10 +198,13 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 	private void updateFlag() {
 		if (level == null || level.isClientSide)
 			return;
-		BlockState state = getBlockState();
 		boolean hasMail = !isInboxEmpty();
-		if (state.getBlock() instanceof MailboxBlock && state.getValue(MailboxBlock.FLAG) != hasMail)
-			level.setBlock(worldPosition, state.setValue(MailboxBlock.FLAG, hasMail), Block.UPDATE_ALL);
+		// The flag is drawn by the upper half, but both halves carry it so they stay alike
+		for (BlockPos pos : List.of(worldPosition, worldPosition.above())) {
+			BlockState state = level.getBlockState(pos);
+			if (state.getBlock() instanceof MailboxBlock && state.getValue(MailboxBlock.FLAG) != hasMail)
+				level.setBlock(pos, state.setValue(MailboxBlock.FLAG, hasMail), Block.UPDATE_ALL);
+		}
 	}
 
 	// ---------------------------------------------------------------- menu

@@ -6,12 +6,21 @@
         "facing": "north"
       },
       "apply": {
-        "model": "ponyexpress:block/mailbox_base"
+        "model": "ponyexpress:block/mailbox_lower"
       }
     },
     {
       "when": {
-        "half": "lower",
+        "half": "upper",
+        "facing": "north"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_upper"
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
         "facing": "north",
         "flag": "false"
       },
@@ -21,7 +30,7 @@
     },
     {
       "when": {
-        "half": "lower",
+        "half": "upper",
         "facing": "north",
         "flag": "true"
       },
@@ -35,13 +44,23 @@
         "facing": "east"
       },
       "apply": {
-        "model": "ponyexpress:block/mailbox_base",
+        "model": "ponyexpress:block/mailbox_lower",
         "y": 90
       }
     },
     {
       "when": {
-        "half": "lower",
+        "half": "upper",
+        "facing": "east"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_upper",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
         "facing": "east",
         "flag": "false"
       },
@@ -52,7 +71,7 @@
     },
     {
       "when": {
-        "half": "lower",
+        "half": "upper",
         "facing": "east",
         "flag": "true"
       },
@@ -67,13 +86,23 @@
         "facing": "south"
       },
       "apply": {
-        "model": "ponyexpress:block/mailbox_base",
+        "model": "ponyexpress:block/mailbox_lower",
         "y": 180
       }
     },
     {
       "when": {
-        "half": "lower",
+        "half": "upper",
+        "facing": "south"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_upper",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
         "facing": "south",
         "flag": "false"
       },
@@ -84,7 +113,7 @@
     },
     {
       "when": {
-        "half": "lower",
+        "half": "upper",
         "facing": "south",
         "flag": "true"
       },
@@ -99,13 +128,23 @@
         "facing": "west"
       },
       "apply": {
-        "model": "ponyexpress:block/mailbox_base",
+        "model": "ponyexpress:block/mailbox_lower",
         "y": 270
       }
     },
     {
       "when": {
-        "half": "lower",
+        "half": "upper",
+        "facing": "west"
+      },
+      "apply": {
+        "model": "ponyexpress:block/mailbox_upper",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
         "facing": "west",
         "flag": "false"
       },
@@ -116,21 +155,13 @@
     },
     {
       "when": {
-        "half": "lower",
+        "half": "upper",
         "facing": "west",
         "flag": "true"
       },
       "apply": {
         "model": "ponyexpress:block/mailbox_flag_up_yellow",
         "y": 270
-      }
-    },
-    {
-      "when": {
-        "half": "upper"
-      },
-      "apply": {
-        "model": "ponyexpress:block/mailbox_upper"
       }
     }
   ]
