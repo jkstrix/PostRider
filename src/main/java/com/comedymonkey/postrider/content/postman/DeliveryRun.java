@@ -194,6 +194,7 @@ public class DeliveryRun {
 		String distance = target != null ? (int) Journey.horizontalDistance(rider.position(), target) + " blocks" : "unknown";
 		return rider.getName().getString() + ": " + stage + (stage == Stage.CAMPING ? " (" + campStep + ")" : "")
 			+ " for " + stageTicks + " ticks, activity " + rider.getActivity() + (rider.isInTent() ? ", in his tent" : "")
+			+ ", " + (int) rider.getHealth() + " health and " + rider.getPotions() + " potions"
 			+ ", " + distance + " to " + delivery.toName() + ", time of day " + PostOfficeHours.timeOfDay(level.getDayTime());
 	}
 

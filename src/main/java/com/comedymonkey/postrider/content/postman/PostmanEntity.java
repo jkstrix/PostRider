@@ -9,6 +9,8 @@ import com.comedymonkey.postrider.post.PendingDelivery;
 import com.comedymonkey.postrider.registry.ModEntities;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ColorParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -49,7 +51,8 @@ public class PostmanEntity extends PathfinderMob {
 		PICKUP(100, 2.2F),
 		DELIVER(101, 2.4F),
 		WHISTLE(102, 1.6F),
-		WAVE(103, 1.6F);
+		WAVE(103, 1.6F),
+		DRINK(104, 1.6F);
 
 		public final byte eventId;
 		public final float seconds;
@@ -264,6 +267,59 @@ public class PostmanEntity extends PathfinderMob {
 		return super.isPushable() && !holdsStill(getActivity(), run == null ? null : run.stage());
 	}
 
+	// ---------------------------------------------------------------- health potions
+
+	/** He sets out each day with this many potions of Instant Health II, restocked at 6am. */
+	public static final int POTIONS_PER_DAY = 2;
+	/** What a potion of Instant Health II heals: 4 hearts. */
+	public static final float POTION_HEALS = 8.0F;
+	/** A drink takes as long as a player drinking a potion, and as long as the drink animation. */
+	public static final int DRINK_TICKS = 32;
+	private static final ColorParticleOption HEALING_SWIRL = ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, 0.973F, 0.141F, 0.137F);
+
+	private int potions = POTIONS_PER_DAY;
+	/** The day his satchel was last restocked, or -1 before his first. */
+	private long potionDay = -1;
+	private int drinkTicks;
+
+	public int getPotions() {
+		return potions;
+	}
+
+	/** The Minecraft day a time of day falls in; each one starts at 6am. */
+	public static long day(long dayTime) {
+		return Math.floorDiv(dayTime, 24000L);
+	}
+
+	/** His potions after checking the day: a fresh pair on a new day, otherwise what he had. */
+	public static int restocked(int potions, long lastDay, long today) {
+		return today != lastDay ? POTIONS_PER_DAY : potions;
+	}
+
+	/** Whether he reaches for a potion: below half health, not already drinking, and with one left. */
+	public static boolean shouldDrink(float health, float maxHealth, int potions, boolean drinking) {
+		return potions > 0 && !drinking && health > 0 && health < maxHealth / 2;
+	}
+
+	private void tickPotions(ServerLevel level) {
+		long today = day(level.getDayTime());
+		potions = restocked(potions, potionDay, today);
+		potionDay = today;
+		if (drinkTicks > 0) {
+			drinkTicks--;
+			if (drinkTicks % 8 == 4)
+				level.playSound(null, getX(), getY(), getZ(), SoundEvents.GENERIC_DRINK, SoundSource.NEUTRAL, 0.6F, 0.9F + getRandom().nextFloat() * 0.2F);
+			if (drinkTicks == 0) {
+				heal(POTION_HEALS);
+				level.sendParticles(HEALING_SWIRL, getX(), getY() + 1.0, getZ(), 12, 0.3, 0.5, 0.3, 1.0);
+			}
+		} else if (shouldDrink(getHealth(), getMaxHealth(), potions, false)) {
+			potions--;
+			drinkTicks = DRINK_TICKS;
+			playGesture(Gesture.DRINK);
+		}
+	}
+
 	@Nullable
 	public PostmanHorse getHorse() {
 		return getVehicle() instanceof PostmanHorse horse ? horse : null;
@@ -334,6 +390,8 @@ public class PostmanEntity extends PathfinderMob {
 			updateAnimations();
 		else if (level() instanceof ServerLevel server) {
 			tickHorse(server);
+			if (isAlive())
+				tickPotions(server);
 			if (tickCount % 5 == 0)
 				RiderHunting.startleCreepers(this, server);
 			if (getActivity() == Activity.CAMP_HAMMER && tickCount % HAMMER_BLOW_TICKS == 0)
@@ -384,6 +442,9 @@ public class PostmanEntity extends PathfinderMob {
 		tag.putString("activity", getActivity().name());
 		tag.putBoolean("carrying", isCarrying());
 		tag.putBoolean("in_tent", inTent);
+		tag.putInt("potions", potions);
+		tag.putLong("potion_day", potionDay);
+		tag.putInt("drink_ticks", drinkTicks);
 		if (run != null)
 			tag.put("run", run.save(registryAccess()));
 	}
@@ -398,6 +459,11 @@ public class PostmanEntity extends PathfinderMob {
 		}
 		setCarrying(tag.getBoolean("carrying"));
 		inTent = tag.getBoolean("in_tent");
+		if (tag.contains("potions")) {
+			potions = tag.getInt("potions");
+			potionDay = tag.getLong("potion_day");
+			drinkTicks = tag.getInt("drink_ticks");
+		}
 		run = tag.contains("run") ? DeliveryRun.load(tag.getCompound("run"), registryAccess()) : null;
 	}
 

@@ -31,7 +31,8 @@ class PostmanAnimationsTest {
 		Map.entry("whistle", PostmanAnimations.WHISTLE), Map.entry("camp_hammer", PostmanAnimations.CAMP_HAMMER),
 		Map.entry("camp_rest", PostmanAnimations.CAMP_REST), Map.entry("row", PostmanAnimations.ROW),
 		Map.entry("hurt", PostmanAnimations.HURT), Map.entry("wave", PostmanAnimations.WAVE),
-		Map.entry("harmonica", PostmanAnimations.HARMONICA), Map.entry("sleep", PostmanAnimations.SLEEP));
+		Map.entry("harmonica", PostmanAnimations.HARMONICA), Map.entry("sleep", PostmanAnimations.SLEEP),
+		Map.entry("drink", PostmanAnimations.DRINK));
 
 	private static Set<String> partNames() {
 		ModelPart root = PostmanModel.createBodyLayer().bakeRoot();
@@ -42,7 +43,7 @@ class PostmanAnimationsTest {
 
 	private static void collect(ModelPart part, Set<String> names) {
 		for (String child : new String[] {"root", "body", "head", "right_arm", "left_arm", "satchel", "satchel_flat", "satchel_full",
-			"right_leg", "left_leg", "hat", "hat_brim_right_r1", "hat_brim_left_r1", "harmonica", "hammer"})
+			"right_leg", "left_leg", "hat", "hat_brim_right_r1", "hat_brim_left_r1", "harmonica", "hammer", "potion"})
 			if (part.hasChild(child)) {
 				names.add(child);
 				collect(part.getChild(child), names);
@@ -50,8 +51,8 @@ class PostmanAnimationsTest {
 	}
 
 	@Test
-	void allFourteenApprovedAnimationsAreThere() {
-		assertEquals(14, ALL.size());
+	void allFifteenApprovedAnimationsAreThere() {
+		assertEquals(15, ALL.size());
 	}
 
 	@Test
@@ -73,7 +74,7 @@ class PostmanAnimationsTest {
 	void continuousAnimationsLoopAndGesturesPlayOnce() {
 		for (String looping : new String[] {"walk", "idle", "ride", "ride_idle", "camp_hammer", "camp_rest", "row", "harmonica", "sleep"})
 			assertTrue(ALL.get(looping).looping(), looping);
-		for (String once : new String[] {"pickup", "deliver", "whistle", "hurt", "wave"})
+		for (String once : new String[] {"pickup", "deliver", "whistle", "hurt", "wave", "drink"})
 			assertFalse(ALL.get(once).looping(), once);
 	}
 
@@ -124,6 +125,29 @@ class PostmanAnimationsTest {
 		for (int x = 48; x < 56; x++)
 			for (int y = 0; y < 5; y++)
 				assertEquals(255, image.getRGB(x, y) >>> 24, "head pixel " + x + "," + y);
+	}
+
+	@Test
+	void heDrinksFromABottleInHisRightHandWhateverElseHesDoing() {
+		assertTrue(PostmanModel.createBodyLayer().bakeRoot().getChild("root").getChild("body").getChild("right_arm").hasChild("potion"));
+		assertTrue(PostmanModel.overridesUpperBody(PostmanEntity.Gesture.DRINK), "his arm leaves the reins to drink");
+		assertFalse(PostmanModel.overridesUpperBody(PostmanEntity.Gesture.PICKUP));
+		// Only his arm and head are taken over, so the drink mustn't rely on moving his legs
+		assertFalse(PostmanAnimations.DRINK.boneAnimations().containsKey("right_leg"));
+		assertFalse(PostmanAnimations.DRINK.boneAnimations().containsKey("root"));
+	}
+
+	@Test
+	void theBottleIsPaintedOnTheSkin() throws IOException {
+		Path skin = ModResourceFiles.find("assets", "postrider", "textures", "entity", "postman.png");
+		BufferedImage image;
+		try (InputStream in = Files.newInputStream(skin)) {
+			image = ImageIO.read(in);
+		}
+		for (int x = 32; x < 54; x++)
+			for (int y = 8; y < 14; y++)
+				if (x < 44 || (x < 50 && y < 11) || y < 10)
+					assertEquals(255, image.getRGB(x, y) >>> 24, "bottle pixel " + x + "," + y);
 	}
 
 	@Test
