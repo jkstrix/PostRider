@@ -1,0 +1,6 @@
+{
+  "parent": "postrider:item/mailbox",
+  "textures": {
+    "flag": "postrider:block/mailbox_flag_yellow"
+  }
+}

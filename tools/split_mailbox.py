@@ -11,7 +11,7 @@ export_path, assets = sys.argv[1], sys.argv[2]
 with open(export_path, encoding="utf-8") as f:
     export = json.load(f)
 
-NS = "ponyexpress"
+NS = "postrider"
 COLOURS = ["white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray",
            "light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black"]
 

@@ -4,7 +4,7 @@ import os
 import sys
 
 root = sys.argv[1]
-NS = "ponyexpress"
+NS = "postrider"
 COLOURS = ["white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray",
            "light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black"]
 
@@ -34,7 +34,7 @@ for c in COLOURS:
     write(f"data/{NS}/recipe/dye_{c}_mailbox.json", {
         "type": "minecraft:crafting_shapeless",
         "category": "misc",
-        "group": "ponyexpress_dye_mailbox",
+        "group": "postrider_dye_mailbox",
         "ingredients": [{"tag": f"{NS}:mailboxes"}, {"tag": f"c:dyes/{c}"}],
         "result": {"id": block, "count": 1}
     })

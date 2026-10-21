@@ -1,0 +1,7 @@
+{
+  "parent": "postrider:block/mailbox_flag_up",
+  "textures": {
+    "flag": "postrider:block/mailbox_flag_yellow",
+    "particle": "postrider:block/mailbox_flag_yellow"
+  }
+}

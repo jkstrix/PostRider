@@ -1,0 +1,11 @@
+{
+  "harmonica": {
+    "subtitle": "subtitles.postrider.harmonica",
+    "sounds": [
+      {
+        "name": "postrider:harmonica",
+        "stream": true
+      }
+    ]
+  }
+}

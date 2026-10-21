@@ -1,0 +1,168 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "half": "lower",
+        "facing": "north"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_lower"
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "north"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_upper"
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "north",
+        "flag": "false"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_flag_down_yellow"
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "north",
+        "flag": "true"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_flag_up_yellow"
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "east"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_lower",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "east"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_upper",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "east",
+        "flag": "false"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_flag_down_yellow",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "east",
+        "flag": "true"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_flag_up_yellow",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "south"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_lower",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "south"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_upper",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "south",
+        "flag": "false"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_flag_down_yellow",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "south",
+        "flag": "true"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_flag_up_yellow",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "half": "lower",
+        "facing": "west"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_lower",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "west"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_upper",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "west",
+        "flag": "false"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_flag_down_yellow",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "half": "upper",
+        "facing": "west",
+        "flag": "true"
+      },
+      "apply": {
+        "model": "postrider:block/mailbox_flag_up_yellow",
+        "y": 270
+      }
+    }
+  ]
+}
