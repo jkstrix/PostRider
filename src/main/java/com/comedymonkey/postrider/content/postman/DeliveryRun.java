@@ -405,7 +405,7 @@ public class DeliveryRun {
 		if (--aimCooldown <= 0) {
 			aimCooldown = AIM_INTERVAL / 2;
 			int nearY = barge.getBlockY();
-			List<Vec3> drowned = level.getEntitiesOfClass(Drowned.class, barge.getBoundingBox().inflate(Journey.STRETCH + Crossing.DROWNED_BERTH))
+			List<Vec3> drowned = level.getEntitiesOfClass(Drowned.class, barge.getBoundingBox().inflate(Journey.stretch() + Crossing.DROWNED_BERTH))
 				.stream().map(Entity::position).toList();
 			Vec3 aim = Crossing.waterAim(barge.position(), target,
 				a -> !Hazards.isDangerous(level, BlockPos.containing(surface(level, a))),

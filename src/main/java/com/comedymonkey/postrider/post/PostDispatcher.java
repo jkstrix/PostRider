@@ -1,6 +1,7 @@
 package com.comedymonkey.postrider.post;
 
 import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.PostRiderConfig;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.Roster;
 
@@ -9,10 +10,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
- * Sends a rider out for each waiting parcel during the day, up to {@link #MAX_RIDERS} on the road at once: the whole
- * crew, each out on one delivery at a time.
+ * Sends a rider out for each waiting parcel during collection hours, up to {@link PostRiderConfig#maxRiders} on the
+ * road at once (at most the whole crew, each out on one delivery at a time).
  */
 public final class PostDispatcher {
+	/** The most there can ever be: the whole crew. */
 	public static final int MAX_RIDERS = Roster.ALL.size();
 	/** How often the post office looks for mail to send out. */
 	public static final int INTERVAL = 40;
@@ -24,13 +26,13 @@ public final class PostDispatcher {
 		if (server.getTickCount() % INTERVAL != 0)
 			return;
 		RiderWatch.check(server);
-		if (PostOfficeHours.isOpen(server.overworld().getDayTime()))
+		if (PostOfficeHours.isCollecting(server.overworld().getDayTime(), PostRiderConfig.firstCollection(), PostRiderConfig.lastCollection()))
 			dispatch(server);
 	}
 
 	/** Whether there's a rider free and mail waiting. */
 	public static boolean canSendMore(int riding, int waiting) {
-		return riding < MAX_RIDERS && waiting > 0;
+		return riding < Math.min(MAX_RIDERS, PostRiderConfig.maxRiders()) && waiting > 0;
 	}
 
 	/** Sends out as many riders as there's mail and room for; returns how many set out. */

@@ -42,7 +42,7 @@ public record RenameMailboxPayload(String name) implements CustomPacketPayload {
 				case TAKEN -> Component.translatable("message.postrider.mailbox.name_taken", name).withStyle(ChatFormatting.RED);
 				case INVALID -> MailboxNames.describe(problem != null ? problem : MailboxNames.Problem.BAD_CHARACTER).withStyle(ChatFormatting.RED);
 			};
-			player.displayClientMessage(message, true);
+			MailboxNoticePayload.tell(player, message, result == MailboxDirectory.Result.OK);
 			mailbox.sendInfo(player);
 		});
 	}

@@ -82,7 +82,6 @@
   "gui.postrider.mailbox.address": "Address",
   "gui.postrider.mailbox.owner": "Owner: %s",
   "gui.postrider.mailbox.name_rules": "%s to %s letters, numbers or simple punctuation.",
-  "gui.postrider.mailbox.name_saved": "Address saved.",
   "gui.postrider.mailbox.name_first": "Give this mailbox an address in Settings first.",
   "gui.postrider.mailbox.no_addresses": "No other mailboxes here yet.",
 
@@ -101,6 +100,6 @@
   "message.postrider.mailbox.other_dimension": "%s is in another dimension. The rider can't get there.",
   "message.postrider.mailbox.queued": "Your parcel for %s is waiting for a rider.",
   "message.postrider.mailbox.queued_letter": "Your letter for %s is waiting for a rider.",
-  "message.postrider.mailbox.queued_night": "Posted after dark. A rider will collect your parcel for %s at 6am.",
-  "message.postrider.mailbox.queued_letter_night": "Posted after dark. A rider will collect your letter for %s at 6am."
+  "message.postrider.mailbox.queued_later": "Posted after the last collection: a rider will collect your parcel for %s at %s.",
+  "message.postrider.mailbox.queued_letter_later": "Posted after the last collection: a rider will collect your letter for %s at %s."
 }

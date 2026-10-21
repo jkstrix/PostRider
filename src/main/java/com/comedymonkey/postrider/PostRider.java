@@ -7,6 +7,7 @@ import com.comedymonkey.postrider.content.postman.RiderHunting;
 import com.comedymonkey.postrider.post.PostDispatcher;
 import com.comedymonkey.postrider.network.EditLetterPayload;
 import com.comedymonkey.postrider.network.MailboxInfoPayload;
+import com.comedymonkey.postrider.network.MailboxNoticePayload;
 import com.comedymonkey.postrider.network.RenameMailboxPayload;
 import com.comedymonkey.postrider.network.SendParcelPayload;
 import com.comedymonkey.postrider.registry.ModBlockEntities;
@@ -23,6 +24,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.world.chunk.RegisterTicketControllersEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -35,6 +37,7 @@ public class PostRider {
 	public static final Logger LOGGER = LogUtils.getLogger();
 
 	public PostRider(IEventBus modBus, ModContainer container) {
+		container.registerConfig(ModConfig.Type.SERVER, PostRiderConfig.SPEC);
 		ModDataComponents.COMPONENTS.register(modBus);
 		ModBlocks.BLOCKS.register(modBus);
 		ModItems.ITEMS.register(modBus);
@@ -60,6 +63,7 @@ public class PostRider {
 	private void registerPayloads(RegisterPayloadHandlersEvent event) {
 		var registrar = event.registrar("1");
 		registrar.playToClient(MailboxInfoPayload.TYPE, MailboxInfoPayload.STREAM_CODEC, MailboxInfoPayload::handle);
+		registrar.playToClient(MailboxNoticePayload.TYPE, MailboxNoticePayload.STREAM_CODEC, MailboxNoticePayload::handle);
 		registrar.playToServer(RenameMailboxPayload.TYPE, RenameMailboxPayload.STREAM_CODEC, RenameMailboxPayload::handle);
 		registrar.playToServer(SendParcelPayload.TYPE, SendParcelPayload.STREAM_CODEC, SendParcelPayload::handle);
 		registrar.playToServer(EditLetterPayload.TYPE, EditLetterPayload.STREAM_CODEC, EditLetterPayload::handle);

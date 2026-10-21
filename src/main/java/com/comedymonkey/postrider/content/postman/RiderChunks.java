@@ -20,8 +20,13 @@ import net.neoforged.neoforge.common.world.chunk.TicketController;
  * working are dropped.
  */
 public final class RiderChunks {
-	/** Chunks loaded in each direction around him: 3 makes a 7x7 square, reaching past a 48-block stretch. */
+	/** Chunks loaded in each direction around him by default: 3 makes a 7x7 square, reaching past a 48-block stretch. */
 	public static final int RADIUS = 3;
+
+	/** Chunks loaded in each direction for the stretch in use: enough to plan a whole stretch ahead from anywhere in his chunk. */
+	public static int radius() {
+		return Math.max(TICKING_RADIUS, (int) Math.ceil(Journey.stretch() / 16));
+	}
 	/** Of those, the ones that tick (mobs, crops, his own goings-on): 1 makes the 3x3 square he's in the middle of. */
 	public static final int TICKING_RADIUS = 1;
 
@@ -37,8 +42,9 @@ public final class RiderChunks {
 	/** The square of chunks centred on a chunk. */
 	public static Set<ChunkPos> around(ChunkPos centre) {
 		Set<ChunkPos> chunks = new LinkedHashSet<>();
-		for (int dx = -RADIUS; dx <= RADIUS; dx++)
-			for (int dz = -RADIUS; dz <= RADIUS; dz++)
+		int radius = radius();
+		for (int dx = -radius; dx <= radius; dx++)
+			for (int dz = -radius; dz <= radius; dz++)
 				chunks.add(new ChunkPos(centre.x + dx, centre.z + dz));
 		return chunks;
 	}

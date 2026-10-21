@@ -26,6 +26,9 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	private static final int RULES_Y = 66;
 	private static final int RULES_WIDTH = 160;
 	private static final int STATUS_Y = 86;
+	/** On the Send tab, two lines beside the Send button for how sending went. */
+	private static final int SEND_NOTICE_Y = 79;
+	private static final int SEND_NOTICE_WIDTH = 100;
 	private static final int LEDGER_X = 68;
 	private static final int LEDGER_Y = 19;
 	private static final int LEDGER_ROWS = PostOfficeStyle.LEDGER_HEIGHT / PostOfficeStyle.LEDGER_ROW;
@@ -36,9 +39,6 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	private int seenInfoVersion = -1;
 	private String name;
 	private String ownerName = "";
-	/** The address last sent to be saved, to say so once the server agrees. */
-	@Nullable
-	private String savedAs;
 	private List<String> addresses = List.of();
 	@Nullable
 	private String selected;
@@ -124,7 +124,6 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	private void save() {
 		PacketDistributor.sendToServer(new RenameMailboxPayload(nameBox.getValue()));
 		nameBox.setFocused(false);
-		savedAs = MailboxNames.clean(nameBox.getValue());
 	}
 
 	/**
@@ -230,9 +229,14 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 				: count == 1 ? Component.translatable("gui.postrider.mailbox.inbox_one")
 				: Component.translatable("gui.postrider.mailbox.inbox_many", count);
 			PostOfficeStyle.write(graphics, font, status, 8, 80, PostOfficeStyle.INK);
-		} else if (tab == MailboxMenu.TAB_SEND && selected != null) {
-			Component to = Component.translatable("gui.postrider.mailbox.to", font.plainSubstrByWidth(selected, 70));
-			PostOfficeStyle.write(graphics, font, to, LEDGER_X, 68, PostOfficeStyle.INK);
+		} else if (tab == MailboxMenu.TAB_SEND) {
+			if (selected != null) {
+				Component to = Component.translatable("gui.postrider.mailbox.to", font.plainSubstrByWidth(selected, 70));
+				PostOfficeStyle.write(graphics, font, to, LEDGER_X, 68, PostOfficeStyle.INK);
+			}
+			MailboxInfoCache.Notice notice = MailboxInfoCache.notice();
+			if (notice != null)
+				graphics.drawWordWrap(font, notice.message(), LEDGER_X, SEND_NOTICE_Y, SEND_NOTICE_WIDTH, notice.good() ? PostOfficeStyle.INK : PostOfficeStyle.INK_ERROR);
 		} else if (tab == MailboxMenu.TAB_SETTINGS) {
 			PostOfficeStyle.write(graphics, font, Component.translatable("gui.postrider.mailbox.address"), 8, 20, PostOfficeStyle.INK);
 			if (!ownerName.isEmpty())
@@ -240,10 +244,11 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 			graphics.drawWordWrap(font, Component.translatable("gui.postrider.mailbox.name_rules", MailboxNames.MIN_LENGTH, MailboxNames.MAX_LENGTH),
 				8, RULES_Y, RULES_WIDTH, PostOfficeStyle.PENCIL);
 			Component problem = nameProblem();
+			MailboxInfoCache.Notice notice = MailboxInfoCache.notice();
 			if (problem != null)
 				PostOfficeStyle.write(graphics, font, fit(problem, RULES_WIDTH), 8, STATUS_Y, PostOfficeStyle.INK_ERROR);
-			else if (savedAs != null && MailboxNames.key(savedAs).equals(MailboxNames.key(name)))
-				PostOfficeStyle.write(graphics, font, Component.translatable("gui.postrider.mailbox.name_saved"), 8, STATUS_Y, PostOfficeStyle.INK);
+			else if (notice != null)
+				PostOfficeStyle.write(graphics, font, fit(notice.message(), RULES_WIDTH), 8, STATUS_Y, notice.good() ? PostOfficeStyle.INK : PostOfficeStyle.INK_ERROR);
 		}
 		PostOfficeStyle.write(graphics, font, playerInventoryTitle, 8, MailboxMenu.INVENTORY_LABEL_Y, PostOfficeStyle.CREAM);
 	}

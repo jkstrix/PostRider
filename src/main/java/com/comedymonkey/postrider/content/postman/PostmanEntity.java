@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.PostRiderConfig;
 import com.comedymonkey.postrider.content.lost.LostParcels;
 import com.comedymonkey.postrider.post.PendingDelivery;
 import com.comedymonkey.postrider.post.PostOffice;
@@ -360,7 +361,7 @@ public class PostmanEntity extends PathfinderMob {
 
 	// ---------------------------------------------------------------- health potions
 
-	/** He sets out each day with this many potions of Instant Health II, restocked at 6am. */
+	/** He sets out each day with this many potions of Instant Health II by default, restocked at 6am (see {@link PostRiderConfig}). */
 	public static final int POTIONS_PER_DAY = 2;
 	/** What a potion of Instant Health II heals: 4 hearts. */
 	public static final float POTION_HEALS = 8.0F;
@@ -368,7 +369,7 @@ public class PostmanEntity extends PathfinderMob {
 	public static final int DRINK_TICKS = 32;
 	private static final ColorParticleOption HEALING_SWIRL = ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, 0.973F, 0.141F, 0.137F);
 
-	private int potions = POTIONS_PER_DAY;
+	private int potions = PostRiderConfig.potionsPerDay();
 	/** The day his satchel was last restocked, or -1 before his first. */
 	private long potionDay = -1;
 	private int drinkTicks;
@@ -386,7 +387,7 @@ public class PostmanEntity extends PathfinderMob {
 
 	/** His potions after checking the day: a fresh pair on a new day, otherwise what he had. */
 	public static int restocked(int potions, long lastDay, long today) {
-		return today != lastDay ? POTIONS_PER_DAY : potions;
+		return today != lastDay ? PostRiderConfig.potionsPerDay() : potions;
 	}
 
 	/** Whether he reaches for a potion: below half health, not already drinking, and with one left. */

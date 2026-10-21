@@ -33,7 +33,7 @@ public class PostmanHorse extends Horse {
 	public static final double BLOCKS_PER_SECOND_PER_SPEED = 42.16;
 	public static final double MIN_BLOCKS_PER_SECOND = 7.0;
 	public static final double MIN_SPEED = MIN_BLOCKS_PER_SECOND / BLOCKS_PER_SECOND_PER_SPEED;
-	/** How far pathfinding will plan a route: past a whole stretch of riding (see {@link Journey#STRETCH}). */
+	/** How far pathfinding will plan a route by default: past a whole stretch of riding (see {@link Journey#stretch}). */
 	public static final double FOLLOW_RANGE = 64.0;
 	private static final int SPEED_ROLLS = 32;
 
@@ -76,6 +76,12 @@ public class PostmanHorse extends Horse {
 		setVariantAndMarkings(horse.coat(), horse.markings());
 		setCustomName(Component.literal(horse.name()));
 		getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(horse.speed());
+		getAttribute(Attributes.FOLLOW_RANGE).setBaseValue(followRange(Journey.stretch()));
+	}
+
+	/** Far enough for pathfinding to plan a whole stretch and some way round it. */
+	public static double followRange(double stretch) {
+		return Math.max(FOLLOW_RANGE, stretch + 16);
 	}
 
 	@Override

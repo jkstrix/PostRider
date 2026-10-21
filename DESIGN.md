@@ -72,3 +72,12 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 1. Mailbox: model → approval → block, colours, naming, screen, inbox, tests.
 2. Parcel, letter, Lost Parcel (each model approved first).
 3. Postman, horse, barge, tent (each model approved first), then travel, camping, unstuck and failure handling.
+
+## Server config (config/postrider-server.toml)
+
+- `maxRiders` (default 20, 1-20): riders out at once.
+- `lookahead` (default 48 blocks, 16-64): how far ahead riders plan; sets how many chunks each keeps loaded.
+- `potionsPerDay` (default 2, 0-10).
+- `bargeSpeed` (default 8 blocks/s, 2-16).
+- `firstCollection` / `lastCollection` (default 6 and 18): the hours riders set out; mail posted outside them waits, and the sender is told when it'll be collected. Riders on the road still camp from dusk to 6am.
+- Saving an address and sending mail report back on the mailbox screen itself (a hotbar message would be hidden behind it).

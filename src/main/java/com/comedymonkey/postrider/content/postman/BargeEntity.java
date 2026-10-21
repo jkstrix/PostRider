@@ -2,6 +2,8 @@ package com.comedymonkey.postrider.content.postman;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.PostRiderConfig;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -26,9 +28,14 @@ import net.minecraft.world.phys.Vec3;
  * hurt, and vanishes in a puff of smoke if its rider is gone.
  */
 public class BargeEntity extends Entity {
-	/** A boat's top speed on water. */
+	/** A boat's top speed on water, and the barge's unless the server says otherwise (see {@link PostRiderConfig}). */
 	public static final double BLOCKS_PER_SECOND = 8.0;
 	public static final double SPEED = BLOCKS_PER_SECOND / 20;
+
+	/** Its top speed in blocks per tick on this server. */
+	public static double speed() {
+		return PostRiderConfig.bargeBlocksPerSecond() / 20;
+	}
 	/** How fast it comes up to speed, and how far it turns each tick. */
 	private static final double ACCELERATION = 0.02;
 	public static final float TURN_PER_TICK = 4.0F;
@@ -112,7 +119,7 @@ public class BargeEntity extends Entity {
 		Vec3 motion = getDeltaMovement();
 		if (heading != null && Journey.horizontalDistance(position(), heading) > 1.0) {
 			setYRot(turnToward(getYRot(), DeliveryRun.yawToward(position(), heading)));
-			speed = Math.min(SPEED, speed + ACCELERATION);
+			speed = Math.min(speed(), speed + ACCELERATION);
 		} else {
 			speed *= 0.8;
 		}

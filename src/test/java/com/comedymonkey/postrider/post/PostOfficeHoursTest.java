@@ -38,9 +38,41 @@ class PostOfficeHoursTest {
 	}
 
 	@Test
-	void sendersAreToldWhenTheirMailWaitsForMorning() {
+	void sendersAreToldWhenTheirMailWillBeCollected() {
 		JsonObject lang = ModResourceFiles.readJson(ModResourceFiles.find("assets", "postrider", "lang", "en_us.json")).getAsJsonObject();
-		assertTrue(lang.get("message.postrider.mailbox.queued_night").getAsString().contains("6am"));
-		assertTrue(lang.get("message.postrider.mailbox.queued_letter_night").getAsString().contains("6am"));
+		for (String key : new String[] {"message.postrider.mailbox.queued_later", "message.postrider.mailbox.queued_letter_later"})
+			assertEquals(2, lang.get(key).getAsString().split("%s", -1).length - 1, key + " names the address and the time");
+	}
+
+	@Test
+	void byDefaultRidersSetOutFromSixUntilDusk() {
+		assertTrue(PostOfficeHours.isCollecting(0, 6, 18), "6am");
+		assertTrue(PostOfficeHours.isCollecting(11999, 6, 18));
+		assertFalse(PostOfficeHours.isCollecting(12000, 6, 18), "dusk");
+		assertFalse(PostOfficeHours.isCollecting(23999, 6, 18), "5:59am");
+		for (long time = 0; time < 24000; time += 250)
+			assertEquals(PostOfficeHours.isOpen(time), PostOfficeHours.isCollecting(time, 6, 18), "the same as the old opening hours at " + time);
+	}
+
+	@Test
+	void collectionHoursCanBeMovedOrRunPastMidnight() {
+		assertFalse(PostOfficeHours.isCollecting(PostOfficeHours.dayTimeOf(8) - 1, 9, 17), "7:59am");
+		assertTrue(PostOfficeHours.isCollecting(PostOfficeHours.dayTimeOf(9), 9, 17));
+		assertFalse(PostOfficeHours.isCollecting(PostOfficeHours.dayTimeOf(17), 9, 17));
+		assertTrue(PostOfficeHours.isCollecting(PostOfficeHours.dayTimeOf(23), 20, 4), "a night service");
+		assertTrue(PostOfficeHours.isCollecting(PostOfficeHours.dayTimeOf(2), 20, 4));
+		assertFalse(PostOfficeHours.isCollecting(PostOfficeHours.dayTimeOf(12), 20, 4));
+		assertTrue(PostOfficeHours.isCollecting(PostOfficeHours.dayTimeOf(3), 6, 6), "round the clock");
+	}
+
+	@Test
+	void collectionTimesAreWrittenLikeAClock() {
+		assertEquals("6am", PostOfficeHours.clock(6));
+		assertEquals("noon", PostOfficeHours.clock(12));
+		assertEquals("6pm", PostOfficeHours.clock(18));
+		assertEquals("midnight", PostOfficeHours.clock(0));
+		assertEquals("midnight", PostOfficeHours.clock(24));
+		assertEquals(0, PostOfficeHours.dayTimeOf(6));
+		assertEquals(18000, PostOfficeHours.dayTimeOf(0));
 	}
 }

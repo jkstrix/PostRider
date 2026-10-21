@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.PostRiderConfig;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlockEntity;
 import com.comedymonkey.postrider.content.mailbox.MailboxMenu;
 import com.comedymonkey.postrider.post.Mail;
@@ -13,7 +14,6 @@ import com.comedymonkey.postrider.post.PostOffice;
 import com.comedymonkey.postrider.post.PostOfficeHours;
 
 import io.netty.buffer.ByteBuf;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -44,7 +44,7 @@ public record SendParcelPayload(String to) implements CustomPacketPayload {
 				return;
 			Component problem = send(player, mailbox, payload.to());
 			if (problem != null)
-				player.displayClientMessage(problem.copy().withStyle(ChatFormatting.RED), true);
+				MailboxNoticePayload.tell(player, problem, false);
 		});
 	}
 
@@ -65,9 +65,11 @@ public record SendParcelPayload(String to) implements CustomPacketPayload {
 		PostOffice.get(player.server).enqueue(new PendingDelivery(UUID.randomUUID(), player.getUUID(),
 			player.getGameProfile().getName(), mailbox.getName(), here, target.name(), items, player.serverLevel().getGameTime()));
 		String key = Mail.isLetterOnly(items) ? "message.postrider.mailbox.queued_letter" : "message.postrider.mailbox.queued";
-		if (!PostOfficeHours.isOpen(player.serverLevel().getDayTime()))
-			key += "_night";
-		player.displayClientMessage(Component.translatable(key, target.name()).withStyle(ChatFormatting.DARK_GREEN), true);
+		int first = PostRiderConfig.firstCollection();
+		boolean collecting = PostOfficeHours.isCollecting(player.serverLevel().getDayTime(), first, PostRiderConfig.lastCollection());
+		Component told = collecting ? Component.translatable(key, target.name())
+			: Component.translatable(key + "_later", target.name(), PostOfficeHours.clock(first));
+		MailboxNoticePayload.tell(player, told, true);
 		return null;
 	}
 }

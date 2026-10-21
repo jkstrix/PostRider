@@ -5,6 +5,7 @@ import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 
 /**
  * Client side: what the server last said about the open mailbox. Kept free of client-only classes so the payload
@@ -13,9 +14,17 @@ import net.minecraft.core.BlockPos;
 public final class MailboxInfoCache {
 	public record Info(BlockPos pos, String name, String ownerName, List<String> addresses) {}
 
+	/** What the server said about saving or sending, and when. */
+	public record Notice(Component message, boolean good, long at) {}
+
+	/** How long a notice stays on the screen. */
+	public static final long NOTICE_MILLIS = 6000;
+
 	@Nullable
 	private static Info current;
 	private static int version;
+	@Nullable
+	private static Notice notice;
 
 	private MailboxInfoCache() {}
 
@@ -28,6 +37,16 @@ public final class MailboxInfoCache {
 	@Nullable
 	public static Info get(BlockPos pos) {
 		return current != null && current.pos().equals(pos) ? current : null;
+	}
+
+	public static void notice(Component message, boolean good) {
+		notice = new Notice(message, good, System.currentTimeMillis());
+	}
+
+	/** The latest notice, if it's recent enough to still show. */
+	@Nullable
+	public static Notice notice() {
+		return notice != null && System.currentTimeMillis() - notice.at() < NOTICE_MILLIS ? notice : null;
 	}
 
 	/** Goes up every time new info arrives, so screens can tell when to refresh. */
