@@ -4,13 +4,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import javax.imageio.ImageIO;
+
 import org.junit.jupiter.api.Test;
 
 import com.comedymonkey.ponyexpress.content.postman.PostmanEntity;
+import com.comedymonkey.ponyexpress.testutil.ModResourceFiles;
 
 import net.minecraft.client.animation.AnimationDefinition;
 import net.minecraft.client.model.geom.ModelPart;
@@ -92,6 +100,30 @@ class PostmanAnimationsTest {
 		assertTrue(PostmanAnimations.SLEEP.boneAnimations().containsKey("hat"), "the hat tips over his face while he sleeps");
 		assertTrue(PostmanAnimations.SLEEP.looping());
 		assertEquals(4.0F, PostmanAnimations.SLEEP.lengthInSeconds());
+	}
+
+	@Test
+	void hisRootBonePivotsAtHisFeetSoHeLiesOnTheGround() {
+		// HierarchicalModel sends "root" animations to root(); that must be the bone at ground level (24 pixels down)
+		ModelPart root = new PostmanModel(PostmanModel.createBodyLayer().bakeRoot()).root();
+		assertEquals(24.0F, root.y);
+		assertTrue(root.hasChild("body") && root.hasChild("right_leg"));
+	}
+
+	@Test
+	void theHammerIsPaintedOnTheSkin() throws IOException {
+		Path skin = ModResourceFiles.find("assets", "ponyexpress", "textures", "entity", "postman.png");
+		BufferedImage image;
+		try (InputStream in = Files.newInputStream(skin)) {
+			image = ImageIO.read(in);
+		}
+		// Handle (32,0 16x8) and head (48,0 8x5): unpainted pixels are see-through and the hammer would vanish
+		for (int x = 32; x < 48; x++)
+			for (int y = 0; y < 8; y++)
+				assertEquals(255, image.getRGB(x, y) >>> 24, "handle pixel " + x + "," + y);
+		for (int x = 48; x < 56; x++)
+			for (int y = 0; y < 5; y++)
+				assertEquals(255, image.getRGB(x, y) >>> 24, "head pixel " + x + "," + y);
 	}
 
 	@Test

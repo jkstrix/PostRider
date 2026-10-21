@@ -29,9 +29,11 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 	private final ModelPart satchelFlat;
 	private final ModelPart satchelFull;
 
-	public PostmanModel(ModelPart root) {
-		this.root = root;
-		ModelPart body = root.getChild("root").getChild("body");
+	public PostmanModel(ModelPart baked) {
+		// Animations of the "root" bone go to root(), so that has to be the bone at his feet that Blockbench pivots
+		// them on, not the part above it (which pivots 1.5 blocks up and swung him into the air lying down)
+		this.root = baked.getChild("root");
+		ModelPart body = root.getChild("body");
 		this.head = body.getChild("head");
 		this.harmonica = head.getChild("harmonica");
 		this.hammer = body.getChild("right_arm").getChild("hammer");
