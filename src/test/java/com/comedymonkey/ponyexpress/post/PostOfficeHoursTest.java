@@ -24,7 +24,9 @@ class PostOfficeHoursTest {
 	void worksOnAnyDayNotJustTheFirst() {
 		assertTrue(PostOfficeHours.isOpen(24000 * 5 + 100));
 		assertFalse(PostOfficeHours.isOpen(24000 * 5 + 13000));
-		assertTrue(PostOfficeHours.isOpen(-1000 + 24000));
+		// Day time can be negative after /time commands; 5am the day before is still night
+		assertFalse(PostOfficeHours.isOpen(-1000));
+		assertTrue(PostOfficeHours.isOpen(-24000 + 100));
 	}
 
 	@Test
