@@ -127,6 +127,40 @@ public final class PostOfficeStyle {
 		graphics.drawString(font, label, x + (BUTTON_WIDTH - font.width(label)) / 2, y + 4, color, false);
 	}
 
+	// ---------------------------------------------------------------- the letter page sheet
+
+	public static final ResourceLocation PAGE_SHEET = PonyExpress.asResource("textures/gui/letter_page.png");
+	public static final int PAGE_WIDTH = 148;
+	public static final int PAGE_HEIGHT = 182;
+	/** Where writing starts on the page, how wide it may run, and the line spacing of the ruled lines. */
+	public static final int PAGE_TEXT_X = 18;
+	public static final int PAGE_TEXT_Y = 20;
+	public static final int PAGE_TEXT_WIDTH = 114;
+	public static final int PAGE_LINE_HEIGHT = 9;
+	public static final int PAGE_LINES = 14;
+	public static final int ARROW_SIZE = 9;
+	public static final int POSTMARK_SIZE = 41;
+
+	public static void page(GuiGraphics graphics, int x, int y) {
+		graphics.blit(PAGE_SHEET, x, y, 0, 0, PAGE_WIDTH, PAGE_HEIGHT, SHEET_SIZE, SHEET_SIZE);
+	}
+
+	/** An inked page-turn arrow; previous points left, next points right. */
+	public static void arrow(GuiGraphics graphics, int x, int y, boolean next, boolean hovered) {
+		graphics.blit(PAGE_SHEET, x, y, next ? 162 : 150, hovered ? 60 : 48, ARROW_SIZE, ARROW_SIZE, SHEET_SIZE, SHEET_SIZE);
+	}
+
+	/** The round Pony Express postmark, with the day it was posted in the middle. */
+	public static void postmark(GuiGraphics graphics, Font font, int x, int y, long day) {
+		graphics.blit(PAGE_SHEET, x, y, 152, 2, POSTMARK_SIZE, POSTMARK_SIZE, SHEET_SIZE, SHEET_SIZE);
+		Component dayText = Component.translatable("gui.ponyexpress.letter.postmark_day", day);
+		graphics.pose().pushPose();
+		graphics.pose().translate(x + POSTMARK_SIZE / 2.0F, y + POSTMARK_SIZE / 2.0F - 2, 0);
+		graphics.pose().scale(0.75F, 0.75F, 1);
+		graphics.drawString(font, dayText, -font.width(dayText) / 2, 0, 0xFF3C5A8A, false);
+		graphics.pose().popPose();
+	}
+
 	/** Writing on the parchment, without the drop shadow vanilla text has. */
 	public static void write(GuiGraphics graphics, Font font, Component text, int x, int y, int color) {
 		graphics.drawString(font, text, x, y, color, false);

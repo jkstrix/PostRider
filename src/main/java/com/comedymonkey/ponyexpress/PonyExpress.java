@@ -1,12 +1,14 @@
 package com.comedymonkey.ponyexpress;
 
 import com.comedymonkey.ponyexpress.content.mailbox.MailboxEvents;
+import com.comedymonkey.ponyexpress.network.EditLetterPayload;
 import com.comedymonkey.ponyexpress.network.MailboxInfoPayload;
 import com.comedymonkey.ponyexpress.network.RenameMailboxPayload;
 import com.comedymonkey.ponyexpress.network.SendParcelPayload;
 import com.comedymonkey.ponyexpress.registry.ModBlockEntities;
 import com.comedymonkey.ponyexpress.registry.ModBlocks;
 import com.comedymonkey.ponyexpress.registry.ModCreativeTabs;
+import com.comedymonkey.ponyexpress.registry.ModDataComponents;
 import com.comedymonkey.ponyexpress.registry.ModItems;
 import com.comedymonkey.ponyexpress.registry.ModMenus;
 import com.mojang.logging.LogUtils;
@@ -25,6 +27,7 @@ public class PonyExpress {
 	public static final Logger LOGGER = LogUtils.getLogger();
 
 	public PonyExpress(IEventBus modBus, ModContainer container) {
+		ModDataComponents.COMPONENTS.register(modBus);
 		ModBlocks.BLOCKS.register(modBus);
 		ModItems.ITEMS.register(modBus);
 		ModBlockEntities.BLOCK_ENTITIES.register(modBus);
@@ -44,5 +47,6 @@ public class PonyExpress {
 		registrar.playToClient(MailboxInfoPayload.TYPE, MailboxInfoPayload.STREAM_CODEC, MailboxInfoPayload::handle);
 		registrar.playToServer(RenameMailboxPayload.TYPE, RenameMailboxPayload.STREAM_CODEC, RenameMailboxPayload::handle);
 		registrar.playToServer(SendParcelPayload.TYPE, SendParcelPayload.STREAM_CODEC, SendParcelPayload::handle);
+		registrar.playToServer(EditLetterPayload.TYPE, EditLetterPayload.STREAM_CODEC, EditLetterPayload::handle);
 	}
 }

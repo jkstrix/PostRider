@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.comedymonkey.ponyexpress.PonyExpress;
 import com.comedymonkey.ponyexpress.content.mailbox.MailboxBlockEntity;
 import com.comedymonkey.ponyexpress.content.mailbox.MailboxMenu;
+import com.comedymonkey.ponyexpress.post.Mail;
 import com.comedymonkey.ponyexpress.post.MailboxDirectory;
 import com.comedymonkey.ponyexpress.post.PendingDelivery;
 import com.comedymonkey.ponyexpress.post.PostOffice;
@@ -62,8 +63,8 @@ public record SendParcelPayload(String to) implements CustomPacketPayload {
 		List<ItemStack> items = mailbox.takeParcelContents();
 		PostOffice.get(player.server).enqueue(new PendingDelivery(UUID.randomUUID(), player.getUUID(),
 			player.getGameProfile().getName(), mailbox.getName(), here, target.name(), items, player.serverLevel().getGameTime()));
-		player.displayClientMessage(Component.translatable("message.ponyexpress.mailbox.queued", target.name())
-			.withStyle(ChatFormatting.DARK_GREEN), true);
+		String key = Mail.isLetterOnly(items) ? "message.ponyexpress.mailbox.queued_letter" : "message.ponyexpress.mailbox.queued";
+		player.displayClientMessage(Component.translatable(key, target.name()).withStyle(ChatFormatting.DARK_GREEN), true);
 		return null;
 	}
 }

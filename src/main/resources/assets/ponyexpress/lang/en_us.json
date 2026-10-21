@@ -18,6 +18,31 @@
   "block.ponyexpress.red_mailbox": "Red Mailbox",
   "block.ponyexpress.black_mailbox": "Black Mailbox",
 
+  "item.ponyexpress.letter": "Letter",
+  "item.ponyexpress.letter.hint": "Use to write. Seal it, then post it from your mailbox.",
+  "item.ponyexpress.letter.draft": "Draft in progress",
+  "item.ponyexpress.written_letter": "Written Letter",
+  "item.ponyexpress.written_letter.author": "From %s",
+  "item.ponyexpress.written_letter.postmark": "Postmarked at %s, day %s",
+  "item.ponyexpress.parcel": "Parcel",
+  "item.ponyexpress.parcel.from": "From: %s (%s)",
+  "item.ponyexpress.parcel.to": "To: %s",
+  "item.ponyexpress.parcel.day": "Posted on day %s",
+  "item.ponyexpress.parcel.hint": "Use to unwrap.",
+
+  "gui.ponyexpress.letter.write": "Write a Letter",
+  "gui.ponyexpress.letter.read": "Letter",
+  "gui.ponyexpress.letter.done": "Done",
+  "gui.ponyexpress.letter.back": "Back",
+  "gui.ponyexpress.letter.seal": "Seal",
+  "gui.ponyexpress.letter.seal_confirm": "Seal It",
+  "gui.ponyexpress.letter.seal_warning": "Seal this letter? Once the wax is set it can't be changed, only read.",
+  "gui.ponyexpress.letter.page": "Page %s of %s",
+  "gui.ponyexpress.letter.signed": "- %s",
+  "gui.ponyexpress.letter.posted_at": "Posted at %s",
+  "gui.ponyexpress.letter.postmark_day": "DAY %s",
+  "message.ponyexpress.letter.empty": "Write something before sealing the letter.",
+
   "container.ponyexpress.mailbox": "Unnamed Mailbox",
   "gui.ponyexpress.mailbox.tab.inbox": "Inbox",
   "gui.ponyexpress.mailbox.tab.send": "Send a Parcel",
@@ -47,5 +72,6 @@
   "message.ponyexpress.mailbox.empty_parcel": "Put something in the parcel first.",
   "message.ponyexpress.mailbox.unknown_address": "There's no mailbox called %s any more.",
   "message.ponyexpress.mailbox.other_dimension": "%s is in another dimension. The rider can't get there.",
-  "message.ponyexpress.mailbox.queued": "Your parcel for %s is waiting for a rider."
+  "message.ponyexpress.mailbox.queued": "Your parcel for %s is waiting for a rider.",
+  "message.ponyexpress.mailbox.queued_letter": "Your letter for %s is waiting for a rider."
 }

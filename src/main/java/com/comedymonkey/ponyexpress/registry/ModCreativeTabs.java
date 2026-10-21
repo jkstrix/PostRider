@@ -18,6 +18,7 @@ public final class ModCreativeTabs {
 		.displayItems((params, output) -> {
 			for (DyeColor color : DyeColor.values())
 				output.accept(ModItems.mailbox(color));
+			output.accept(ModItems.LETTER);
 		})
 		.build());
 

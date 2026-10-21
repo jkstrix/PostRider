@@ -1,0 +1,102 @@
+package com.comedymonkey.ponyexpress.post;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+
+import com.comedymonkey.ponyexpress.content.letter.LetterContent;
+import com.comedymonkey.ponyexpress.content.parcel.ParcelLabel;
+import com.comedymonkey.ponyexpress.registry.ModDataComponents;
+import com.comedymonkey.ponyexpress.registry.ModItems;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemContainerContents;
+import net.minecraft.world.level.Level;
+
+class MailTest {
+	private static ItemStack letter(String words) {
+		ItemStack stack = new ItemStack(ModItems.WRITTEN_LETTER.get());
+		stack.set(ModDataComponents.LETTER.get(), new LetterContent(List.of(words), "Steve", Optional.empty()));
+		return stack;
+	}
+
+	private static PendingDelivery delivery(ItemStack... items) {
+		return new PendingDelivery(UUID.randomUUID(), UUID.randomUUID(), "Steve", "Steve's Ranch",
+			GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO), "Alex's Inn", List.of(items), 0);
+	}
+
+	@Test
+	void aLetterOnItsOwnArrivesAsTheLetterWithAPostmark() {
+		ItemStack mail = Mail.wrap(delivery(letter("Howdy")), 12);
+		assertTrue(mail.is(ModItems.WRITTEN_LETTER.get()));
+		LetterContent content = mail.get(ModDataComponents.LETTER.get());
+		assertEquals("Howdy", content.pages().get(0));
+		assertEquals(new LetterContent.Postmark("Steve's Ranch", 12), content.postmark().orElseThrow());
+	}
+
+	@Test
+	void aLetterWithAnythingElseArrivesInsideAParcel() {
+		ItemStack mail = Mail.wrap(delivery(letter("Here's the iron"), new ItemStack(Items.IRON_INGOT, 20)), 5);
+		assertTrue(mail.is(ModItems.PARCEL.get()));
+		List<ItemStack> inside = mail.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).nonEmptyStream().toList();
+		assertEquals(2, inside.size());
+		assertTrue(inside.get(0).get(ModDataComponents.LETTER.get()).postmark().isPresent());
+		assertEquals(20, inside.get(1).getCount());
+	}
+
+	@Test
+	void twoLettersTravelAsAParcel() {
+		assertFalse(Mail.isLetterOnly(List.of(letter("a"), letter("b"))));
+		assertTrue(Mail.wrap(delivery(letter("a"), letter("b")), 1).is(ModItems.PARCEL.get()));
+	}
+
+	@Test
+	void itemsAloneTravelAsAParcelWithItsLabel() {
+		ItemStack mail = Mail.wrap(delivery(new ItemStack(Items.BREAD, 3)), 40);
+		ParcelLabel label = mail.get(ModDataComponents.PARCEL_LABEL.get());
+		assertNotNull(label);
+		assertEquals("Steve's Ranch", label.from());
+		assertEquals("Alex's Inn", label.to());
+		assertEquals("Steve", label.sender());
+		assertEquals(40, label.day());
+	}
+
+	@Test
+	void aBlankLetterIsNotALetterToPost() {
+		assertFalse(Mail.isLetterOnly(List.of(new ItemStack(ModItems.LETTER.get()))));
+	}
+
+	@Test
+	void aForwardedLetterKeepsItsFirstPostmark() {
+		ItemStack old = letter("Old news");
+		old.set(ModDataComponents.LETTER.get(), old.get(ModDataComponents.LETTER.get()).postmarked(new LetterContent.Postmark("Far Away", 2)));
+		ItemStack mail = Mail.wrap(delivery(old), 9);
+		assertEquals("Far Away", mail.get(ModDataComponents.LETTER.get()).postmark().orElseThrow().from());
+	}
+
+	@Test
+	void wrappingDoesNotChangeTheQueuedItems() {
+		ItemStack original = letter("Howdy");
+		PendingDelivery pending = delivery(original);
+		Mail.wrap(pending, 3);
+		assertTrue(pending.items().get(0).get(ModDataComponents.LETTER.get()).postmark().isEmpty());
+	}
+
+	@Test
+	void daysCountFromOne() {
+		assertEquals(1, Mail.day(0));
+		assertEquals(1, Mail.day(23999));
+		assertEquals(2, Mail.day(24000));
+	}
+}
