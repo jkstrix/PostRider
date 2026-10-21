@@ -68,6 +68,21 @@ class CampTest {
 	}
 
 	@Test
+	void nothingShovesHimOutOfHisTentOrAwayFromTheMailbox() {
+		for (PostmanEntity.Activity activity : PostmanEntity.Activity.values())
+			if (activity != PostmanEntity.Activity.NONE)
+				assertTrue(PostmanEntity.holdsStill(activity, DeliveryRun.Stage.CAMPING), activity.name());
+		assertTrue(PostmanEntity.holdsStill(PostmanEntity.Activity.NONE, DeliveryRun.Stage.PICKING_UP));
+		assertTrue(PostmanEntity.holdsStill(PostmanEntity.Activity.NONE, DeliveryRun.Stage.CALLING_HORSE));
+		assertTrue(PostmanEntity.holdsStill(PostmanEntity.Activity.NONE, DeliveryRun.Stage.DELIVERING));
+		// On the move he gets jostled like anyone else
+		assertFalse(PostmanEntity.holdsStill(PostmanEntity.Activity.NONE, DeliveryRun.Stage.RIDING));
+		assertFalse(PostmanEntity.holdsStill(PostmanEntity.Activity.NONE, DeliveryRun.Stage.WALKING_TO_BOX));
+		assertFalse(PostmanEntity.holdsStill(PostmanEntity.Activity.NONE, DeliveryRun.Stage.FLEEING));
+		assertFalse(PostmanEntity.holdsStill(PostmanEntity.Activity.NONE, null));
+	}
+
+	@Test
 	void theTentModelBakes() {
 		assertNotNull(TentModel.createBodyLayer().bakeRoot().getChild("tent"));
 		assertNotNull(ModResourceFiles.find("assets", "ponyexpress", "textures", "entity", "tent.png"));

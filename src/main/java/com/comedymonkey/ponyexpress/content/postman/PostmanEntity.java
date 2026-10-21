@@ -250,6 +250,20 @@ public class PostmanEntity extends PathfinderMob {
 		return visibility;
 	}
 
+	/**
+	 * Whether he's planted somewhere doing a job (camping, or at a mailbox) and can't be shoved off it by a passing
+	 * sheep or player.
+	 */
+	public static boolean holdsStill(Activity activity, @Nullable DeliveryRun.Stage stage) {
+		return activity != Activity.NONE || stage == DeliveryRun.Stage.PICKING_UP || stage == DeliveryRun.Stage.CALLING_HORSE
+			|| stage == DeliveryRun.Stage.DELIVERING;
+	}
+
+	@Override
+	public boolean isPushable() {
+		return super.isPushable() && !holdsStill(getActivity(), run == null ? null : run.stage());
+	}
+
 	@Nullable
 	public PostmanHorse getHorse() {
 		return getVehicle() instanceof PostmanHorse horse ? horse : null;
