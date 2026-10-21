@@ -197,8 +197,9 @@ public class PostmanEntity extends PathfinderMob {
 
 	private void tickHorse(ServerLevel level) {
 		if (horseCountdown > 0 && --horseCountdown == 0) {
-			Vec3 side = Vec3.directionFromRotation(0, getYRot() + 90).scale(2);
-			PostmanHorse horse = PostmanHorse.create(ModEntities.POSTMAN_HORSE.get(), level, getX() + side.x, getY(), getZ() + side.z, getYRot());
+			EntityType<PostmanHorse> type = ModEntities.POSTMAN_HORSE.get();
+			Vec3 spot = HorseSpots.find(position(), getYRot(), s -> HorseSpots.fits(level, type, s));
+			PostmanHorse horse = spot == null ? null : PostmanHorse.create(type, level, spot.x, spot.y, spot.z, getYRot());
 			if (horse != null) {
 				level.addFreshEntity(horse);
 				PostmanEffects.puff(level, horse);

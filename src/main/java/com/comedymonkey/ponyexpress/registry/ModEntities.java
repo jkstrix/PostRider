@@ -8,6 +8,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -19,6 +20,8 @@ public final class ModEntities {
 		() -> EntityType.Builder.of(PostmanEntity::new, MobCategory.MISC)
 			.sized(0.6F, 1.8F)
 			.eyeHeight(1.62F)
+			// Sits in a saddle as low as a player does
+			.vehicleAttachment(Player.DEFAULT_VEHICLE_ATTACHMENT)
 			.clientTrackingRange(10)
 			.build(PonyExpress.asResource("postman").toString()));
 
