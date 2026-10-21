@@ -1,5 +1,6 @@
 package com.comedymonkey.postrider.content.postman;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
@@ -28,11 +29,14 @@ import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 import net.minecraft.world.entity.ai.util.DefaultRandomPos;
+import net.minecraft.world.entity.monster.Drowned;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
@@ -42,8 +46,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * One rider's delivery from start to finish: picking the mail up, calling his horse, riding there (resting at
- * night, freeing himself when stuck), walking up to the mailbox and delivering, or leaving a Lost Parcel when it
- * goes wrong.
+ * night, freeing himself when stuck, taking the barge over water he can't ride round), walking up to the mailbox and
+ * delivering, or leaving a Lost Parcel when it goes wrong.
  */
 public class DeliveryRun {
 	public enum Stage {
@@ -52,6 +56,7 @@ public class DeliveryRun {
 		RIDING,
 		CAMPING,
 		FLEEING,
+		BARGING,
 		WALKING_TO_BOX,
 		DELIVERING,
 		DONE
@@ -81,6 +86,11 @@ public class DeliveryRun {
 	private final Journey.Progress progress = new Journey.Progress();
 	private int aimCooldown;
 	private boolean detouring;
+	/** While he's going round something: how far he was from the destination when he started, and how far he's ridden. */
+	private double detourStart = -1;
+	private double detourRidden;
+	@Nullable
+	private Vec3 lastSpot;
 
 	public DeliveryRun(PendingDelivery delivery, @Nullable GlobalPos destination) {
 		this.delivery = delivery;
@@ -167,6 +177,7 @@ public class DeliveryRun {
 			case RIDING -> ride(rider, level);
 			case CAMPING -> camp(rider, level);
 			case FLEEING -> flee(rider, level);
+			case BARGING -> barge(rider, level);
 			case WALKING_TO_BOX -> walkUp(rider, level);
 			case DELIVERING -> deliver(rider, level);
 			default -> {}
@@ -259,25 +270,39 @@ public class DeliveryRun {
 		rider.setSprinting(onFoot);
 		if (!onFoot)
 			jumpGaps(rider.getHorse(), level);
+		trackDetour(rider, distance);
 		if (--aimCooldown <= 0 || rider.getNavigation().isDone()) {
 			aimCooldown = AIM_INTERVAL;
-			Vec3 aim = chooseAim(level, rider.position(), target);
+			Vec3 safe = safeAim(level, rider.position(), target);
+			// No dry way on, or riding round has stopped paying: over the water by barge, if there's water to launch it on
+			if ((safe == null || Crossing.detourTooLong(detourRidden, detourStart, distance)) && launchBarge(rider, level, target))
+				return;
+			Vec3 aim = safe != null ? safe : surface(level, Journey.nextAim(rider.position(), target));
 			detouring = isDetour(rider.position(), aim, target);
 			rider.getNavigation().moveTo(aim.x, aim.y, aim.z, onFoot ? RUN_SPEED : 1.0);
 		}
 		rider.mannerisms().tick(rider, level, distance, detouring);
 	}
 
+	/** Keeps count, while he's going round something, of how far he's ridden against how much closer it's got him. */
+	private void trackDetour(PostmanEntity rider, double distance) {
+		Vec3 here = rider.position();
+		if (!detouring) {
+			detourStart = -1;
+			detourRidden = 0;
+		} else {
+			if (detourStart < 0)
+				detourStart = distance;
+			if (lastSpot != null)
+				detourRidden += Journey.horizontalDistance(lastSpot, here);
+		}
+		lastSpot = here;
+	}
+
 	/** Whether an aim takes him off the straight line to the destination, round water or a hazard. */
 	public static boolean isDetour(Vec3 from, Vec3 aim, Vec3 target) {
 		Vec3 straight = Journey.nextAim(from, target);
 		return Journey.horizontalDistance(aim, straight) > DETOUR_SLACK;
-	}
-
-	/** The first stretch ahead that ends on safe, dry ground, or straight ahead if every way is water or worse. */
-	static Vec3 chooseAim(ServerLevel level, Vec3 from, Vec3 target) {
-		Vec3 safe = safeAim(level, from, target);
-		return safe != null ? safe : surface(level, Journey.nextAim(from, target));
 	}
 
 	/** The first stretch ahead ending somewhere safe to stand, or null if there's none. */
@@ -294,6 +319,107 @@ public class DeliveryRun {
 	private static Vec3 surface(ServerLevel level, Vec3 aim) {
 		BlockPos column = BlockPos.containing(aim);
 		return new Vec3(aim.x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column.getX(), column.getZ()), aim.z);
+	}
+
+	// ---------------------------------------------------------------- the barge
+
+	/** Calls up the barge on the water ahead, puts his horse and himself aboard, and pushes off. */
+	private boolean launchBarge(PostmanEntity rider, ServerLevel level, Vec3 target) {
+		int nearY = rider.getBlockY();
+		Vec3 spot = Crossing.launchSpot(rider.position(), target, (x, z) -> Crossing.surfaceIn(level, x, z, nearY));
+		BargeEntity barge = spot == null ? null : ModEntities.BARGE.get().create(level);
+		if (barge == null)
+			return false;
+		barge.moveTo(spot.x, spot.y + BargeEntity.FREEBOARD, spot.z, yawToward(spot, target), 0);
+		level.addFreshEntity(barge);
+		PostmanEffects.puff(level, barge);
+		PostmanHorse horse = rider.getHorse();
+		rider.stopRiding();
+		rider.getNavigation().stop();
+		rider.setSprinting(false);
+		if (horse != null) {
+			PostmanEffects.puff(level, horse);
+			horse.startRiding(barge, true);
+		}
+		rider.startRiding(barge, true);
+		rider.setActivity(PostmanEntity.Activity.ROW);
+		detouring = false;
+		detourStart = -1;
+		detourRidden = 0;
+		aimCooldown = 0;
+		enter(Stage.BARGING);
+		return true;
+	}
+
+	/** Rowing across: on for the far shore (day or night), round ocean monuments and drowned, and ashore as soon as he can be. */
+	private void barge(PostmanEntity rider, ServerLevel level) {
+		if (!(rider.getVehicle() instanceof BargeEntity barge)) {
+			// The barge is gone from under him somehow: carry on as best he can
+			rider.setActivity(PostmanEntity.Activity.NONE);
+			enter(Stage.RIDING);
+			return;
+		}
+		Vec3 target = destinationSpot(level);
+		if (target == null)
+			return;
+		double distance = Journey.horizontalDistance(rider.position(), target);
+		if (checkStuck(rider, level, distance, target))
+			return;
+		if (ashore(level, barge, distance) && land(rider, level, barge, target))
+			return;
+		if (--aimCooldown <= 0) {
+			aimCooldown = AIM_INTERVAL / 2;
+			int nearY = barge.getBlockY();
+			List<Vec3> drowned = level.getEntitiesOfClass(Drowned.class, barge.getBoundingBox().inflate(Journey.STRETCH + Crossing.DROWNED_BERTH))
+				.stream().map(Entity::position).toList();
+			Vec3 aim = Crossing.waterAim(barge.position(), target,
+				a -> !Hazards.isDangerous(level, BlockPos.containing(surface(level, a))),
+				a -> !Double.isNaN(Crossing.surfaceIn(level, Mth.floor(a.x), Mth.floor(a.z), nearY)),
+				a -> Crossing.nearAny(a, drowned, Crossing.DROWNED_BERTH) || Crossing.nearMonument(level, a));
+			barge.steer(aim != null ? aim : Journey.nextAim(barge.position(), target));
+		}
+	}
+
+	/** How long after launching before the bank behind it counts as reaching shore. */
+	private static final int PUSH_OFF_TICKS = 40;
+
+	/** Whether he can step ashore: the bow is up against land, or he's as good as at the mailbox. */
+	private boolean ashore(ServerLevel level, BargeEntity barge, double distance) {
+		if (distance <= Journey.DISMOUNT_DISTANCE + BargeEntity.BOW_REACH)
+			return true;
+		if (stageTicks < PUSH_OFF_TICKS)
+			return false;
+		Vec3 bow = barge.bow();
+		return barge.horizontalCollision || Double.isNaN(Crossing.surfaceIn(level, Mth.floor(bow.x), Mth.floor(bow.z), barge.getBlockY()));
+	}
+
+	/** Steps ashore by the bow: his horse appears on the bank, he climbs back on, and the barge vanishes. */
+	private boolean land(PostmanEntity rider, ServerLevel level, BargeEntity barge, Vec3 target) {
+		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> CampSites.floorIn(level, x, z, barge.getBlockY()));
+		if (spot == null)
+			return false;
+		Vec3 ground = Vec3.atBottomCenterOf(spot);
+		float yaw = yawToward(ground, target);
+		PostmanHorse horse = null;
+		for (Entity passenger : barge.getPassengers())
+			if (passenger instanceof PostmanHorse aboard)
+				horse = aboard;
+		rider.stopRiding();
+		rider.setActivity(PostmanEntity.Activity.NONE);
+		rider.moveTo(ground.x, ground.y, ground.z, yaw, 0);
+		if (horse != null) {
+			EntityType<?> type = horse.getType();
+			Vec3 room = HorseSpots.find(ground, yaw, s -> HorseSpots.fits(level, type, s));
+			Vec3 stand = room != null ? room : ground;
+			horse.stopRiding();
+			horse.moveTo(stand.x, stand.y, stand.z, yaw, 0);
+			PostmanEffects.puff(level, horse);
+			rider.startRiding(horse, true);
+		}
+		barge.vanish(level);
+		aimCooldown = 0;
+		enter(Stage.RIDING);
+		return true;
 	}
 
 	// ---------------------------------------------------------------- jumping gaps

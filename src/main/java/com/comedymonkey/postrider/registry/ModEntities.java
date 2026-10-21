@@ -1,6 +1,7 @@
 package com.comedymonkey.postrider.registry;
 
 import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.content.postman.BargeEntity;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.PostmanHorse;
 import com.comedymonkey.postrider.content.postman.TentEntity;
@@ -41,6 +42,15 @@ public final class ModEntities {
 			.noSummon()
 			.clientTrackingRange(10)
 			.build(PostRider.asResource("tent").toString()));
+
+	public static final DeferredHolder<EntityType<?>, EntityType<BargeEntity>> BARGE = ENTITIES.register("barge",
+		() -> EntityType.Builder.<BargeEntity>of(BargeEntity::new, MobCategory.MISC)
+			.sized(3.0F, 0.75F)
+			.fireImmune()
+			.noSummon()
+			.clientTrackingRange(10)
+			.updateInterval(2)
+			.build(PostRider.asResource("barge").toString()));
 
 	private ModEntities() {}
 
