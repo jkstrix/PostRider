@@ -1,0 +1,312 @@
+{
+  "credit": "Made with Blockbench",
+  "textures": {
+    "map": "ponyexpress:block/lost_map",
+    "particle": "ponyexpress:block/lost_parcel_paper"
+  },
+  "elements": [
+    {
+      "name": "map_flat",
+      "from": [
+        11.5,
+        0,
+        8
+      ],
+      "to": [
+        15.5,
+        0.2,
+        10.5
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            0.5
+          ],
+          "texture": "#map"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            6,
+            0.5
+          ],
+          "texture": "#map"
+        },
+        "south": {
+          "uv": [
+            0,
+            5.5,
+            16,
+            6
+          ],
+          "texture": "#map"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            6,
+            0.5
+          ],
+          "texture": "#map"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            6
+          ],
+          "texture": "#map"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            6
+          ],
+          "texture": "#map"
+        }
+      }
+    },
+    {
+      "name": "map_fold",
+      "from": [
+        11.5,
+        0,
+        10.5
+      ],
+      "to": [
+        15.5,
+        0.2,
+        12.5
+      ],
+      "rotation": {
+        "angle": -22.5,
+        "axis": "x",
+        "origin": [
+          13.5,
+          0.1,
+          10.5
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "texture": "#missing"
+        },
+        "east": {
+          "uv": [
+            0,
+            6,
+            5,
+            6.5
+          ],
+          "texture": "#map"
+        },
+        "south": {
+          "uv": [
+            0,
+            10.5,
+            16,
+            11
+          ],
+          "texture": "#map"
+        },
+        "west": {
+          "uv": [
+            0,
+            6,
+            5,
+            6.5
+          ],
+          "texture": "#map"
+        },
+        "up": {
+          "uv": [
+            0,
+            6,
+            16,
+            11
+          ],
+          "texture": "#map"
+        },
+        "down": {
+          "uv": [
+            0,
+            6,
+            16,
+            11
+          ],
+          "texture": "#map"
+        }
+      }
+    },
+    {
+      "name": "map_droop",
+      "from": [
+        11.75,
+        0.8,
+        12.35
+      ],
+      "to": [
+        15.25,
+        1,
+        14.35
+      ],
+      "rotation": {
+        "angle": 22.5,
+        "axis": "x",
+        "origin": [
+          13.5,
+          0.9,
+          12.35
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            11,
+            16,
+            11.5
+          ],
+          "texture": "#map"
+        },
+        "east": {
+          "uv": [
+            0,
+            11,
+            5,
+            11.5
+          ],
+          "texture": "#map"
+        },
+        "south": {
+          "uv": [
+            0,
+            15.5,
+            16,
+            16
+          ],
+          "texture": "#map"
+        },
+        "west": {
+          "uv": [
+            0,
+            11,
+            5,
+            11.5
+          ],
+          "texture": "#map"
+        },
+        "up": {
+          "uv": [
+            0,
+            11,
+            16,
+            16
+          ],
+          "texture": "#map"
+        },
+        "down": {
+          "uv": [
+            0,
+            11,
+            16,
+            16
+          ],
+          "texture": "#map"
+        }
+      }
+    },
+    {
+      "name": "map_corner",
+      "from": [
+        14,
+        0.1,
+        8.2
+      ],
+      "to": [
+        15.75,
+        0.3,
+        9.8
+      ],
+      "rotation": {
+        "angle": 22.5,
+        "axis": "z",
+        "origin": [
+          14,
+          0.2,
+          9
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            11,
+            0,
+            16,
+            0.5
+          ],
+          "texture": "#map"
+        },
+        "east": {
+          "uv": [
+            11,
+            0,
+            12,
+            0.5
+          ],
+          "texture": "#map"
+        },
+        "south": {
+          "uv": [
+            11,
+            4.5,
+            16,
+            5
+          ],
+          "texture": "#map"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "texture": "#missing"
+        },
+        "up": {
+          "uv": [
+            11,
+            0,
+            16,
+            5
+          ],
+          "texture": "#map"
+        },
+        "down": {
+          "uv": [
+            11,
+            0,
+            16,
+            5
+          ],
+          "texture": "#map"
+        }
+      }
+    }
+  ]
+}

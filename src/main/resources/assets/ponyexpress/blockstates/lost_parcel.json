@@ -1,0 +1,117 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "facing": "south"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel"
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cause": "killed"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel_skull"
+      }
+    },
+    {
+      "when": {
+        "facing": "south",
+        "cause": "stuck"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel_map"
+      }
+    },
+    {
+      "when": {
+        "facing": "west"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cause": "killed"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel_skull",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "west",
+        "cause": "stuck"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel_map",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "facing": "north"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cause": "killed"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel_skull",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "north",
+        "cause": "stuck"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel_map",
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "facing": "east"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cause": "killed"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel_skull",
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "facing": "east",
+        "cause": "stuck"
+      },
+      "apply": {
+        "model": "ponyexpress:block/lost_parcel_map",
+        "y": 270
+      }
+    }
+  ]
+}

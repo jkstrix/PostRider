@@ -38,7 +38,8 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 ## Failure
 - Fails when he dies or runs out of unstuck tries.
 - Destination mailbox broken or renamed, or inbox full: the Lost Parcel is placed where the mailbox is or was.
-- Lost Parcel: a placed block that never despawns. The sender, the recipient, or the player who killed the postman can open it. Anyone can inspect it to see sender, recipient and origin.
+- Lost Parcel: a placed block that never despawns. The sender, the recipient, the player who killed the postman, or an operator can open it or break it. Opening it puts its contents in your inventory and removes it. Anyone else who right-clicks it sees who sent it, where it was going and where it came from, but can't take it.
+- Its look: a battered, torn, grimy parcel with snapped string and a red LOST tag. If the rider was killed, a skull in his cowboy hat lies beside it. If he gave up after getting stuck, a crumpled map lies there instead.
 - The sender gets a failure letter in their mailbox. If their mailbox is gone, the failure goes to chat only.
 
 ## Notices

@@ -18,6 +18,11 @@
   "block.ponyexpress.red_mailbox": "Red Mailbox",
   "block.ponyexpress.black_mailbox": "Black Mailbox",
 
+  "block.ponyexpress.lost_parcel": "Lost Parcel",
+  "message.ponyexpress.lost_parcel.label": "A lost parcel, sent by %s from %s to %s on day %s.",
+  "message.ponyexpress.lost_parcel.not_yours": "Only the sender, the addressee or whoever bested the rider can open it.",
+  "message.ponyexpress.lost_parcel.recovered": "You recover the lost parcel.",
+
   "item.ponyexpress.letter": "Letter",
   "item.ponyexpress.letter.hint": "Use to write. Seal it, then post it from your mailbox.",
   "item.ponyexpress.letter.draft": "Draft in progress",

@@ -1,6 +1,6 @@
 package com.comedymonkey.ponyexpress;
 
-import com.comedymonkey.ponyexpress.content.mailbox.MailboxEvents;
+import com.comedymonkey.ponyexpress.content.PostalBlockEvents;
 import com.comedymonkey.ponyexpress.network.EditLetterPayload;
 import com.comedymonkey.ponyexpress.network.MailboxInfoPayload;
 import com.comedymonkey.ponyexpress.network.RenameMailboxPayload;
@@ -35,7 +35,7 @@ public class PonyExpress {
 		ModCreativeTabs.TABS.register(modBus);
 		modBus.addListener(this::registerPayloads);
 
-		NeoForge.EVENT_BUS.addListener(MailboxEvents::onBreak);
+		NeoForge.EVENT_BUS.addListener(PostalBlockEvents::onBreak);
 	}
 
 	public static ResourceLocation asResource(String path) {

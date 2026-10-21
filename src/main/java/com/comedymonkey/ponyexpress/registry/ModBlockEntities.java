@@ -1,6 +1,7 @@
 package com.comedymonkey.ponyexpress.registry;
 
 import com.comedymonkey.ponyexpress.PonyExpress;
+import com.comedymonkey.ponyexpress.content.lost.LostParcelBlockEntity;
 import com.comedymonkey.ponyexpress.content.mailbox.MailboxBlockEntity;
 
 import net.minecraft.core.registries.Registries;
@@ -17,6 +18,10 @@ public final class ModBlockEntities {
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MailboxBlockEntity>> MAILBOX =
 		BLOCK_ENTITIES.register("mailbox", () -> BlockEntityType.Builder.of(MailboxBlockEntity::new,
 			ModBlocks.mailboxes().stream().map(b -> (Block) b.get()).toArray(Block[]::new)).build(null));
+
+	@SuppressWarnings("DataFlowIssue")
+	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LostParcelBlockEntity>> LOST_PARCEL =
+		BLOCK_ENTITIES.register("lost_parcel", () -> BlockEntityType.Builder.of(LostParcelBlockEntity::new, ModBlocks.LOST_PARCEL.get()).build(null));
 
 	private ModBlockEntities() {}
 }
