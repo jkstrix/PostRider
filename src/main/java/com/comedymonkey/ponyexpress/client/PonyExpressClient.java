@@ -4,6 +4,9 @@ import com.comedymonkey.ponyexpress.PonyExpress;
 import com.comedymonkey.ponyexpress.client.gui.LetterEditScreen;
 import com.comedymonkey.ponyexpress.client.gui.LetterReadScreen;
 import com.comedymonkey.ponyexpress.client.gui.MailboxScreen;
+import com.comedymonkey.ponyexpress.client.model.PostmanModel;
+import com.comedymonkey.ponyexpress.client.renderer.PostmanRenderer;
+import com.comedymonkey.ponyexpress.registry.ModEntities;
 import com.comedymonkey.ponyexpress.content.letter.LetterScreens;
 import com.comedymonkey.ponyexpress.content.mailbox.MailboxBlock;
 import com.comedymonkey.ponyexpress.registry.ModBlocks;
@@ -18,6 +21,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
@@ -36,8 +40,18 @@ public class PonyExpressClient {
 			}
 		});
 		modBus.addListener(this::registerScreens);
+		modBus.addListener(this::registerLayers);
+		modBus.addListener(this::registerRenderers);
 		modBus.addListener(this::registerBlockColors);
 		modBus.addListener(this::registerItemColors);
+	}
+
+	private void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
+		event.registerLayerDefinition(PostmanModel.LAYER, PostmanModel::createBodyLayer);
+	}
+
+	private void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
+		event.registerEntityRenderer(ModEntities.POSTMAN.get(), PostmanRenderer::new);
 	}
 
 	private void registerScreens(RegisterMenuScreensEvent event) {

@@ -1,5 +1,6 @@
 package com.comedymonkey.ponyexpress;
 
+import com.comedymonkey.ponyexpress.command.PonyExpressCommand;
 import com.comedymonkey.ponyexpress.content.PostalBlockEvents;
 import com.comedymonkey.ponyexpress.network.EditLetterPayload;
 import com.comedymonkey.ponyexpress.network.MailboxInfoPayload;
@@ -9,6 +10,7 @@ import com.comedymonkey.ponyexpress.registry.ModBlockEntities;
 import com.comedymonkey.ponyexpress.registry.ModBlocks;
 import com.comedymonkey.ponyexpress.registry.ModCreativeTabs;
 import com.comedymonkey.ponyexpress.registry.ModDataComponents;
+import com.comedymonkey.ponyexpress.registry.ModEntities;
 import com.comedymonkey.ponyexpress.registry.ModItems;
 import com.comedymonkey.ponyexpress.registry.ModMenus;
 import com.mojang.logging.LogUtils;
@@ -18,6 +20,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import org.slf4j.Logger;
 
@@ -33,9 +36,12 @@ public class PonyExpress {
 		ModBlockEntities.BLOCK_ENTITIES.register(modBus);
 		ModMenus.MENUS.register(modBus);
 		ModCreativeTabs.TABS.register(modBus);
+		ModEntities.ENTITIES.register(modBus);
 		modBus.addListener(this::registerPayloads);
+		modBus.addListener(ModEntities::registerAttributes);
 
 		NeoForge.EVENT_BUS.addListener(PostalBlockEvents::onBreak);
+		NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> PonyExpressCommand.register(event.getDispatcher()));
 	}
 
 	public static ResourceLocation asResource(String path) {

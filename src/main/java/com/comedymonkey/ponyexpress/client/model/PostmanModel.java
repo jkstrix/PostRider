@@ -1,0 +1,107 @@
+package com.comedymonkey.ponyexpress.client.model;
+
+import com.comedymonkey.ponyexpress.PonyExpress;
+import com.comedymonkey.ponyexpress.content.postman.PostmanEntity;
+
+import net.minecraft.client.animation.AnimationDefinition;
+import net.minecraft.client.model.HierarchicalModel;
+import net.minecraft.client.model.geom.ModelLayerLocation;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.model.geom.PartPose;
+import net.minecraft.client.model.geom.builders.CubeDeformation;
+import net.minecraft.client.model.geom.builders.CubeListBuilder;
+import net.minecraft.client.model.geom.builders.LayerDefinition;
+import net.minecraft.client.model.geom.builders.MeshDefinition;
+import net.minecraft.client.model.geom.builders.PartDefinition;
+import net.minecraft.util.Mth;
+
+/**
+ * The rider's model. The geometry is Blockbench's Mojang-mappings export of blockbench/postman.bbmodel, and the
+ * animations come from {@link PostmanAnimations}.
+ */
+public class PostmanModel extends HierarchicalModel<PostmanEntity> {
+	public static final ModelLayerLocation LAYER = new ModelLayerLocation(PonyExpress.asResource("postman"), "main");
+
+	private final ModelPart root;
+	private final ModelPart head;
+	private final ModelPart satchelFlat;
+	private final ModelPart satchelFull;
+
+	public PostmanModel(ModelPart root) {
+		this.root = root;
+		ModelPart body = root.getChild("root").getChild("body");
+		this.head = body.getChild("head");
+		ModelPart satchel = body.getChild("satchel");
+		this.satchelFlat = satchel.getChild("satchel_flat");
+		this.satchelFull = satchel.getChild("satchel_full");
+	}
+
+	public static LayerDefinition createBodyLayer() {
+		MeshDefinition mesh = new MeshDefinition();
+		PartDefinition parts = mesh.getRoot();
+
+		PartDefinition root = parts.addOrReplaceChild("root", CubeListBuilder.create(), PartPose.offset(0.0F, 24.0F, 0.0F));
+
+		PartDefinition body = root.addOrReplaceChild("body", CubeListBuilder.create().texOffs(16, 16).addBox(-4.0F, -12.0F, -2.0F, 8.0F, 12.0F, 4.0F, new CubeDeformation(0.0F))
+			.texOffs(64, 28).addBox(-4.5F, -12.0F, -2.5F, 9.0F, 2.0F, 5.0F, new CubeDeformation(0.0F))
+			.texOffs(92, 28).addBox(-1.5F, -10.0F, -3.0F, 3.0F, 2.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(0.0F, -12.0F, 0.0F));
+
+		PartDefinition head = body.addOrReplaceChild("head", CubeListBuilder.create().texOffs(0, 0).addBox(-4.0F, -8.0F, -4.0F, 8.0F, 8.0F, 8.0F, new CubeDeformation(0.0F))
+			.texOffs(64, 0).addBox(-4.5F, -10.0F, -4.5F, 9.0F, 3.0F, 9.0F, new CubeDeformation(0.0F))
+			.texOffs(64, 44).addBox(-4.0F, -11.0F, -3.5F, 8.0F, 1.0F, 7.0F, new CubeDeformation(0.0F))
+			.texOffs(64, 13).addBox(-5.0F, -8.0F, -7.0F, 10.0F, 1.0F, 14.0F, new CubeDeformation(0.0F)), PartPose.offset(0.0F, -12.0F, 0.0F));
+		head.addOrReplaceChild("hat_brim_right_r1", CubeListBuilder.create().texOffs(64, 52).addBox(0.0F, -0.5F, -5.5F, 3.0F, 1.0F, 11.0F, new CubeDeformation(0.0F)),
+			PartPose.offsetAndRotation(4.5F, -7.5F, 0.0F, 0.0F, 0.0F, -0.3927F));
+		head.addOrReplaceChild("hat_brim_left_r1", CubeListBuilder.create().texOffs(96, 48).addBox(-3.0F, -0.5F, -5.5F, 3.0F, 1.0F, 11.0F, new CubeDeformation(0.0F)),
+			PartPose.offsetAndRotation(-4.5F, -7.5F, 0.0F, 0.0F, 0.0F, 0.3927F));
+
+		body.addOrReplaceChild("right_arm", CubeListBuilder.create().texOffs(40, 16).addBox(-1.0F, -2.0F, -2.0F, 4.0F, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(5.0F, -10.0F, 0.0F));
+		body.addOrReplaceChild("left_arm", CubeListBuilder.create().texOffs(32, 48).addBox(-3.0F, -2.0F, -2.0F, 4.0F, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(-5.0F, -10.0F, 0.0F));
+
+		PartDefinition satchel = body.addOrReplaceChild("satchel", CubeListBuilder.create(), PartPose.offset(-2.5F, -3.0F, 2.0F));
+		satchel.addOrReplaceChild("satchel_flat", CubeListBuilder.create().texOffs(100, 28).addBox(-2.0F, 0.0F, 0.0F, 4.0F, 5.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(0.0F, 0.0F, 0.0F));
+		satchel.addOrReplaceChild("satchel_full", CubeListBuilder.create().texOffs(100, 36).addBox(-2.5F, 0.0F, 0.0F, 5.0F, 6.0F, 3.0F, new CubeDeformation(0.0F)), PartPose.offset(0.0F, 0.0F, 0.0F));
+
+		root.addOrReplaceChild("right_leg", CubeListBuilder.create().texOffs(0, 16).addBox(-2.0F, 0.0F, -2.0F, 4.0F, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(1.9F, -12.0F, 0.0F));
+		root.addOrReplaceChild("left_leg", CubeListBuilder.create().texOffs(16, 48).addBox(-2.0F, 0.0F, -2.0F, 4.0F, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(-1.9F, -12.0F, 0.0F));
+
+		return LayerDefinition.create(mesh, 128, 64);
+	}
+
+	@Override
+	public ModelPart root() {
+		return root;
+	}
+
+	@Override
+	public void setupAnim(PostmanEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
+		root().getAllParts().forEach(ModelPart::resetPose);
+		head.yRot = netHeadYaw * Mth.DEG_TO_RAD;
+		head.xRot = headPitch * Mth.DEG_TO_RAD;
+
+		boolean free = entity.getVehicle() == null && entity.getActivity() == PostmanEntity.Activity.NONE;
+		if (free)
+			animateWalk(PostmanAnimations.WALK, limbSwing, limbSwingAmount, 2.0F, 2.5F);
+		animate(entity.idleAnimation, PostmanAnimations.IDLE, ageInTicks);
+		animate(entity.rideAnimation, PostmanAnimations.RIDE, ageInTicks);
+		animate(entity.rideIdleAnimation, PostmanAnimations.RIDE_IDLE, ageInTicks);
+		animate(entity.activityAnimations.get(PostmanEntity.Activity.CAMP_HAMMER), PostmanAnimations.CAMP_HAMMER, ageInTicks);
+		animate(entity.activityAnimations.get(PostmanEntity.Activity.CAMP_REST), PostmanAnimations.CAMP_REST, ageInTicks);
+		animate(entity.activityAnimations.get(PostmanEntity.Activity.ROW), PostmanAnimations.ROW, ageInTicks);
+		for (PostmanEntity.Gesture gesture : PostmanEntity.Gesture.values())
+			animate(entity.gestureAnimations.get(gesture), gestureAnimation(gesture), ageInTicks);
+		animate(entity.hurtAnimation, PostmanAnimations.HURT, ageInTicks);
+
+		satchelFlat.visible = !entity.isCarrying();
+		satchelFull.visible = entity.isCarrying();
+	}
+
+	public static AnimationDefinition gestureAnimation(PostmanEntity.Gesture gesture) {
+		return switch (gesture) {
+			case PICKUP -> PostmanAnimations.PICKUP;
+			case DELIVER -> PostmanAnimations.DELIVER;
+			case WHISTLE -> PostmanAnimations.WHISTLE;
+			case WAVE -> PostmanAnimations.WAVE;
+		};
+	}
+}

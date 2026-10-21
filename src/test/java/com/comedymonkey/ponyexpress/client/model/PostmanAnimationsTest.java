@@ -1,0 +1,85 @@
+package com.comedymonkey.ponyexpress.client.model;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+
+import com.comedymonkey.ponyexpress.content.postman.PostmanEntity;
+
+import net.minecraft.client.animation.AnimationDefinition;
+import net.minecraft.client.model.geom.ModelPart;
+
+class PostmanAnimationsTest {
+	private static final Map<String, AnimationDefinition> ALL = Map.ofEntries(
+		Map.entry("walk", PostmanAnimations.WALK), Map.entry("idle", PostmanAnimations.IDLE),
+		Map.entry("ride", PostmanAnimations.RIDE), Map.entry("ride_idle", PostmanAnimations.RIDE_IDLE),
+		Map.entry("pickup", PostmanAnimations.PICKUP), Map.entry("deliver", PostmanAnimations.DELIVER),
+		Map.entry("whistle", PostmanAnimations.WHISTLE), Map.entry("camp_hammer", PostmanAnimations.CAMP_HAMMER),
+		Map.entry("camp_rest", PostmanAnimations.CAMP_REST), Map.entry("row", PostmanAnimations.ROW),
+		Map.entry("hurt", PostmanAnimations.HURT), Map.entry("wave", PostmanAnimations.WAVE));
+
+	private static Set<String> partNames() {
+		ModelPart root = PostmanModel.createBodyLayer().bakeRoot();
+		Set<String> names = new HashSet<>();
+		collect(root, names);
+		return names;
+	}
+
+	private static void collect(ModelPart part, Set<String> names) {
+		for (String child : new String[] {"root", "body", "head", "right_arm", "left_arm", "satchel", "satchel_flat", "satchel_full",
+			"right_leg", "left_leg", "hat_brim_right_r1", "hat_brim_left_r1"})
+			if (part.hasChild(child)) {
+				names.add(child);
+				collect(part.getChild(child), names);
+			}
+	}
+
+	@Test
+	void allTwelveApprovedAnimationsAreThere() {
+		assertEquals(12, ALL.size());
+	}
+
+	@Test
+	void everyAnimatedBoneExistsInTheModel() {
+		Set<String> parts = partNames();
+		for (var entry : ALL.entrySet())
+			for (String bone : entry.getValue().boneAnimations().keySet())
+				assertTrue(parts.contains(bone), entry.getKey() + " animates missing bone " + bone);
+	}
+
+	@Test
+	void continuousAnimationsLoopAndGesturesPlayOnce() {
+		for (String looping : new String[] {"walk", "idle", "ride", "ride_idle", "camp_hammer", "camp_rest", "row"})
+			assertTrue(ALL.get(looping).looping(), looping);
+		for (String once : new String[] {"pickup", "deliver", "whistle", "hurt", "wave"})
+			assertFalse(ALL.get(once).looping(), once);
+	}
+
+	@Test
+	void gestureTimingsMatchTheirAnimations() {
+		for (PostmanEntity.Gesture gesture : PostmanEntity.Gesture.values())
+			assertEquals(PostmanModel.gestureAnimation(gesture).lengthInSeconds(), gesture.seconds, 1e-4, gesture.name());
+		assertEquals(PostmanAnimations.HURT.lengthInSeconds(), PostmanEntity.HURT_SECONDS, 1e-4);
+	}
+
+	@Test
+	void lengthsMatchWhatWasApprovedInBlockbench() {
+		assertEquals(1.0F, PostmanAnimations.WALK.lengthInSeconds());
+		assertEquals(0.75F, PostmanAnimations.RIDE.lengthInSeconds());
+		assertEquals(2.2F, PostmanAnimations.PICKUP.lengthInSeconds(), 1e-4);
+		assertEquals(6.0F, PostmanAnimations.CAMP_REST.lengthInSeconds());
+	}
+
+	@Test
+	void theModelHasBothSatchels() {
+		Set<String> parts = partNames();
+		assertTrue(parts.contains("satchel_flat"));
+		assertTrue(parts.contains("satchel_full"));
+	}
+}
