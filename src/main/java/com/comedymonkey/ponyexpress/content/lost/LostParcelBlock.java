@@ -18,6 +18,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -103,6 +104,13 @@ public class LostParcelBlock extends HorizontalDirectionalBlock implements Entit
 		return Component.translatable("message.ponyexpress.lost_parcel.label", parcel.getSenderName(), parcel.getFromName(),
 			parcel.getToName(), parcel.getDay()).withStyle(ChatFormatting.GOLD);
 	}
+
+	/**
+	 * Explosions never destroy it. Resistance alone isn't enough: the blast that kills a rider picks which blocks to
+	 * destroy before it hurts him, so the parcel he leaves can land in a spot already marked and be blown apart.
+	 */
+	@Override
+	public void onBlockExploded(BlockState state, Level level, BlockPos pos, Explosion explosion) {}
 
 	@Override
 	protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {

@@ -127,7 +127,7 @@ class DeliveryRunTest {
 	void hostileMobsHuntRidersButNeutralOnesDoNot() {
 		assertTrue(RiderHunting.huntsRiders(Zombie.class));
 		assertTrue(RiderHunting.huntsRiders(Skeleton.class));
-		assertTrue(RiderHunting.huntsRiders(Creeper.class));
+		assertFalse(RiderHunting.huntsRiders(Creeper.class), "creepers never stalk riders");
 		assertFalse(RiderHunting.huntsRiders(EnderMan.class));
 		assertFalse(RiderHunting.huntsRiders(ZombifiedPiglin.class));
 		assertFalse(RiderHunting.huntsRiders(Cow.class));

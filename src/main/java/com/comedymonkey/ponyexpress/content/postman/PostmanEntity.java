@@ -16,6 +16,8 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.entity.Entity;
@@ -69,6 +71,8 @@ public class PostmanEntity extends PathfinderMob {
 	}
 
 	public static final float HURT_SECONDS = 0.4F;
+	/** The camp_hammer animation brings the hammer down once a second. */
+	public static final int HAMMER_BLOW_TICKS = 20;
 
 	private static final EntityDataAccessor<Byte> DATA_ACTIVITY = SynchedEntityData.defineId(PostmanEntity.class, EntityDataSerializers.BYTE);
 	private static final EntityDataAccessor<Boolean> DATA_CARRYING = SynchedEntityData.defineId(PostmanEntity.class, EntityDataSerializers.BOOLEAN);
@@ -320,6 +324,10 @@ public class PostmanEntity extends PathfinderMob {
 			updateAnimations();
 		else if (level() instanceof ServerLevel server) {
 			tickHorse(server);
+			if (tickCount % 5 == 0)
+				RiderHunting.startleCreepers(this, server);
+			if (getActivity() == Activity.CAMP_HAMMER && tickCount % HAMMER_BLOW_TICKS == 0)
+				server.playSound(null, getX(), getY(), getZ(), SoundEvents.WOOD_HIT, SoundSource.NEUTRAL, 0.8F, 0.9F + getRandom().nextFloat() * 0.2F);
 			if (run != null && !isRemoved()) {
 				run.tick(this, server);
 				if (run.isOver())

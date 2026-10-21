@@ -1,0 +1,45 @@
+package com.comedymonkey.ponyexpress.content.postman;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+import com.comedymonkey.ponyexpress.content.lost.LostParcelBlock;
+import com.comedymonkey.ponyexpress.content.mailbox.MailboxBlock;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.level.Explosion;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+
+class CreeperTest {
+	@Test
+	void creepersIgnoreRidersUntilTheyAreRightUpClose() {
+		assertFalse(RiderHunting.creeperNotices(10 * 10, false));
+		assertFalse(RiderHunting.creeperNotices(4 * 4, false));
+		assertTrue(RiderHunting.creeperNotices(3 * 3, false));
+		assertTrue(RiderHunting.creeperNotices(1, false));
+	}
+
+	@Test
+	void creepersNeverNoticeHimInHisTent() {
+		assertFalse(RiderHunting.creeperNotices(1, true));
+		assertFalse(RiderHunting.creeperNotices(0, true));
+	}
+
+	@Test
+	void creepersNeverStalkRiders() {
+		assertFalse(RiderHunting.huntsRiders(Creeper.class));
+		assertEquals(3.0, RiderHunting.CREEPER_NOTICE_RANGE);
+	}
+
+	@Test
+	void explosionsNeverDestroyLostParcelsOrMailboxes() throws NoSuchMethodException {
+		Class<?>[] args = {BlockState.class, Level.class, BlockPos.class, Explosion.class};
+		assertEquals(LostParcelBlock.class, LostParcelBlock.class.getMethod("onBlockExploded", args).getDeclaringClass());
+		assertEquals(MailboxBlock.class, MailboxBlock.class.getMethod("onBlockExploded", args).getDeclaringClass());
+	}
+}

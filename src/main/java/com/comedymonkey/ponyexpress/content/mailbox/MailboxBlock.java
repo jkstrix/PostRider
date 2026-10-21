@@ -26,6 +26,7 @@ import net.minecraft.world.item.DyeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
@@ -174,6 +175,10 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 		MailboxBlockEntity mailbox = mailboxAt(level, state, pos);
 		return mailbox == null || mailbox.isOwner(player) || player.hasPermissions(2);
 	}
+
+	/** Only its owner (or an operator) can take it down; explosions never do, whatever their size. */
+	@Override
+	public void onBlockExploded(BlockState state, Level level, BlockPos pos, Explosion explosion) {}
 
 	@Override
 	protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
