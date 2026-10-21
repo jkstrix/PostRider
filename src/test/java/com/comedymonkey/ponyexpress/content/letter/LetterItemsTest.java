@@ -41,7 +41,7 @@ class LetterItemsTest {
 		assertEquals("Steve", loaded.get(ModDataComponents.LETTER.get()).author());
 
 		ItemStack parcel = new ItemStack(ModItems.PARCEL.get());
-		parcel.set(ModDataComponents.PARCEL_LABEL.get(), new ParcelLabel("Ranch", "Inn", "Steve", 4));
+		parcel.set(ModDataComponents.PARCEL_LABEL.get(), new ParcelLabel("Ranch", "Inn", "Steve", 4, 3500));
 		ItemStack parcelBack = ItemStack.parse(registries, parcel.save(registries)).orElseThrow();
 		assertEquals("Inn", parcelBack.get(ModDataComponents.PARCEL_LABEL.get()).to());
 	}

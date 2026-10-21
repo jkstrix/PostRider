@@ -33,7 +33,12 @@ public final class Mail {
 	 * Every written letter gets the sending mailbox's postmark.
 	 */
 	public static ItemStack wrap(PendingDelivery delivery, long day) {
-		LetterContent.Postmark postmark = new LetterContent.Postmark(delivery.fromName(), day);
+		return wrap(delivery, day, 0);
+	}
+
+	/** As {@link #wrap(PendingDelivery, long)}, noting on the label and postmarks how many game ticks it took. */
+	public static ItemStack wrap(PendingDelivery delivery, long day, long travelTicks) {
+		LetterContent.Postmark postmark = new LetterContent.Postmark(delivery.fromName(), day, travelTicks);
 		List<ItemStack> items = new ArrayList<>();
 		for (ItemStack item : delivery.items())
 			items.add(postmarked(item, postmark));
@@ -41,7 +46,7 @@ public final class Mail {
 			return items.get(0);
 		ItemStack parcel = new ItemStack(ModItems.PARCEL.get());
 		parcel.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(items));
-		parcel.set(ModDataComponents.PARCEL_LABEL.get(), new ParcelLabel(delivery.fromName(), delivery.toName(), delivery.senderName(), day));
+		parcel.set(ModDataComponents.PARCEL_LABEL.get(), new ParcelLabel(delivery.fromName(), delivery.toName(), delivery.senderName(), day, travelTicks));
 		return parcel;
 	}
 

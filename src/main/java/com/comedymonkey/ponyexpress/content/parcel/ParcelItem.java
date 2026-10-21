@@ -2,6 +2,7 @@ package com.comedymonkey.ponyexpress.content.parcel;
 
 import java.util.List;
 
+import com.comedymonkey.ponyexpress.post.TravelTime;
 import com.comedymonkey.ponyexpress.registry.ModDataComponents;
 
 import net.minecraft.ChatFormatting;
@@ -44,6 +45,8 @@ public class ParcelItem extends Item {
 			tooltip.add(Component.translatable("item.ponyexpress.parcel.from", label.from(), label.sender()).withStyle(ChatFormatting.GRAY));
 			tooltip.add(Component.translatable("item.ponyexpress.parcel.to", label.to()).withStyle(ChatFormatting.GRAY));
 			tooltip.add(Component.translatable("item.ponyexpress.parcel.day", label.day()).withStyle(ChatFormatting.DARK_AQUA));
+			if (label.travelTicks() > 0)
+				tooltip.add(TravelTime.describe(label.travelTicks()).copy().withStyle(ChatFormatting.DARK_AQUA));
 		}
 		tooltip.add(Component.translatable("item.ponyexpress.parcel.hint").withStyle(ChatFormatting.DARK_GRAY));
 	}

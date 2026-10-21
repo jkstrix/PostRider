@@ -31,15 +31,24 @@ public record LetterContent(List<String> pages, String author, Optional<Postmark
 		return new LetterContent(pages, author, Optional.of(mark));
 	}
 
-	/** Where and when a rider picked the mail up: the sending mailbox's address and the in-game day. */
-	public record Postmark(String from, long day) {
+	/**
+	 * Where and when the mail was posted: the sending mailbox's address and the in-game day, plus how many game ticks
+	 * it took to arrive (0 if unknown, as on a letter carried inside a parcel).
+	 */
+	public record Postmark(String from, long day, long travelTicks) {
 		public static final Codec<Postmark> CODEC = RecordCodecBuilder.create(i -> i.group(
 			Codec.STRING.fieldOf("from").forGetter(Postmark::from),
-			Codec.LONG.fieldOf("day").forGetter(Postmark::day)
+			Codec.LONG.fieldOf("day").forGetter(Postmark::day),
+			Codec.LONG.optionalFieldOf("travel_ticks", 0L).forGetter(Postmark::travelTicks)
 		).apply(i, Postmark::new));
 		public static final StreamCodec<ByteBuf, Postmark> STREAM_CODEC = StreamCodec.composite(
 			ByteBufCodecs.STRING_UTF8, Postmark::from,
 			ByteBufCodecs.VAR_LONG, Postmark::day,
+			ByteBufCodecs.VAR_LONG, Postmark::travelTicks,
 			Postmark::new);
+
+		public Postmark(String from, long day) {
+			this(from, day, 0);
+		}
 	}
 }

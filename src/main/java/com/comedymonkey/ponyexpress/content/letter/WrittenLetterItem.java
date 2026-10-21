@@ -2,6 +2,7 @@ package com.comedymonkey.ponyexpress.content.letter;
 
 import java.util.List;
 
+import com.comedymonkey.ponyexpress.post.TravelTime;
 import com.comedymonkey.ponyexpress.registry.ModDataComponents;
 
 import net.minecraft.ChatFormatting;
@@ -34,7 +35,10 @@ public class WrittenLetterItem extends Item {
 		if (letter == null)
 			return;
 		tooltip.add(Component.translatable("item.ponyexpress.written_letter.author", letter.author()).withStyle(ChatFormatting.GRAY));
-		letter.postmark().ifPresent(mark -> tooltip.add(
-			Component.translatable("item.ponyexpress.written_letter.postmark", mark.from(), mark.day()).withStyle(ChatFormatting.DARK_AQUA)));
+		letter.postmark().ifPresent(mark -> {
+			tooltip.add(Component.translatable("item.ponyexpress.written_letter.postmark", mark.from(), mark.day()).withStyle(ChatFormatting.DARK_AQUA));
+			if (mark.travelTicks() > 0)
+				tooltip.add(TravelTime.describe(mark.travelTicks()).copy().withStyle(ChatFormatting.DARK_AQUA));
+		});
 	}
 }

@@ -296,7 +296,8 @@ public class DeliveryRun {
 			fail(rider, level, LostCause.UNDELIVERABLE, name + " found no mailbox called " + delivery.toName() + " there any more.", null, box);
 			return false;
 		}
-		if (!mailbox.deliver(Mail.wrap(delivery, Mail.day(level.getDayTime())))) {
+		long travelTicks = level.getGameTime() - delivery.sentAt();
+		if (!mailbox.deliver(Mail.wrap(delivery, Mail.day(level.getDayTime()), travelTicks))) {
 			fail(rider, level, LostCause.UNDELIVERABLE, name + " found the mailbox at " + delivery.toName() + " too full to take it.", null, box);
 			return false;
 		}

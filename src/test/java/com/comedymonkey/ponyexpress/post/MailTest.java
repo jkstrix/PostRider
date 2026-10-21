@@ -56,6 +56,17 @@ class MailTest {
 	}
 
 	@Test
+	void theTimeItTookGoesOnTheLabelAndPostmarks() {
+		ItemStack parcel = Mail.wrap(delivery(letter("Hi"), new ItemStack(Items.BREAD)), 7, 27000);
+		assertEquals(27000, parcel.get(ModDataComponents.PARCEL_LABEL.get()).travelTicks());
+		ItemStack inside = parcel.get(DataComponents.CONTAINER).nonEmptyStream().findFirst().orElseThrow();
+		assertEquals(27000, inside.get(ModDataComponents.LETTER.get()).postmark().orElseThrow().travelTicks());
+
+		ItemStack alone = Mail.wrap(delivery(letter("Hi")), 7, 1500);
+		assertEquals(1500, alone.get(ModDataComponents.LETTER.get()).postmark().orElseThrow().travelTicks());
+	}
+
+	@Test
 	void twoLettersTravelAsAParcel() {
 		assertFalse(Mail.isLetterOnly(List.of(letter("a"), letter("b"))));
 		assertTrue(Mail.wrap(delivery(letter("a"), letter("b")), 1).is(ModItems.PARCEL.get()));
