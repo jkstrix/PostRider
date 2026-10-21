@@ -1,0 +1,98 @@
+# Post Rider
+
+Mounted mail for Minecraft. Put up a mailbox, give it an address, and post a parcel or a letter to any other
+mailbox in the world. One of twenty riders appears in a puff of smoke, takes the mail, whistles up a horse and
+rides it there, across country, around ravines, over lakes by ferry barge, camping out under canvas at night.
+Usually it arrives. Sometimes the riders don't make it, and you'll have to go and find what's left.
+
+For Minecraft 1.21.1 with NeoForge 21.1. Needed on both the server and every client; it doesn't need any other mods.
+
+## Mailboxes
+
+- **Craft one:** three iron ingots across the top, iron, a wooden chest and iron in the middle, and a wooden fence
+  post underneath. Dye it any of the 16 colours by crafting it with a dye, any time.
+- **Give it an address** on the Settings tab: 3 to 24 letters, numbers or simple punctuation. Every address must be
+  unique, and the screen tells you as you type if there's a problem.
+- **Inbox:** holds 27 deliveries. The flag goes up when there's mail.
+- **Send tab:** put up to 9 stacks in the parcel slots, pick an address from the ledger, and press Send. A letter on
+  its own goes as a letter; anything else is wrapped in a parcel.
+- **Your box only:** only the owner can open or break it. Explosions can't destroy it.
+- **Sky view:** put it somewhere with a view of the sky, so riders can reach it. You get a warning if it hasn't got one.
+
+## Letters
+
+Craft a letter from paper, a feather and an ink sac, then use it to write. Signed letters can be read by anyone who
+holds them, and every delivery is postmarked with the day it was posted and how long it took.
+
+## The riders
+
+Twenty riders, each always the same person with their own face, outfit and horse. That's Chris on Lightning (the
+fastest horse on the road), Martha "Mattie" Cole, "One-Eyed" Nell Harper, old Gus Tanner on Molasses (the
+slowest), and sixteen more. Only one of each is out at a time.
+
+On the road a rider:
+
+- **Collects** between 6am and dusk. Mail posted later waits for the next collection.
+- **Plans** a route 48 blocks ahead, so he goes around ravines and cliffs, and leaps small gaps.
+- **Avoids hazards:** he keeps off lava, fire, cactus and powder snow.
+- **Crosses water** by ferry barge when riding around it isn't worth it. The barge appears at the water's edge, he
+  rows it across with his horse aboard, and it steers clear of ocean monuments and drowned.
+- **Camps** at dusk. He finds a flat pitch, hammers in the pegs and plays the harmonica until monsters come out,
+  then sleeps in his tent with his boots out of the door. Mobs only notice him there from close by. If he's attacked
+  in camp, he runs for it until morning.
+- **Fights back for his life:** every hostile mob that hunts players hunts riders too. He carries two healing
+  potions a day and drinks one when he's hurt.
+- **Has mannerisms:** he waves at players he passes, tips his hat to villagers, wipes his brow in the desert, yawns
+  in the evening, checks his pocket watch, reads the address as he gets close, and a dozen other little things.
+- **Gets unstuck:** if he can't make progress, he teleports himself free. After five failed tries in a row he gives
+  up and turns back.
+
+The sender and the addressee get notices as the mail is collected and delivered.
+
+## When it goes wrong
+
+If a rider is killed, gets hopelessly lost, or finds the address gone, the mail is left as a **Lost Parcel** where it
+happened. If he was killed, there's a skull in a cowboy hat beside it; if he got lost, a crumpled map. On the water
+it's a soggy wreck floating at the surface.
+
+The sender gets a letter saying what happened and where. A Lost Parcel can only be opened by the sender, the
+addressee, or whoever killed the rider. Anyone else can read its label. It never despawns and explosions can't
+destroy it.
+
+## Server settings
+
+`config/postrider-server.toml`:
+
+| Setting | Default | |
+|---|---|---|
+| `maxRiders` | 20 | Riders out at once (1-20). |
+| `lookahead` | 48 | How far ahead riders plan, in blocks (16-64). Each rider keeps enough chunks loaded to see this far (7x7 at 48, only the middle 3x3 ticking). |
+| `potionsPerDay` | 2 | Healing potions per rider per day (0-10). |
+| `bargeSpeed` | 8.0 | Barge speed in blocks per second (2-16). |
+| `firstCollection`, `lastCollection` | 6, 18 | The hours riders set out. Riders on the road still camp from dusk to 6am. |
+
+## Commands
+
+`/postrider`, for operators (permission level 2), mostly for trying things out:
+
+| Command | What it does |
+|---|---|
+| `spawn [rider]` | Summons a rider in front of you (a random one, or one of the crew by id, e.g. `chris`). |
+| `dispatch` | Sends out riders for any waiting mail now. |
+| `status` | What the nearest rider is doing. |
+| `whistle`, `dismount`, `vanish` | Calls, dismisses or removes the nearest rider's horse, or the rider. |
+| `giveup` | Makes the nearest rider give up his delivery, as if he'd got lost. |
+| `gesture <name>`, `activity <name>`, `satchel full\|empty` | Plays an animation or changes what he's doing or carrying. |
+
+## Building
+
+```
+./gradlew build
+```
+
+Java 21. Unit tests run with the build. `./gradlew runClient` and `./gradlew runServer` start a development game.
+The models are in `blockbench/` and the rider skins are generated by `tools/rider_skins.js`, run inside Blockbench.
+
+## Credits
+
+See [CREDITS.md](CREDITS.md). Code and art are under the [MIT licence](LICENSE).
