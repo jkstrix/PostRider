@@ -19,6 +19,7 @@ import com.comedymonkey.postrider.registry.ModItems;
 import com.comedymonkey.postrider.registry.ModMenus;
 import com.comedymonkey.postrider.registry.ModSounds;
 import com.comedymonkey.postrider.registry.ModTriggers;
+import com.comedymonkey.postrider.content.postman.route.PlanningBudget;
 import com.mojang.logging.LogUtils;
 
 import net.minecraft.resources.ResourceLocation;
@@ -57,6 +58,8 @@ public class PostRider {
 
 		NeoForge.EVENT_BUS.addListener(PostalBlockEvents::onBreak);
 		NeoForge.EVENT_BUS.addListener(PostDispatcher::onServerTick);
+		NeoForge.EVENT_BUS.addListener(PlanningBudget::onServerTick);
+		NeoForge.EVENT_BUS.addListener(PlanningBudget::onServerStopped);
 		NeoForge.EVENT_BUS.addListener(RiderHunting::onJoin);
 		NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> PostRiderCommand.register(event.getDispatcher()));
 	}

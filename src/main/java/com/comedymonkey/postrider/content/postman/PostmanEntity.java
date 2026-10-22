@@ -35,6 +35,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.pathfinder.PathType;
 
 /**
  * The post rider. This holds what he's doing (camping, rowing, carrying mail) and plays his animations;
@@ -125,6 +126,13 @@ public class PostmanEntity extends PathfinderMob {
 		for (Gesture gesture : Gesture.values())
 			gestureAnimations.put(gesture, new AnimationState());
 		setPersistenceRequired();
+		avoidWater(this);
+	}
+
+	/** He never wades or swims, even where vanilla pathfinding does his walking (to the mailbox's door, running away). */
+	public static void avoidWater(PathfinderMob mob) {
+		mob.setPathfindingMalus(PathType.WATER, -1);
+		mob.setPathfindingMalus(PathType.WATER_BORDER, -1);
 	}
 
 	public static AttributeSupplier.Builder createAttributes() {
@@ -353,8 +361,8 @@ public class PostmanEntity extends PathfinderMob {
 	 * sheep or player.
 	 */
 	public static boolean holdsStill(Activity activity, @Nullable DeliveryRun.Stage stage) {
-		return activity != Activity.NONE || stage == DeliveryRun.Stage.PICKING_UP || stage == DeliveryRun.Stage.CALLING_HORSE
-			|| stage == DeliveryRun.Stage.DELIVERING;
+		return activity != Activity.NONE || stage == DeliveryRun.Stage.PICKING_UP || stage == DeliveryRun.Stage.PLANNING
+			|| stage == DeliveryRun.Stage.CALLING_HORSE || stage == DeliveryRun.Stage.DELIVERING;
 	}
 
 	@Override
