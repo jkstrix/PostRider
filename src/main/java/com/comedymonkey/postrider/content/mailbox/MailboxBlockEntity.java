@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.advancement.PostEvents;
 import com.comedymonkey.postrider.network.MailboxInfoPayload;
 import com.comedymonkey.postrider.post.MailboxDirectory;
 import com.comedymonkey.postrider.registry.ModBlockEntities;
@@ -118,6 +119,12 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 			buf.writeUtf(name);
 		});
 		sendInfo(player);
+		if (isOwner(player)) {
+			List<ItemStack> mail = new ArrayList<>();
+			for (int i = 0; i < inbox.getSlots(); i++)
+				mail.add(inbox.getStackInSlot(i));
+			PostEvents.received(player, mail);
+		}
 	}
 
 	/** Tells the player's screen this mailbox's address and the other addresses it can send to. */

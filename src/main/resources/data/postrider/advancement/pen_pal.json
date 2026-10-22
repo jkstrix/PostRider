@@ -1,0 +1,32 @@
+{
+  "parent": "postrider:signed_sealed_delivered",
+  "display": {
+    "icon": {
+      "id": "postrider:letter"
+    },
+    "title": {
+      "translate": "advancements.postrider.pen_pal.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.pen_pal.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "letters": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "sent_letter",
+        "at_least": 10
+      }
+    }
+  },
+  "requirements": [
+    [
+      "letters"
+    ]
+  ]
+}

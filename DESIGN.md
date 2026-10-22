@@ -73,6 +73,17 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 2. Parcel, letter, Lost Parcel (each model approved first).
 3. Postman, horse, barge, tent (each model approved first), then travel, camping, unstuck and failure handling.
 
+## Advancements
+
+A Post Rider tab (tools/gen_advancements.py writes them; one `postrider:post_event` trigger fires them):
+
+- Open for Business (root): get hold of a mailbox. Then Hang Out Your Shingle (name one), Paint the Town (dye one) and Rainbow Route (challenge: all 16 colours).
+- First Class (send anything), Signed, Sealed, Delivered (a letter on its own), Pen Pal (10 letters, counted by a Letters Sent statistic).
+- You've Got Mail (find a delivery in your box) and Neither Snow nor Rain (mail that crossed water by barge or spent a night on the trail; delivered mail notes both on its tooltip).
+- Chris Is Here! (greeted by Chris) and Meet the Crew (challenge: greeted by all 20 riders).
+- Home on the Range: come within 12 blocks of a rider's camp.
+- Lost and Found (recover a Lost Parcel), Davy Jones' Locker (recover a wreck), Highway Robbery (hidden: open the Lost Parcel of a rider you killed).
+
 ## Server config (config/postrider-server.toml)
 
 - `maxRiders` (default 20, 1-20): riders out at once.

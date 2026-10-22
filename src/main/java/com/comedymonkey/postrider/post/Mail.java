@@ -38,6 +38,18 @@ public final class Mail {
 
 	/** As {@link #wrap(PendingDelivery, long)}, noting on the label and postmarks how many game ticks it took. */
 	public static ItemStack wrap(PendingDelivery delivery, long day, long travelTicks) {
+		return wrap(delivery, day, travelTicks, JourneyNotes.NONE);
+	}
+
+	/** The delivered mail, noting anything it went through on the way (a barge crossing, nights on the trail). */
+	public static ItemStack wrap(PendingDelivery delivery, long day, long travelTicks, JourneyNotes notes) {
+		ItemStack mail = wrapped(delivery, day, travelTicks);
+		if (notes.weathered())
+			mail.set(ModDataComponents.JOURNEY_NOTES.get(), notes);
+		return mail;
+	}
+
+	private static ItemStack wrapped(PendingDelivery delivery, long day, long travelTicks) {
 		LetterContent.Postmark postmark = new LetterContent.Postmark(delivery.fromName(), day, travelTicks);
 		List<ItemStack> items = new ArrayList<>();
 		for (ItemStack item : delivery.items())

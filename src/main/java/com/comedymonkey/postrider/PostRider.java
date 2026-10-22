@@ -18,6 +18,7 @@ import com.comedymonkey.postrider.registry.ModEntities;
 import com.comedymonkey.postrider.registry.ModItems;
 import com.comedymonkey.postrider.registry.ModMenus;
 import com.comedymonkey.postrider.registry.ModSounds;
+import com.comedymonkey.postrider.registry.ModTriggers;
 import com.mojang.logging.LogUtils;
 
 import net.minecraft.resources.ResourceLocation;
@@ -25,6 +26,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.world.chunk.RegisterTicketControllersEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -46,6 +48,9 @@ public class PostRider {
 		ModCreativeTabs.TABS.register(modBus);
 		ModEntities.ENTITIES.register(modBus);
 		ModSounds.SOUNDS.register(modBus);
+		ModTriggers.TRIGGERS.register(modBus);
+		ModTriggers.STATS.register(modBus);
+		modBus.addListener((FMLCommonSetupEvent event) -> event.enqueueWork(ModTriggers::registerStatFormats));
 		modBus.addListener(this::registerPayloads);
 		modBus.addListener(ModEntities::registerAttributes);
 		modBus.addListener((RegisterTicketControllersEvent event) -> event.register(RiderChunks.CONTROLLER));

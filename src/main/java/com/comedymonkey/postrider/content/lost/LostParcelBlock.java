@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.advancement.PostEvents;
 import com.comedymonkey.postrider.content.HorizontalShapes;
 import com.mojang.serialization.MapCodec;
 
@@ -12,6 +13,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
@@ -92,8 +94,16 @@ public class LostParcelBlock extends HorizontalDirectionalBlock implements Entit
 			player.sendSystemMessage(Component.translatable("message.postrider.lost_parcel.not_yours").withStyle(ChatFormatting.GRAY));
 			return InteractionResult.CONSUME;
 		}
+		boolean ownKill = parcel.isKiller(player);
 		for (ItemStack item : parcel.takeContents())
 			player.getInventory().placeItemBackInInventory(item);
+		if (player instanceof ServerPlayer serverPlayer) {
+			PostEvents.fire(serverPlayer, PostEvents.RECOVERED);
+			if (this instanceof LostParcelWreckBlock)
+				PostEvents.fire(serverPlayer, PostEvents.RECOVERED_WRECK);
+			if (ownKill)
+				PostEvents.fire(serverPlayer, PostEvents.RECOVERED_OWN_KILL);
+		}
 		level.setBlock(pos, emptied(state), Block.UPDATE_ALL);
 		level.playSound(null, pos, SoundEvents.BOOK_PAGE_TURN, SoundSource.BLOCKS, 1, 0.7F);
 		player.sendSystemMessage(Component.translatable("message.postrider.lost_parcel.recovered").withStyle(ChatFormatting.DARK_GREEN));

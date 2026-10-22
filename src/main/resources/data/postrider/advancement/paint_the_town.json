@@ -1,0 +1,58 @@
+{
+  "parent": "postrider:open_for_business",
+  "display": {
+    "icon": {
+      "id": "minecraft:red_dye"
+    },
+    "title": {
+      "translate": "advancements.postrider.paint_the_town.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.paint_the_town.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "dyed": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "dyed_mailbox"
+      }
+    },
+    "crafted": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "postrider:orange_mailbox",
+              "postrider:magenta_mailbox",
+              "postrider:light_blue_mailbox",
+              "postrider:yellow_mailbox",
+              "postrider:lime_mailbox",
+              "postrider:pink_mailbox",
+              "postrider:gray_mailbox",
+              "postrider:light_gray_mailbox",
+              "postrider:cyan_mailbox",
+              "postrider:purple_mailbox",
+              "postrider:blue_mailbox",
+              "postrider:brown_mailbox",
+              "postrider:green_mailbox",
+              "postrider:red_mailbox",
+              "postrider:black_mailbox"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "dyed",
+      "crafted"
+    ]
+  ]
+}

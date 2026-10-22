@@ -1,0 +1,31 @@
+{
+  "parent": "postrider:first_class",
+  "display": {
+    "icon": {
+      "id": "minecraft:compass"
+    },
+    "title": {
+      "translate": "advancements.postrider.lost_and_found.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.lost_and_found.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "recovered": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "recovered"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "recovered"
+    ]
+  ]
+}

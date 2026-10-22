@@ -1,0 +1,32 @@
+{
+  "parent": "postrider:open_for_business",
+  "display": {
+    "icon": {
+      "id": "minecraft:saddle"
+    },
+    "title": {
+      "translate": "advancements.postrider.chris_is_here.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.chris_is_here.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "chris": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "chris"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "chris"
+    ]
+  ]
+}

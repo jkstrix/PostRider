@@ -1,0 +1,31 @@
+{
+  "parent": "postrider:lost_and_found",
+  "display": {
+    "icon": {
+      "id": "minecraft:heart_of_the_sea"
+    },
+    "title": {
+      "translate": "advancements.postrider.davy_jones_locker.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.davy_jones_locker.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "wreck": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "recovered_wreck"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "wreck"
+    ]
+  ]
+}

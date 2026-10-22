@@ -95,6 +95,11 @@ public class LostParcelBlockEntity extends BlockEntity {
 		return toName;
 	}
 
+	/** Whether this player is the one who brought the rider down. */
+	public boolean isKiller(Player player) {
+		return killer != null && killer.equals(player.getUUID());
+	}
+
 	public String getKillerName() {
 		return killerName;
 	}

@@ -1,0 +1,31 @@
+{
+  "parent": "postrider:hang_out_your_shingle",
+  "display": {
+    "icon": {
+      "id": "postrider:parcel"
+    },
+    "title": {
+      "translate": "advancements.postrider.first_class.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.first_class.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "sent": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "sent"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "sent"
+    ]
+  ]
+}

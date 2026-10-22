@@ -7,10 +7,12 @@ import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
 import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.advancement.PostEvents;
 import com.comedymonkey.postrider.content.lost.LostCause;
 import com.comedymonkey.postrider.content.lost.LostParcels;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlockEntity;
+import com.comedymonkey.postrider.post.JourneyNotes;
 import com.comedymonkey.postrider.post.Mail;
 import com.comedymonkey.postrider.post.MailboxDirectory;
 import com.comedymonkey.postrider.post.Notices;
@@ -26,6 +28,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -36,6 +39,7 @@ import net.minecraft.world.entity.ai.util.DefaultRandomPos;
 import net.minecraft.world.entity.monster.Drowned;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -89,6 +93,9 @@ public class DeliveryRun {
 	private double detourRidden;
 	@Nullable
 	private Vec3 lastSpot;
+	/** What the mail has been through, noted on it when it's delivered. */
+	private boolean crossedWater;
+	private int nightsOut;
 
 	public DeliveryRun(PendingDelivery delivery, @Nullable GlobalPos destination) {
 		this.delivery = delivery;
@@ -106,6 +113,11 @@ public class DeliveryRun {
 		DeliveryRun run = plan(level, delivery);
 		run.stage = Stage.CALLING_HORSE;
 		return run;
+	}
+
+	/** What the mail has been through so far. */
+	public JourneyNotes notes() {
+		return new JourneyNotes(crossedWater, nightsOut);
 	}
 
 	public PendingDelivery delivery() {
@@ -386,6 +398,7 @@ public class DeliveryRun {
 		}
 		rider.startRiding(barge, true);
 		rider.setActivity(PostmanEntity.Activity.ROW);
+		crossedWater = true;
 		detouring = false;
 		detourStart = -1;
 		detourRidden = 0;
@@ -627,6 +640,7 @@ public class DeliveryRun {
 
 	/** Into the tent for the night, flat on his back with his boots out of the door (or, with no tent, dozing where he sits). */
 	private void turnIn(PostmanEntity rider, ServerLevel level) {
+		nightsOut++;
 		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent) {
 			Vec3 soles = sleepingSpot(tent.position(), tent.getYRot());
 			rider.moveTo(soles.x, soles.y, soles.z, tent.getYRot(), 0);
@@ -746,12 +760,16 @@ public class DeliveryRun {
 			return false;
 		}
 		long travelTicks = level.getGameTime() - delivery.sentAt();
-		if (!mailbox.deliver(Mail.wrap(delivery, Mail.day(level.getDayTime()), travelTicks))) {
+		ItemStack mail = Mail.wrap(delivery, Mail.day(level.getDayTime()), travelTicks, new JourneyNotes(crossedWater, nightsOut));
+		ItemStack delivered = mail.copy();
+		if (!mailbox.deliver(mail)) {
 			fail(rider, level, LostCause.UNDELIVERABLE, name + " found the mailbox at " + delivery.toName() + " too full to take it.", null, box);
 			return false;
 		}
 		rider.setCarrying(false);
 		Notices.delivered(level.getServer(), delivery, name, entry.owner());
+		if (entry.owner() != null && level.getServer().getPlayerList().getPlayer(entry.owner()) instanceof ServerPlayer owner)
+			PostEvents.received(owner, List.of(delivered));
 		return true;
 	}
 
@@ -866,6 +884,8 @@ public class DeliveryRun {
 			GlobalPos.CODEC.encodeStart(NbtOps.INSTANCE, destination).result().ifPresent(d -> tag.put("destination", d));
 		tag.putString("stage", stage.name());
 		tag.putInt("stage_ticks", stageTicks);
+		tag.putBoolean("crossed_water", crossedWater);
+		tag.putInt("nights_out", nightsOut);
 		if (loadedChunk != null)
 			tag.putLong("loaded_chunk", loadedChunk.toLong());
 		tag.putString("camp_step", campStep.name());
@@ -896,6 +916,8 @@ public class DeliveryRun {
 			run.stage = Stage.RIDING;
 		}
 		run.stageTicks = tag.getInt("stage_ticks");
+		run.crossedWater = tag.getBoolean("crossed_water");
+		run.nightsOut = tag.getInt("nights_out");
 		if (tag.contains("loaded_chunk"))
 			run.loadedChunk = new ChunkPos(tag.getLong("loaded_chunk"));
 		try {

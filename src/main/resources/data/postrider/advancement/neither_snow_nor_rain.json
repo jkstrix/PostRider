@@ -1,0 +1,31 @@
+{
+  "parent": "postrider:you_ve_got_mail",
+  "display": {
+    "icon": {
+      "id": "minecraft:lantern"
+    },
+    "title": {
+      "translate": "advancements.postrider.neither_snow_nor_rain.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.neither_snow_nor_rain.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "weathered": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "received_weathered"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "weathered"
+    ]
+  ]
+}

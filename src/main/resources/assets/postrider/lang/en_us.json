@@ -1,6 +1,5 @@
 {
   "itemGroup.postrider": "Post Rider",
-
   "block.postrider.white_mailbox": "White Mailbox",
   "block.postrider.orange_mailbox": "Orange Mailbox",
   "block.postrider.magenta_mailbox": "Magenta Mailbox",
@@ -17,7 +16,6 @@
   "block.postrider.green_mailbox": "Green Mailbox",
   "block.postrider.red_mailbox": "Red Mailbox",
   "block.postrider.black_mailbox": "Black Mailbox",
-
   "entity.postrider.postman": "Post Rider",
   "entity.postrider.postman_horse": "Post Horse",
   "entity.postrider.tent": "Rider's Tent",
@@ -29,13 +27,11 @@
   "message.postrider.delivered.recipient": "Mail has arrived at %s, from %s.",
   "message.postrider.failed.sender": "Your mail for %s went astray near X %s, Y %s, Z %s. A letter is waiting in your mailbox.",
   "message.postrider.failed.sender_no_letter": "Your mail for %s went astray near X %s, Y %s, Z %s. There was no room in your mailbox for the letter about it.",
-
   "block.postrider.lost_parcel": "Lost Parcel",
   "block.postrider.lost_parcel_wreck": "Lost Parcel (Wreck)",
   "message.postrider.lost_parcel.label": "A lost parcel, sent by %s from %s to %s on day %s.",
   "message.postrider.lost_parcel.not_yours": "Only the sender, the addressee or whoever bested the rider can open it.",
   "message.postrider.lost_parcel.recovered": "You recover the lost parcel.",
-
   "item.postrider.letter": "Letter",
   "item.postrider.letter.hint": "Use to write. Seal it, then post it from your mailbox.",
   "item.postrider.letter.draft": "Draft in progress",
@@ -56,7 +52,6 @@
   "time.postrider.hours": "%s hours",
   "time.postrider.minute": "%s minute",
   "time.postrider.minutes": "%s minutes",
-
   "gui.postrider.letter.write": "Write a Letter",
   "gui.postrider.letter.read": "Letter",
   "gui.postrider.letter.done": "Done",
@@ -69,7 +64,6 @@
   "gui.postrider.letter.posted_at": "Posted at %s",
   "gui.postrider.letter.postmark_day": "DAY %s",
   "message.postrider.letter.empty": "Write something before sealing the letter.",
-
   "container.postrider.mailbox": "Unnamed Mailbox",
   "gui.postrider.mailbox.tab.inbox": "Inbox",
   "gui.postrider.mailbox.tab.send": "Send a Parcel",
@@ -85,7 +79,6 @@
   "gui.postrider.mailbox.name_rules": "%s to %s letters, numbers or simple punctuation.",
   "gui.postrider.mailbox.name_first": "Give this mailbox an address in Settings first.",
   "gui.postrider.mailbox.no_addresses": "No other mailboxes here yet.",
-
   "message.postrider.mailbox.placed": "Open your mailbox and give it an address in Settings so mail can find you.",
   "message.postrider.mailbox.no_sky": "This mailbox can't see the sky. The rider may not be able to reach it, and mail sent here is likely to go missing.",
   "message.postrider.mailbox.not_owner": "This mailbox belongs to %s.",
@@ -102,5 +95,39 @@
   "message.postrider.mailbox.queued": "Your parcel for %s is waiting for a rider.",
   "message.postrider.mailbox.queued_letter": "Your letter for %s is waiting for a rider.",
   "message.postrider.mailbox.queued_later": "Posted after the last collection: a rider will collect your parcel for %s at %s.",
-  "message.postrider.mailbox.queued_letter_later": "Posted after the last collection: a rider will collect your letter for %s at %s."
+  "message.postrider.mailbox.queued_letter_later": "Posted after the last collection: a rider will collect your letter for %s at %s.",
+  "advancements.postrider.open_for_business.title": "Open for Business",
+  "advancements.postrider.open_for_business.description": "Get hold of a mailbox",
+  "advancements.postrider.hang_out_your_shingle.title": "Hang Out Your Shingle",
+  "advancements.postrider.hang_out_your_shingle.description": "Give a mailbox an address",
+  "advancements.postrider.paint_the_town.title": "Paint the Town",
+  "advancements.postrider.paint_the_town.description": "Dye a mailbox",
+  "advancements.postrider.rainbow_route.title": "Rainbow Route",
+  "advancements.postrider.rainbow_route.description": "Collect a mailbox in all 16 colours",
+  "advancements.postrider.first_class.title": "First Class",
+  "advancements.postrider.first_class.description": "Post something to another mailbox",
+  "advancements.postrider.signed_sealed_delivered.title": "Signed, Sealed, Delivered",
+  "advancements.postrider.signed_sealed_delivered.description": "Send a letter on its own",
+  "advancements.postrider.pen_pal.title": "Pen Pal",
+  "advancements.postrider.pen_pal.description": "Send 10 letters",
+  "advancements.postrider.you_ve_got_mail.title": "You've Got Mail",
+  "advancements.postrider.you_ve_got_mail.description": "Find a delivery waiting in your mailbox",
+  "advancements.postrider.neither_snow_nor_rain.title": "Neither Snow nor Rain",
+  "advancements.postrider.neither_snow_nor_rain.description": "Receive mail that crossed water by barge or spent a night on the trail",
+  "advancements.postrider.chris_is_here.title": "Chris Is Here!",
+  "advancements.postrider.chris_is_here.description": "Be greeted by Chris on the road",
+  "advancements.postrider.meet_the_crew.title": "Meet the Crew",
+  "advancements.postrider.meet_the_crew.description": "Be greeted by all 20 riders",
+  "advancements.postrider.home_on_the_range.title": "Home on the Range",
+  "advancements.postrider.home_on_the_range.description": "Come across a rider's camp",
+  "advancements.postrider.lost_and_found.title": "Lost and Found",
+  "advancements.postrider.lost_and_found.description": "Recover a Lost Parcel",
+  "advancements.postrider.davy_jones_locker.title": "Davy Jones' Locker",
+  "advancements.postrider.davy_jones_locker.description": "Recover a Lost Parcel from a wreck on the water",
+  "advancements.postrider.highway_robbery.title": "Highway Robbery",
+  "advancements.postrider.highway_robbery.description": "Open the Lost Parcel of a rider you brought down",
+  "stat.postrider.letters_sent": "Letters Sent",
+  "item.postrider.journey.barge": "Crossed water by barge",
+  "item.postrider.journey.night": "Spent a night on the trail",
+  "item.postrider.journey.nights": "Spent %s nights on the trail"
 }

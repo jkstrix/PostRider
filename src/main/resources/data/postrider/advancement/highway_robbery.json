@@ -1,0 +1,31 @@
+{
+  "parent": "postrider:lost_and_found",
+  "display": {
+    "icon": {
+      "id": "minecraft:skeleton_skull"
+    },
+    "title": {
+      "translate": "advancements.postrider.highway_robbery.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.highway_robbery.description"
+    },
+    "frame": "goal",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": true
+  },
+  "criteria": {
+    "robbed": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "recovered_own_kill"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "robbed"
+    ]
+  ]
+}

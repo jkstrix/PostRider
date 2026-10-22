@@ -1,0 +1,225 @@
+{
+  "parent": "postrider:chris_is_here",
+  "display": {
+    "icon": {
+      "id": "minecraft:name_tag"
+    },
+    "title": {
+      "translate": "advancements.postrider.meet_the_crew.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.meet_the_crew.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "chris": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "chris"
+      }
+    },
+    "mattie": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "mattie"
+      }
+    },
+    "eli": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "eli"
+      }
+    },
+    "rosa": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "rosa"
+      }
+    },
+    "jeb": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "jeb"
+      }
+    },
+    "tom": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "tom"
+      }
+    },
+    "clara": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "clara"
+      }
+    },
+    "silas": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "silas"
+      }
+    },
+    "hattie": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "hattie"
+      }
+    },
+    "wyatt": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "wyatt"
+      }
+    },
+    "ike": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "ike"
+      }
+    },
+    "lottie": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "lottie"
+      }
+    },
+    "gus": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "gus"
+      }
+    },
+    "nell": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "nell"
+      }
+    },
+    "abe": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "abe"
+      }
+    },
+    "billy": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "billy"
+      }
+    },
+    "ada": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "ada"
+      }
+    },
+    "hank": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "hank"
+      }
+    },
+    "sadie": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "sadie"
+      }
+    },
+    "juan": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "greeted",
+        "rider": "juan"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "chris"
+    ],
+    [
+      "mattie"
+    ],
+    [
+      "eli"
+    ],
+    [
+      "rosa"
+    ],
+    [
+      "jeb"
+    ],
+    [
+      "tom"
+    ],
+    [
+      "clara"
+    ],
+    [
+      "silas"
+    ],
+    [
+      "hattie"
+    ],
+    [
+      "wyatt"
+    ],
+    [
+      "ike"
+    ],
+    [
+      "lottie"
+    ],
+    [
+      "gus"
+    ],
+    [
+      "nell"
+    ],
+    [
+      "abe"
+    ],
+    [
+      "billy"
+    ],
+    [
+      "ada"
+    ],
+    [
+      "hank"
+    ],
+    [
+      "sadie"
+    ],
+    [
+      "juan"
+    ]
+  ],
+  "rewards": {
+    "experience": 100
+  }
+}

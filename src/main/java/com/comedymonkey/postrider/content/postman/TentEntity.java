@@ -4,9 +4,12 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.advancement.PostEvents;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -19,6 +22,8 @@ import net.minecraft.world.level.Level;
 public class TentEntity extends Entity {
 	/** How often it checks that its rider is still about. */
 	private static final int CHECK_INTERVAL = 20;
+	/** Coming this close to a rider's camp counts as finding it. */
+	public static final double FOUND_RANGE = 12;
 
 	@Nullable
 	private UUID rider;
@@ -44,8 +49,12 @@ public class TentEntity extends Entity {
 		super.tick();
 		if (level() instanceof ServerLevel server && tickCount % CHECK_INTERVAL == 0) {
 			Entity owner = rider != null ? server.getEntity(rider) : null;
-			if (!(owner instanceof PostmanEntity postman) || !postman.isAlive())
+			if (!(owner instanceof PostmanEntity postman) || !postman.isAlive()) {
 				packAway(server);
+				return;
+			}
+			for (ServerPlayer player : server.getPlayers(p -> !p.isSpectator() && p.distanceToSqr(this) < FOUND_RANGE * FOUND_RANGE))
+				PostEvents.fire(player, PostEvents.FOUND_CAMP);
 		}
 	}
 

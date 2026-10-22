@@ -1,0 +1,31 @@
+{
+  "parent": "postrider:open_for_business",
+  "display": {
+    "icon": {
+      "id": "minecraft:oak_sign"
+    },
+    "title": {
+      "translate": "advancements.postrider.hang_out_your_shingle.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.hang_out_your_shingle.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "named": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "named_mailbox"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "named"
+    ]
+  ]
+}

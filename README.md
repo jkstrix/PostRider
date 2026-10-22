@@ -59,6 +59,13 @@ The sender gets a letter saying what happened and where. A Lost Parcel can only 
 addressee, or whoever killed the rider. Anyone else can read its label. It never despawns and explosions can't
 destroy it.
 
+## Advancements
+
+Fifteen on their own Post Rider tab, from **Open for Business** (get a mailbox) through **Pen Pal**, **Neither Snow
+nor Rain** and **Davy Jones' Locker** to the challenges **Meet the Crew** (be greeted by all 20 riders) and
+**Rainbow Route** (a mailbox in every colour). One of them is a secret. Delivered mail notes on its tooltip if it
+crossed water by barge or spent nights on the trail.
+
 ## Server settings
 
 `config/postrider-server.toml`:

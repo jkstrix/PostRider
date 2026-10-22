@@ -2,6 +2,7 @@ package com.comedymonkey.postrider.content.mailbox;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.advancement.PostEvents;
 import com.comedymonkey.postrider.post.MailboxDirectory;
 import com.comedymonkey.postrider.registry.ModBlocks;
 import com.mojang.serialization.MapCodec;
@@ -215,6 +216,8 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 			recolour(level, lowerPos(state, pos), ModBlocks.mailbox(dye.getDyeColor()).get());
 			level.playSound(null, pos, SoundEvents.DYE_USE, SoundSource.BLOCKS, 1, 1);
 			stack.consume(1, player);
+			if (player instanceof ServerPlayer serverPlayer)
+				PostEvents.fire(serverPlayer, PostEvents.DYED_MAILBOX);
 		}
 		return ItemInteractionResult.sidedSuccess(level.isClientSide);
 	}

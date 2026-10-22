@@ -1,0 +1,31 @@
+{
+  "parent": "postrider:first_class",
+  "display": {
+    "icon": {
+      "id": "postrider:written_letter"
+    },
+    "title": {
+      "translate": "advancements.postrider.signed_sealed_delivered.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.signed_sealed_delivered.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "letter": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "sent_letter"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "letter"
+    ]
+  ]
+}

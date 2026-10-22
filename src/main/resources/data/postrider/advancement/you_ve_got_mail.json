@@ -1,0 +1,31 @@
+{
+  "parent": "postrider:hang_out_your_shingle",
+  "display": {
+    "icon": {
+      "id": "postrider:blue_mailbox"
+    },
+    "title": {
+      "translate": "advancements.postrider.you_ve_got_mail.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.you_ve_got_mail.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "received": {
+      "trigger": "postrider:post_event",
+      "conditions": {
+        "event": "received"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "received"
+    ]
+  ]
+}

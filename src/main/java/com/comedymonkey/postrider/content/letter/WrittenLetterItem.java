@@ -2,6 +2,7 @@ package com.comedymonkey.postrider.content.letter;
 
 import java.util.List;
 
+import com.comedymonkey.postrider.post.JourneyNotes;
 import com.comedymonkey.postrider.post.TravelTime;
 import com.comedymonkey.postrider.registry.ModDataComponents;
 
@@ -40,5 +41,6 @@ public class WrittenLetterItem extends Item {
 			if (mark.travelTicks() > 0)
 				tooltip.add(TravelTime.describe(mark.travelTicks()).copy().withStyle(ChatFormatting.DARK_AQUA));
 		});
+		stack.getOrDefault(ModDataComponents.JOURNEY_NOTES.get(), JourneyNotes.NONE).addTo(tooltip);
 	}
 }

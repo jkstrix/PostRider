@@ -9,12 +9,14 @@ import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.advancement.PostEvents;
 import com.comedymonkey.postrider.content.postman.PostmanEntity.Gesture;
 import com.comedymonkey.postrider.post.PostOfficeHours;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -178,6 +180,9 @@ public final class Mannerisms {
 			if (villager && rider.getRandom().nextFloat() >= VILLAGER_GREET_CHANCE)
 				continue;
 			play(rider, villager || rider.getRandom().nextBoolean() ? Gesture.TIP_HAT : Gesture.WAVE);
+			Roster.Rider who = rider.getRider();
+			if (other instanceof ServerPlayer player && who != null)
+				PostEvents.fire(player, PostEvents.GREETED, who.id(), 1);
 			return true;
 		}
 		return false;

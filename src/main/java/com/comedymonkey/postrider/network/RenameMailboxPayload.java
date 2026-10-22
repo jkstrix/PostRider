@@ -1,6 +1,7 @@
 package com.comedymonkey.postrider.network;
 
 import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.advancement.PostEvents;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlockEntity;
 import com.comedymonkey.postrider.content.mailbox.MailboxMenu;
 import com.comedymonkey.postrider.post.MailboxDirectory;
@@ -43,6 +44,8 @@ public record RenameMailboxPayload(String name) implements CustomPacketPayload {
 				case INVALID -> MailboxNames.describe(problem != null ? problem : MailboxNames.Problem.BAD_CHARACTER).withStyle(ChatFormatting.RED);
 			};
 			MailboxNoticePayload.tell(player, message, result == MailboxDirectory.Result.OK);
+			if (result == MailboxDirectory.Result.OK)
+				PostEvents.fire(player, PostEvents.NAMED_MAILBOX);
 			mailbox.sendInfo(player);
 		});
 	}

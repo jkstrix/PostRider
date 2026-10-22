@@ -1,0 +1,35 @@
+{
+  "display": {
+    "icon": {
+      "id": "postrider:red_mailbox"
+    },
+    "title": {
+      "translate": "advancements.postrider.open_for_business.title"
+    },
+    "description": {
+      "translate": "advancements.postrider.open_for_business.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false,
+    "background": "minecraft:textures/block/spruce_planks.png"
+  },
+  "criteria": {
+    "mailbox": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "#postrider:mailboxes"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "mailbox"
+    ]
+  ]
+}
