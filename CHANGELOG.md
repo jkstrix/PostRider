@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1
+
+- Fixed: a rider could be teleported over a river instead of rowing it, and circle round a bay. When there's no way
+  on through the blocks ahead and open water to launch on, he takes the barge, and stuck at the water's edge he rows
+  across rather than being teleported.
+- Riders' routing decisions (routes planned, barge launches and landings, ways that wouldn't plan, jumps free) are
+  noted in the server log.
+
 ## 1.1.0
 
 - Riders find their own way. After the pickup the rider steps away from the mailbox and studies a big paper map
