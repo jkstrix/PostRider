@@ -26,13 +26,18 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	private static final int RULES_Y = 66;
 	private static final int RULES_WIDTH = MailboxMenu.WIDTH - 16;
 	private static final int STATUS_Y = 86;
-	/** On the Send tab, two lines beside the Send button for how sending went. */
-	private static final int SEND_NOTICE_Y = 79;
+	/**
+	 * On the Send tab, two lines under the ledger for how sending went (in place of the "To:" line, as the address
+	 * is highlighted in the ledger), ending on the parchment.
+	 */
+	public static final int SEND_NOTICE_Y = 68;
 	private static final int LEDGER_X = 68;
 	/** The ledger of addresses fills the panel to the right of the parcel slots. */
 	private static final int LEDGER_WIDTH = MailboxMenu.WIDTH - LEDGER_X - 8;
-	private static final int SEND_NOTICE_WIDTH = LEDGER_WIDTH;
-	private static final int SEND_NOTICE_LINES = 2;
+	public static final int SEND_NOTICE_WIDTH = LEDGER_WIDTH;
+	public static final int SEND_NOTICE_LINES = 2;
+	/** Where the parchment ends and the wood begins: text has to stay above it. */
+	public static final int PARCHMENT_BOTTOM = 92;
 	/** On the Settings tab, the owner's name beside the Save button, as far as the edge of the parchment. */
 	private static final int OWNER_X = 70;
 	private static final int OWNER_WIDTH = MailboxMenu.WIDTH - OWNER_X - 8;
@@ -244,11 +249,11 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 				: Component.translatable("gui.postrider.mailbox.inbox_many", count);
 			PostOfficeStyle.write(graphics, font, status, MailboxMenu.INVENTORY_X, 80, PostOfficeStyle.INK);
 		} else if (tab == MailboxMenu.TAB_SEND) {
-			if (selected != null) {
-				Component to = Component.translatable("gui.postrider.mailbox.to", font.plainSubstrByWidth(selected, LEDGER_WIDTH - 20));
-				PostOfficeStyle.write(graphics, font, to, LEDGER_X, 68, PostOfficeStyle.INK);
-			}
 			MailboxInfoCache.Notice notice = MailboxInfoCache.notice();
+			if (selected != null && notice == null) {
+				Component to = Component.translatable("gui.postrider.mailbox.to", font.plainSubstrByWidth(selected, LEDGER_WIDTH - 20));
+				PostOfficeStyle.write(graphics, font, to, LEDGER_X, SEND_NOTICE_Y, PostOfficeStyle.INK);
+			}
 			if (notice != null)
 				writeLines(graphics, notice.message(), LEDGER_X, SEND_NOTICE_Y, SEND_NOTICE_WIDTH, SEND_NOTICE_LINES,
 					notice.good() ? PostOfficeStyle.INK : PostOfficeStyle.INK_ERROR);

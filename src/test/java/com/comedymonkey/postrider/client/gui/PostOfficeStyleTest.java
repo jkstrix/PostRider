@@ -8,6 +8,9 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.comedymonkey.postrider.content.mailbox.MailboxMenu;
+import com.comedymonkey.postrider.post.MailboxNames;
+import com.comedymonkey.postrider.testutil.ModResourceFiles;
+import com.google.gson.JsonObject;
 
 class PostOfficeStyleTest {
 	@Test
@@ -37,5 +40,27 @@ class PostOfficeStyleTest {
 		assertTrue(MailboxMenu.WIDTH >= 240);
 		int left = MailboxMenu.INVENTORY_X - 1, right = MailboxMenu.WIDTH - (left + 9 * 18);
 		assertEquals(left, right);
+	}
+
+	/** Roughly how wide Minecraft's font draws text, erring wide: most characters 6 pixels, thin ones less, spaces 4. */
+	private static int fontWidth(String text) {
+		int width = 0;
+		for (char c : text.toCharArray())
+			width += c == ' ' ? 4 : "il.,'!:;|".indexOf(c) >= 0 ? 3 : 6;
+		return width;
+	}
+
+	@Test
+	void whatHappenedToYourMailFitsUnderTheLedgerOnTheParchment() {
+		assertTrue(MailboxScreen.SEND_NOTICE_Y + MailboxScreen.SEND_NOTICE_LINES * 9 <= MailboxScreen.PARCHMENT_BOTTOM, "both lines on the parchment");
+		JsonObject lang = ModResourceFiles.readJson(ModResourceFiles.find("assets", "postrider", "lang", "en_us.json")).getAsJsonObject();
+		// A long address (the most an address can be) and the latest collection time
+		String address = "Steve's Ranch and Stable";
+		assertEquals(MailboxNames.MAX_LENGTH, address.length());
+		for (String key : new String[] {"queued", "queued_letter", "queued_later", "queued_letter_later"}) {
+			String message = lang.get("message.postrider.mailbox." + key).getAsString().replaceFirst("%s", address).replace("%s", "12pm");
+			List<String> lines = PostOfficeStyle.wrap(message, MailboxScreen.SEND_NOTICE_WIDTH, PostOfficeStyleTest::fontWidth);
+			assertTrue(lines.size() <= MailboxScreen.SEND_NOTICE_LINES, key + " runs to " + lines);
+		}
 	}
 }
