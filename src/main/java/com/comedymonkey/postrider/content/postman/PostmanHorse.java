@@ -21,6 +21,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 
@@ -117,7 +118,7 @@ public class PostmanHorse extends Horse {
 		return horse;
 	}
 
-	/** Within this many blocks of where he's steering, the horse eases off so it doesn't overshoot. */
+	/** Within this many blocks of where he's riding to, the horse eases off so it doesn't overshoot. */
 	public static final double EASE_OFF_DISTANCE = 3.0;
 
 	/**
@@ -131,12 +132,23 @@ public class PostmanHorse extends Horse {
 		return Math.max(forward, Math.min(1.0, distanceToMark / EASE_OFF_DISTANCE));
 	}
 
+	/**
+	 * How far he has left to ride before he needs to slow down: to the end of the path he's following, not just to
+	 * the next step of it (a block or two ahead, which would keep the horse at a trot the whole way).
+	 */
+	public static double distanceToGo(Vec3 from, @Nullable Vec3 pathEnd, Vec3 mark) {
+		double toMark = Journey.horizontalDistance(from, mark);
+		return pathEnd == null ? toMark : Math.max(toMark, Journey.horizontalDistance(from, pathEnd));
+	}
+
 	@Override
 	public void travel(Vec3 input) {
 		// The move control has already handed over its push by now (and stopped "wanting"), but it keeps its mark
 		if (getControllingPassenger() instanceof PostmanEntity && input.z > 0) {
-			double dx = getMoveControl().getWantedX() - getX(), dz = getMoveControl().getWantedZ() - getZ();
-			input = new Vec3(input.x, input.y, gallopInput(input.z, Math.sqrt(dx * dx + dz * dz)));
+			Path path = getNavigation().getPath();
+			Vec3 pathEnd = path != null && !path.isDone() && path.getEndNode() != null ? Vec3.atBottomCenterOf(path.getEndNode().asBlockPos()) : null;
+			Vec3 mark = new Vec3(getMoveControl().getWantedX(), getY(), getMoveControl().getWantedZ());
+			input = new Vec3(input.x, input.y, gallopInput(input.z, distanceToGo(position(), pathEnd, mark)));
 		}
 		super.travel(input);
 	}
