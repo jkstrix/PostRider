@@ -94,4 +94,14 @@ class NavigatorTest {
 		// Not where he lands (just a stretch of a long crossing): on along the way
 		assertTrue(Navigator.steerFor(across, false, bank, new Vec3(8.5, 62, 0.5)).x <= 10.5);
 	}
+
+	@Test
+	void headingForTheWaterHeMakesForTheBank() {
+		// Water from x 34 on; the middle of the first water cell is out at x 38
+		Navigator.Wet lake = (x, z) -> x >= 34;
+		Vec3 bank = Navigator.shore(new Vec3(7.5, 64, 32.5), new Vec3(38, 62, 32), lake);
+		assertEquals(33.5, bank.x, 1e-9, "the last dry block before the water");
+		assertEquals(32.5, bank.z, 1e-9);
+		assertEquals(new Vec3(38, 62, 32), Navigator.shore(new Vec3(7.5, 64, 32.5), new Vec3(38, 62, 32), (x, z) -> false), "all dry: on to the point");
+	}
 }

@@ -147,4 +147,10 @@ class BargeTest {
 		assertFalse(DeliveryRun.landsHere(true, false, false, 0), "brushing a bank on the way: rows on");
 		assertFalse(DeliveryRun.landsHere(false, true, true, 0), "no land at the bow yet");
 	}
+
+	@Test
+	void ashoreOnFootCloseToTheMailboxHeWalksTheRest() {
+		assertTrue(DeliveryRun.walksTheRest(10), "a few blocks: not worth calling the horse");
+		assertFalse(DeliveryRun.walksTheRest(40), "a ride yet: he whistles");
+	}
 }

@@ -41,6 +41,12 @@ public final class Navigator {
 	/** A leg on land is done once he's this close to its end. */
 	public static final double LEG_DONE = 12;
 	public static final double WAYPOINT_RADIUS = 4;
+	/**
+	 * Heading for a water leg, he makes for the bank: the last dry ground on the way to its first point, give or take
+	 * this much. From there the barge can always be launched within reach (the middle of the first water cell can be
+	 * well out from the bank, too far to aim for).
+	 */
+	public static final double SHORE_RADIUS = 2;
 	/** How close to the mailbox a plan has to get (he gets down within {@link Journey#DISMOUNT_DISTANCE}). */
 	public static final double MAILBOX_RADIUS = 3;
 	/** The barge lands once it's within this far of the end of its water leg. */
@@ -300,9 +306,25 @@ public final class Navigator {
 	 * again; without one, if it's water in the way, it's the barge.
 	 */
 	private Action stretchFailed(PostmanEntity rider, ServerLevel level, Vec3 target) {
-		// Can't get to the mailbox itself: that's for getting unstuck to sort out
-		if (localIsFinal)
+		// Can't get to the mailbox itself. Water in the way (a channel too narrow for the long-range plan to see, say)
+		// means the barge; otherwise it's for getting unstuck to sort out
+		if (localIsFinal) {
+			if (launchable(level, rider, target)) {
+				launchAim = target;
+				return Action.LAUNCH;
+			}
 			return Action.GOING;
+		}
+		// Down to the water he can't get any nearer: the barge from here if there's open water that way, else he tries
+		// again in a moment (the water is what's in the way, so it's no use marking that part of the plan blocked)
+		CoarsePlanner.Leg current = currentLeg();
+		if (current != null && current.kind() == CoarsePlanner.LegKind.WATER && localGoal != null) {
+			if (launchable(level, rider, localGoal)) {
+				launchAim = localGoal;
+				return Action.LAUNCH;
+			}
+			return Action.GOING;
+		}
 		if (plan != null && localGoal != null) {
 			int cx = CoarsePlanner.cellOf(localGoal.x), cz = CoarsePlanner.cellOf(localGoal.z);
 			blocked.add(CoarsePlanner.key(cx, cz));
@@ -370,14 +392,14 @@ public final class Navigator {
 		int x = mounted ? Mth.floor(body.getX() - 0.5) : Mth.floor(body.getX());
 		int z = mounted ? Mth.floor(body.getZ() - 0.5) : Mth.floor(body.getZ());
 		int y = Mth.floor(body.getY() + 1e-3);
-		LocalPlanner.Goal goal = goalFrom(rider.position(), target);
+		LocalPlanner.Goal goal = goalFrom(level, rider.position(), target);
 		// On foot with the barge just ahead, he walks down to it rather than calling his horse for the last few blocks
 		boolean mayMount = now >= footOnlyUntil && (mounted || !waterWithin(rider.position(), FOOT_TO_WATER));
 		local = new LocalPlanner(new LevelTerrain(level), x, y, z, mounted, goal, mayMount);
 	}
 
 	/** Where the next stretch aims: about one stretch on along the plan (or straight on without one), or the mailbox. */
-	private LocalPlanner.Goal goalFrom(Vec3 here, Vec3 target) {
+	private LocalPlanner.Goal goalFrom(ServerLevel level, Vec3 here, Vec3 target) {
 		double ahead = Journey.stretch() - 8;
 		CoarsePlanner.Leg current = currentLeg();
 		localIsFinal = false;
@@ -392,7 +414,9 @@ public final class Navigator {
 		if (current.kind() == CoarsePlanner.LegKind.WATER) {
 			Vec3 water = current.points().get(0);
 			localGoal = water;
-			return LocalPlanner.Goal.anyHeight(water.x, water.z, WAYPOINT_RADIUS + 2);
+			int nearY = Mth.floor(here.y);
+			Vec3 bank = shore(here, water, (x, z) -> !level.isLoaded(new BlockPos(x, nearY, z)) || !Double.isNaN(Crossing.surfaceIn(level, x, z, nearY)));
+			return LocalPlanner.Goal.anyHeight(bank.x, bank.z, SHORE_RADIUS);
 		}
 		boolean lastLeg = leg >= plan.legs().size() - 1;
 		Vec3 point = along(current.points(), here, ahead);
@@ -585,6 +609,31 @@ public final class Navigator {
 		if (landing && Journey.horizontalDistance(here, path.get(path.size() - 1)) <= WATER_LOOKAHEAD)
 			return goal;
 		return along(path, here, WATER_LOOKAHEAD);
+	}
+
+	/** Whether a column is water, for finding the bank. */
+	@FunctionalInterface
+	public interface Wet {
+		boolean water(int x, int z);
+	}
+
+	/**
+	 * The bank on the way from here to a point out on the water: the last dry column before the water, going from
+	 * here towards it (here itself if it's all water from the start, the point if it's all dry).
+	 */
+	public static Vec3 shore(Vec3 here, Vec3 water, Wet wet) {
+		double distance = Journey.horizontalDistance(here, water);
+		if (distance < 1e-6)
+			return water;
+		double dx = (water.x - here.x) / distance, dz = (water.z - here.z) / distance;
+		Vec3 dry = here;
+		for (double along = 0; along <= distance; along += 0.5) {
+			double x = here.x + dx * along, z = here.z + dz * along;
+			if (wet.water(Mth.floor(x), Mth.floor(z)))
+				return dry;
+			dry = new Vec3(Math.floor(x) + 0.5, here.y, Math.floor(z) + 0.5);
+		}
+		return water;
 	}
 
 	/** Whether the barge has come to the end of its way across the water to where he lands. */
