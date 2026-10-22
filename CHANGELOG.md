@@ -5,6 +5,11 @@
 - Fixed: a rider could be teleported over a river instead of rowing it, and circle round a bay. When there's no way
   on through the blocks ahead and open water to launch on, he takes the barge, and stuck at the water's edge he rows
   across rather than being teleported.
+- Fixed: heading for the water, a rider could stop too far from the bank to launch the barge, and a channel too
+  narrow for the long-range plan to see got him teleported over it. He now makes for the bank itself and launches
+  from there.
+- Fixed: on foot, riders ran as fast as their horses. They now run like a sprinting player.
+- Fixed: landing on foot close to the mailbox, he no longer whistles for his horse just to send it away again.
 - Riders' routing decisions (routes planned, barge launches and landings, ways that wouldn't plan, jumps free) are
   noted in the server log.
 
