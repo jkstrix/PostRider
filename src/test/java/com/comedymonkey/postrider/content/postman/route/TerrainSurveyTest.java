@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import net.minecraft.util.Mth;
 import net.minecraft.util.SimpleBitStorage;
+import net.minecraft.world.level.ChunkPos;
 
 class TerrainSurveyTest {
 	private static final int MIN_Y = -64, HEIGHT = 384;
@@ -54,5 +55,13 @@ class TerrainSurveyTest {
 		assertEquals(2, TerrainSurvey.CELLS_PER_CHUNK);
 		assertEquals(8, TerrainSurvey.TILE_CELLS);
 		assertTrue(TerrainSurvey.MAX_GENERATING <= 16, "a few chunks at a time");
+	}
+
+	@Test
+	void eachChunkOfATileCountsOnce() {
+		boolean[] filled = new boolean[TerrainSurvey.TILE_CHUNKS * TerrainSurvey.TILE_CHUNKS];
+		assertTrue(TerrainSurvey.claim(filled, new ChunkPos(5, -3)));
+		assertFalse(TerrainSurvey.claim(filled, new ChunkPos(5, -3)), "a late answer from an earlier survey is ignored");
+		assertTrue(TerrainSurvey.claim(filled, new ChunkPos(6, -3)));
 	}
 }

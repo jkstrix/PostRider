@@ -195,6 +195,8 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 
 	private void fill(Tile tile, ChunkPos pos, int[] floors, int[] tops) {
 		CoarsePlanner.Cell[] chunkCells = cellsOfChunk(floors, tops, level.getMinBuildHeight());
+		if (!claim(tile.filled, pos))
+			return;
 		int baseX = Math.floorMod(pos.x, TILE_CHUNKS) * CELLS_PER_CHUNK, baseZ = Math.floorMod(pos.z, TILE_CHUNKS) * CELLS_PER_CHUNK;
 		for (int cx = 0; cx < CELLS_PER_CHUNK; cx++)
 			for (int cz = 0; cz < CELLS_PER_CHUNK; cz++)
@@ -211,6 +213,18 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	}
 
 	// ---------------------------------------------------------------- the sums
+
+	/**
+	 * Marks a tile's chunk as heard back from; false if it already was. Each chunk counts once, as a tile surveyed
+	 * again can still hear back about its chunks from the time before.
+	 */
+	static boolean claim(boolean[] filled, ChunkPos pos) {
+		int chunk = Math.floorMod(pos.z, TILE_CHUNKS) * TILE_CHUNKS + Math.floorMod(pos.x, TILE_CHUNKS);
+		if (filled[chunk])
+			return false;
+		filled[chunk] = true;
+		return true;
+	}
 
 	/** A saved heightmap (as stored in a chunk's "Heightmaps") as the first free height in each of its 256 columns. */
 	public static int[] heights(long[] packed, int bits, int minY) {
@@ -241,6 +255,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 
 	private static final class Tile {
 		final CoarsePlanner.Cell[] cells = new CoarsePlanner.Cell[TILE_CELLS * TILE_CELLS];
+		final boolean[] filled = new boolean[TILE_CHUNKS * TILE_CHUNKS];
 		final long since;
 		int chunksLeft = TILE_CHUNKS * TILE_CHUNKS;
 
