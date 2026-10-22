@@ -123,6 +123,8 @@ public class DeliveryRun {
 	/** What the mail has been through, noted on it when it's delivered. */
 	private boolean crossedWater;
 	private int nightsOut;
+	/** How many times this trip he's been teleported free when stuck (not saved; for the in-world tests). */
+	private int jumpsFree;
 
 	public DeliveryRun(PendingDelivery delivery, @Nullable GlobalPos destination) {
 		this.delivery = delivery;
@@ -146,6 +148,11 @@ public class DeliveryRun {
 	@Nullable
 	public BlockPos campfire() {
 		return campfire;
+	}
+
+	/** How many times this trip he's been teleported free when stuck. */
+	public int jumpsFree() {
+		return jumpsFree;
 	}
 
 	/** What the mail has been through so far. */
@@ -567,6 +574,11 @@ public class DeliveryRun {
 		return landAtBow && (nearLanding || endOfWater || aground >= AGROUND_TICKS);
 	}
 
+	/** On foot this close to the mailbox, he walks the rest rather than calling his horse for a few blocks. */
+	public static boolean walksTheRest(double toMailbox) {
+		return toMailbox <= Navigator.FOOT_TO_WATER;
+	}
+
 	/** Steps ashore by the bow: his horse appears on the bank, he climbs back on, and the barge vanishes. */
 	private boolean land(PostmanEntity rider, ServerLevel level, BargeEntity barge, Vec3 target) {
 		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> CampSites.floorIn(level, x, z, barge.getBlockY()));
@@ -594,8 +606,8 @@ public class DeliveryRun {
 		aimCooldown = 0;
 		logRoute(rider, "stepped ashore at " + Navigator.spot(ground));
 		navigator.landed();
-		// Crossed on foot (he walked down to the water): he calls his horse now he's over
-		if (horse == null)
+		// Crossed on foot (he walked down to the water): he calls his horse now he's over, unless the box is close
+		if (horse == null && !walksTheRest(Journey.horizontalDistance(ground, target)))
 			rider.whistleForHorse();
 		enter(Stage.RIDING);
 		return true;
@@ -983,6 +995,7 @@ public class DeliveryRun {
 		logRoute(rider, "stuck at " + Navigator.spot(mover.position()) + " (" + stage + "), jumped free to " + Navigator.spot(free));
 		PostmanEffects.puff(level, mover);
 		mover.teleportTo(free.x, free.y, free.z);
+		jumpsFree++;
 		PostmanEffects.puff(level, mover);
 		rider.getNavigation().stop();
 		aimCooldown = 0;

@@ -98,18 +98,29 @@ class NavigatorTest {
 	@Test
 	void waterHeCantPlanPastMeansTheBargeEvenIfTheLongRangePlanCalledItLand() {
 		// A river narrower than the long-range plan's cells: no way through the blocks, open water ahead
-		assertEquals(Navigator.Failed.BARGE, Navigator.whenStretchFails(false, true, true, 0));
-		assertEquals(Navigator.Failed.BARGE, Navigator.whenStretchFails(true, true, true, 0), "even with the mailbox over the water");
+		assertEquals(Navigator.Failed.BARGE, Navigator.whenStretchFails(false, true, true, false, 0));
+		assertEquals(Navigator.Failed.BARGE, Navigator.whenStretchFails(true, true, true, false, 0), "even with the mailbox over the water");
 		// No water: the plan is redone round whatever's in the way
-		assertEquals(Navigator.Failed.REPLAN, Navigator.whenStretchFails(false, false, true, 0));
-		assertEquals(Navigator.Failed.DROP_PLAN, Navigator.whenStretchFails(false, false, true, Navigator.MAX_BLOCKED));
-		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(true, false, true, 0), "can't reach the mailbox itself: getting unstuck sorts it");
-		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(false, false, false, 0));
+		assertEquals(Navigator.Failed.REPLAN, Navigator.whenStretchFails(false, false, true, false, 0));
+		assertEquals(Navigator.Failed.DROP_PLAN, Navigator.whenStretchFails(false, false, true, false, Navigator.MAX_BLOCKED));
+		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(true, false, true, false, 0), "can't reach the mailbox itself: getting unstuck sorts it");
+		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(false, false, false, false, 0));
+		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(false, false, true, true, 0), "down at the water's edge, nothing to mark blocked");
 	}
 
 	@Test
 	void theLogSaysWhatRouteHePlannedInAFewWords() {
 		assertEquals("land 40 blocks, then barge 16 blocks, then land 56 blocks", Navigator.describe(new CoarsePlanner.Plan(TO_THE_RIVER, 0)));
 		assertEquals("12 64 -3", Navigator.spot(new Vec3(12.7, 64.2, -2.5)));
+	}
+
+	@Test
+	void headingForTheWaterHeMakesForTheBank() {
+		// Water from x 34 on; the middle of the first water cell is out at x 38
+		Navigator.Wet lake = (x, z) -> x >= 34;
+		Vec3 bank = Navigator.shore(new Vec3(7.5, 64, 32.5), new Vec3(38, 62, 32), lake);
+		assertEquals(33.5, bank.x, 1e-9, "the last dry block before the water");
+		assertEquals(32.5, bank.z, 1e-9);
+		assertEquals(new Vec3(38, 62, 32), Navigator.shore(new Vec3(7.5, 64, 32.5), new Vec3(38, 62, 32), (x, z) -> false), "all dry: on to the point");
 	}
 }

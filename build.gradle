@@ -30,6 +30,13 @@ neoForge {
             gameDirectory = project.file('run-screenshots')
             systemProperty 'postrider.screenshots', 'true'
         }
+        // The in-world tests (src/main/java/.../gametest): ./gradlew runGameTestServer runs them all and exits,
+        // failing if any do, in a world of its own
+        gameTestServer {
+            type = "gameTestServer"
+            gameDirectory = project.file('run-gametest')
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        }
         configureEach {
             systemProperty 'forge.logging.markers', 'REGISTRIES'
             logLevel = org.slf4j.event.Level.INFO
@@ -62,6 +69,11 @@ dependencies {
     testImplementation(platform('org.junit:junit-bom:5.10.2'))
     testImplementation('org.junit.jupiter:junit-jupiter')
     testRuntimeOnly('org.junit.platform:junit-platform-launcher')
+}
+
+// Each run of the in-world tests starts from a fresh world, so nothing is left over from the last
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doFirst { delete file('run-gametest/world') }
 }
 
 tasks.named('test', Test) {

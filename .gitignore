@@ -17,6 +17,7 @@ bin/
 
 # dev runs
 run/
+run-gametest/
 runs/
 run-screenshots/
 repo/
