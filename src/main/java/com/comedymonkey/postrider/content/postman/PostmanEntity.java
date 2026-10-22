@@ -48,7 +48,9 @@ public class PostmanEntity extends PathfinderMob {
 		CAMP_REST,
 		ROW,
 		HARMONICA,
-		SLEEP
+		SLEEP,
+		/** Working out his route, the map open in both hands (on foot or in the saddle). */
+		STUDY_MAP
 	}
 
 	/** A one-off movement, sent to clients as an entity event. Lengths match the Blockbench animations. */

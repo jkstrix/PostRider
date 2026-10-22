@@ -42,6 +42,7 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 	private final ModelPart letter;
 	private final ModelPart striker;
 	private final ModelPart flint;
+	private final ModelPart map;
 	private final ModelPart satchelFlat;
 	private final ModelPart satchelFull;
 	private final Map<String, ModelPart> hair = new HashMap<>();
@@ -62,6 +63,7 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		this.letter = leftArm.getChild("letter");
 		this.striker = rightArm.getChild("striker");
 		this.flint = leftArm.getChild("flint");
+		this.map = body.getChild("map");
 		ModelPart satchel = body.getChild("satchel");
 		this.satchelFlat = satchel.getChild("satchel_flat");
 		this.satchelFull = satchel.getChild("satchel_full");
@@ -123,6 +125,11 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 			PartPose.offset(-handOffset, 9.5F, 0.0F));
 		leftArm.addOrReplaceChild("letter", CubeListBuilder.create().texOffs(44, 11).addBox(-1.5F, 1.0F, -6.0F, 4.0F, 0.0F, 3.0F, new CubeDeformation(0.0F)), PartPose.offset(-handOffset, 9.5F, 0.0F));
 
+		// The route map, held open in front of his chest; its right half is hinged at the crease so it can unfold
+		PartDefinition map = body.addOrReplaceChild("map", CubeListBuilder.create().texOffs(64, 35).addBox(-6.0F, -8.0F, 0.0F, 6.0F, 8.0F, 0.0F, new CubeDeformation(0.0F)),
+			PartPose.offset(0.0F, -2.5F, -8.5F));
+		map.addOrReplaceChild("map_right", CubeListBuilder.create().texOffs(76, 35).addBox(0.0F, -8.0F, 0.0F, 6.0F, 8.0F, 0.0F, new CubeDeformation(0.0F)), PartPose.ZERO);
+
 		PartDefinition satchel = body.addOrReplaceChild("satchel", CubeListBuilder.create(), PartPose.offset(-2.5F, -3.0F, 2.0F));
 		satchel.addOrReplaceChild("satchel_flat", CubeListBuilder.create().texOffs(100, 28).addBox(-2.0F, 0.0F, 0.0F, 4.0F, 5.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(0.0F, 0.0F, 0.0F));
 		satchel.addOrReplaceChild("satchel_full", CubeListBuilder.create().texOffs(100, 36).addBox(-2.5F, 0.0F, 0.0F, 5.0F, 6.0F, 3.0F, new CubeDeformation(0.0F)), PartPose.offset(0.0F, 0.0F, 0.0F));
@@ -161,6 +168,13 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 			if (!overridesUpperBody(gesture))
 				animate(entity.gestureAnimations.get(gesture), gestureAnimation(gesture), ageInTicks);
 		animate(entity.hurtAnimation, PostmanAnimations.HURT, ageInTicks);
+		// Studying the map takes over his head and arms, so it looks the same in the saddle as on foot
+		AnimationState studying = entity.activityAnimations.get(PostmanEntity.Activity.STUDY_MAP);
+		if (studying.isStarted()) {
+			for (String bone : PostmanAnimations.STUDY_MAP.boneAnimations().keySet())
+				getAnyDescendantWithName(bone).ifPresent(ModelPart::resetPose);
+			animate(studying, PostmanAnimations.STUDY_MAP, ageInTicks);
+		}
 		// A drink or a mannerism can come mid-gallop: the parts it moves drop whatever they were doing, and the rest of
 		// him carries on
 		for (PostmanEntity.Gesture gesture : PostmanEntity.Gesture.values()) {
@@ -185,6 +199,7 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		boolean lighting = entity.gestureAnimations.get(PostmanEntity.Gesture.LIGHT_FIRE).isStarted();
 		striker.visible = lighting;
 		flint.visible = lighting;
+		map.visible = entity.getActivity() == PostmanEntity.Activity.STUDY_MAP;
 		satchelFlat.visible = !entity.isCarrying();
 		satchelFull.visible = entity.isCarrying();
 	}

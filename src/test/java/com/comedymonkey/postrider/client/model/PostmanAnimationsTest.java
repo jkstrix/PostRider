@@ -34,6 +34,7 @@ class PostmanAnimationsTest {
 		Map.entry("harmonica", PostmanAnimations.HARMONICA), Map.entry("sleep", PostmanAnimations.SLEEP),
 		Map.entry("drink", PostmanAnimations.DRINK),
 		Map.entry("light_fire", PostmanAnimations.LIGHT_FIRE),
+		Map.entry("study_map", PostmanAnimations.STUDY_MAP),
 		Map.entry("wipe_brow", PostmanAnimations.WIPE_BROW),
 		Map.entry("tip_hat", PostmanAnimations.TIP_HAT),
 		Map.entry("pat_horse", PostmanAnimations.PAT_HORSE),
@@ -63,7 +64,7 @@ class PostmanAnimationsTest {
 
 	private static void collect(ModelPart part, Set<String> names) {
 		for (String child : new String[] {"root", "body", "head", "right_arm", "left_arm", "satchel", "satchel_flat", "satchel_full",
-			"right_leg", "left_leg", "hat", "hat_brim_right_r1", "hat_brim_left_r1", "harmonica", "hammer", "potion", "canteen", "pocket_watch", "letter", "striker", "flint"})
+			"right_leg", "left_leg", "hat", "hat_brim_right_r1", "hat_brim_left_r1", "harmonica", "hammer", "potion", "canteen", "pocket_watch", "letter", "striker", "flint", "map", "map_right"})
 			if (part.hasChild(child)) {
 				names.add(child);
 				collect(part.getChild(child), names);
@@ -71,8 +72,8 @@ class PostmanAnimationsTest {
 	}
 
 	@Test
-	void allThirtyFiveApprovedAnimationsAreThere() {
-		assertEquals(35, ALL.size());
+	void allThirtySixApprovedAnimationsAreThere() {
+		assertEquals(36, ALL.size());
 	}
 
 	@Test
@@ -94,7 +95,7 @@ class PostmanAnimationsTest {
 	void continuousAnimationsLoopAndGesturesPlayOnce() {
 		for (String looping : new String[] {"walk", "idle", "ride", "ride_idle", "camp_hammer", "camp_rest", "row", "harmonica", "sleep"})
 			assertTrue(ALL.get(looping).looping(), looping);
-		for (String once : new String[] {"pickup", "deliver", "whistle", "hurt", "wave", "drink", "light_fire", "wipe_brow", "tip_hat", "pat_horse", "check_satchel", "stretch", "yawn", "look_back", "scratch_head", "swat_fly", "adjust_hat", "pull_hat_down", "shade_eyes", "shiver", "swig", "pocket_watch", "read_letter", "hum", "neck_roll", "crack_knuckles"})
+		for (String once : new String[] {"pickup", "deliver", "whistle", "hurt", "wave", "drink", "light_fire", "study_map", "wipe_brow", "tip_hat", "pat_horse", "check_satchel", "stretch", "yawn", "look_back", "scratch_head", "swat_fly", "adjust_hat", "pull_hat_down", "shade_eyes", "shiver", "swig", "pocket_watch", "read_letter", "hum", "neck_roll", "crack_knuckles"})
 			assertFalse(ALL.get(once).looping(), once);
 	}
 
@@ -222,6 +223,37 @@ class PostmanAnimationsTest {
 			for (int x = area[0]; x < area[0] + area[2]; x++)
 				for (int y = area[1]; y < area[1] + area[3]; y++)
 					assertEquals(255, image.getRGB(x, y) >>> 24, "prop pixel " + x + "," + y);
+	}
+
+	@Test
+	void heStudiesAMapHeldOpenInBothHands() {
+		ModelPart map = PostmanModel.createBodyLayer().bakeRoot().getChild("root").getChild("body").getChild("map");
+		assertTrue(map.hasChild("map_right"), "the right half unfolds about the crease");
+		// Only his head, arms and the map move, so he can study it in the saddle; it holds its last pose for as
+		// long as he plans
+		Set<String> upperBody = Set.of("head", "right_arm", "left_arm", "map", "map_right");
+		for (String bone : PostmanAnimations.STUDY_MAP.boneAnimations().keySet())
+			assertTrue(upperBody.contains(bone), "study_map moves " + bone);
+		assertFalse(PostmanAnimations.STUDY_MAP.looping());
+		assertTrue(PostmanAnimations.STUDY_MAP.lengthInSeconds() >= 20.0F);
+	}
+
+	@Test
+	void theMapIsPaintedOnEverySkin() throws IOException {
+		// Both faces of both halves (64,35 to 88,43): unpainted pixels are see-through and the map would have holes
+		java.util.List<Path> skins = new java.util.ArrayList<>();
+		skins.add(ModResourceFiles.find("assets", "postrider", "textures", "entity", "postman.png"));
+		for (com.comedymonkey.postrider.content.postman.Roster.Rider rider : com.comedymonkey.postrider.content.postman.Roster.ALL)
+			skins.add(ModResourceFiles.find("assets", "postrider", "textures", "entity", "rider", rider.id() + ".png"));
+		for (Path skin : skins) {
+			BufferedImage image;
+			try (InputStream in = Files.newInputStream(skin)) {
+				image = ImageIO.read(in);
+			}
+			for (int x = 64; x < 88; x++)
+				for (int y = 35; y < 43; y++)
+					assertEquals(255, image.getRGB(x, y) >>> 24, skin.getFileName() + " map pixel " + x + "," + y);
+		}
 	}
 
 	@Test
