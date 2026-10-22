@@ -429,7 +429,7 @@ public class DeliveryRun {
 			routeStarted = true;
 		}
 		if (rider.getHorse() != null)
-			jumpGaps(rider.getHorse(), level);
+			jumpGaps(rider, rider.getHorse());
 		switch (navigator.tick(rider, level, target)) {
 			case LAUNCH -> {
 				Vec3 toward = navigator.launchAim();
@@ -579,42 +579,34 @@ public class DeliveryRun {
 
 	// ---------------------------------------------------------------- jumping gaps
 
-	/** How fast the horse must already be going before it will leap, so it never jumps from a standstill. */
-	private static final double JUMP_MIN_SPEED = 0.15;
+	/** He takes off within this far of the edge his plan leaps from. */
+	public static final double TAKE_OFF_REACH = 1.2;
 
-	/** When the ground ahead drops into a gap with safe ground just beyond, the horse leaps it. */
-	private static void jumpGaps(PostmanHorse horse, ServerLevel level) {
-		Vec3 motion = horse.getDeltaMovement();
-		double speed = motion.horizontalDistance();
-		if (!horse.onGround() || speed < JUMP_MIN_SPEED)
+	/**
+	 * Where his plan leaps a gap, the horse jumps it: from the take-off, straight at the landing. Only there: a hole
+	 * beside the way, or one he's turned towards, is never jumped.
+	 */
+	private void jumpGaps(PostmanEntity rider, PostmanHorse horse) {
+		Navigator.Leap leap = navigator.leapAhead(rider);
+		if (leap == null || !horse.onGround() || !readyToLeap(horse.position(), leap.takeOff(), leap.landing()))
 			return;
-		Vec3 heading = new Vec3(motion.x / speed, 0, motion.z / speed);
-		int here = horse.getBlockY();
-		int[] ahead = new int[GapJump.MAX_GAP + 1];
-		boolean[] safe = new boolean[ahead.length];
-		for (int i = 0; i < ahead.length; i++) {
-			Vec3 spot = horse.position().add(heading.scale(i + 1.2));
-			BlockPos column = BlockPos.containing(spot.x, here, spot.z);
-			ahead[i] = floorAt(level, column);
-			safe[i] = !Hazards.isDangerous(level, column.atY(ahead[i]));
-		}
-		int landing = GapJump.landingDistance(here, ahead, safe);
-		if (landing == 0)
-			return;
+		Vec3 across = leap.landing().subtract(leap.takeOff());
+		double distance = Math.hypot(across.x, across.z);
 		horse.getJumpControl().jump();
-		double push = 0.35 + 0.12 * landing;
-		horse.setDeltaMovement(heading.x * push, motion.y, heading.z * push);
+		double push = leapPush(distance);
+		horse.setDeltaMovement(across.x / distance * push, horse.getDeltaMovement().y, across.z / distance * push);
 	}
 
-	/** The height he'd stand at in this column, searching a little above and well below where he is. */
-	private static int floorAt(ServerLevel level, BlockPos near) {
-		for (int y = near.getY() + 1; y >= near.getY() - 6; y--) {
-			BlockPos feet = near.atY(y);
-			if (level.getBlockState(feet.below()).isFaceSturdy(level, feet.below(), Direction.UP)
-					&& level.getBlockState(feet).getCollisionShape(level, feet).isEmpty())
-				return y;
-		}
-		return near.getY() - 7;
+	/** Whether he's at the take-off: close to it, and not already out over the gap. */
+	public static boolean readyToLeap(Vec3 here, Vec3 takeOff, Vec3 landing) {
+		double dx = landing.x - takeOff.x, dz = landing.z - takeOff.z;
+		double along = ((here.x - takeOff.x) * dx + (here.z - takeOff.z) * dz) / Math.hypot(dx, dz);
+		return Journey.horizontalDistance(here, takeOff) <= TAKE_OFF_REACH && along < 0.75;
+	}
+
+	/** How hard the horse pushes off to clear a leap of this many blocks, centre to centre. */
+	public static double leapPush(double distance) {
+		return 0.35 + 0.12 * distance;
 	}
 
 	/** How long he hammers in the tent pegs before the tent goes up. */

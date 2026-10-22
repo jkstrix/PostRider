@@ -10,6 +10,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.material.FluidState;
@@ -112,14 +114,24 @@ public final class Crossing {
 
 	// ---------------------------------------------------------------- the real world
 
+	/** Plants in the water that the barge cuts its way through, so they count as open water. */
+	public static boolean isWaterPlant(BlockState state) {
+		return state.is(Blocks.KELP) || state.is(Blocks.KELP_PLANT) || state.is(Blocks.SEAGRASS) || state.is(Blocks.TALL_SEAGRASS)
+			|| state.is(Blocks.LILY_PAD);
+	}
+
+	private static boolean clear(BlockState state) {
+		return state.isAir() || isWaterPlant(state);
+	}
+
 	/** The water's surface in a column near a height, if it's open to the sky above; NaN otherwise. */
 	public static double surfaceIn(ServerLevel level, int x, int z, int nearY) {
 		for (int y = nearY + 2; y >= nearY - 4; y--) {
 			BlockPos pos = new BlockPos(x, y, z);
 			FluidState fluid = level.getFluidState(pos);
-			if (fluid.is(FluidTags.WATER) && level.getFluidState(pos.above()).isEmpty() && level.getBlockState(pos.above()).isAir())
+			if (fluid.is(FluidTags.WATER) && level.getFluidState(pos.above()).isEmpty() && clear(level.getBlockState(pos.above())))
 				return y + fluid.getHeight(level, pos);
-			if (!level.getBlockState(pos).isAir() && !fluid.is(FluidTags.WATER))
+			if (!clear(level.getBlockState(pos)) && !fluid.is(FluidTags.WATER))
 				return Double.NaN;
 		}
 		return Double.NaN;

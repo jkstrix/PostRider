@@ -209,8 +209,56 @@ public final class Navigator {
 		} else if (now >= retryAt && wantsStretch(rider, level, now)) {
 			startStretch(rider, level, target, now);
 		}
+		skipPassed(rider);
 		follow(rider);
 		return Action.GOING;
+	}
+
+	/** A leap in the plan: where he takes off and where he lands (the middles of his horse at each). */
+	public record Leap(Vec3 takeOff, Vec3 landing) {}
+
+	/** The leap he's heading into on his horse, if the next step of the way is one; else null. */
+	@Nullable
+	public Leap leapAhead(PostmanEntity rider) {
+		Path path = rider.getNavigation().getPath();
+		if (steps.isEmpty() || path == null || path.isDone() || rider.getHorse() == null)
+			return null;
+		int next = segmentStart + path.getNextNodeIndex();
+		if (next <= segmentStart || next > segmentEnd || steps.get(next).move() != LocalPlanner.Move.LEAP)
+			return null;
+		LocalPlanner.Step from = steps.get(next - 1), to = steps.get(next);
+		return new Leap(new Vec3(from.centreX(), from.y(), from.centreZ()), new Vec3(to.centreX(), to.y(), to.centreZ()));
+	}
+
+	/**
+	 * Moves the path on past steps he's already gone by (a leap carries him past where it lands), so he never turns
+	 * back to touch them.
+	 */
+	private void skipPassed(PostmanEntity rider) {
+		Path path = rider.getNavigation().getPath();
+		if (steps.isEmpty() || path == null || path.isDone())
+			return;
+		Entity body = rider.getVehicle() != null ? rider.getVehicle() : rider;
+		while (path.getNextNodeIndex() + 1 < path.getNodeCount()) {
+			int next = segmentStart + path.getNextNodeIndex();
+			if (next + 1 > segmentEnd)
+				break;
+			LocalPlanner.Step a = steps.get(next), b = steps.get(next + 1);
+			if (!passed(body.getX(), body.getZ(), a.centreX(), a.centreZ(), b.centreX(), b.centreZ()))
+				break;
+			path.advance();
+		}
+	}
+
+	/**
+	 * Whether, at (x, z), he's gone past step a on the way to step b: beyond it in the direction of b, and nearer b
+	 * than a is.
+	 */
+	public static boolean passed(double x, double z, double ax, double az, double bx, double bz) {
+		double dx = bx - ax, dz = bz - az;
+		if ((x - ax) * dx + (z - az) * dz <= 0)
+			return false;
+		return Math.hypot(bx - x, bz - z) < Math.hypot(dx, dz);
 	}
 
 	private Action workOnStretch(PostmanEntity rider, ServerLevel level, Vec3 target, long now) {

@@ -4,6 +4,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.comedymonkey.postrider.PostRiderConfig;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -101,6 +102,18 @@ public class BargeEntity extends Entity {
 		return Mth.clamp(1 - Math.abs(turnLeft) / 90.0, 0.3, 1.0);
 	}
 
+	/** How far ahead of its hull it cuts through water plants. */
+	public static final double CUTS_AHEAD = 1.5;
+
+	/** Kelp, seagrass and lily pads in its way are cut away (nothing dropped), so they never hold it up. */
+	private void cutPlants(ServerLevel level, Vec3 forward) {
+		AABB sweep = getBoundingBox().expandTowards(forward.normalize().scale(CUTS_AHEAD));
+		for (BlockPos pos : BlockPos.betweenClosed(Mth.floor(sweep.minX), Mth.floor(sweep.minY) - 1, Mth.floor(sweep.minZ),
+				Mth.floor(sweep.maxX), Mth.floor(sweep.maxY), Mth.floor(sweep.maxZ)))
+			if (Crossing.isWaterPlant(level.getBlockState(pos)))
+				level.destroyBlock(pos, false);
+	}
+
 	/** The way to turn this tick to face a heading, at most {@link #TURN_PER_TICK} degrees. */
 	public static float turnToward(float yaw, float wanted) {
 		return yaw + Mth.clamp(Mth.wrapDegrees(wanted - yaw), -TURN_PER_TICK, TURN_PER_TICK);
@@ -140,6 +153,8 @@ public class BargeEntity extends Entity {
 		setDeltaMovement(forward.x, dy, forward.z);
 		move(MoverType.SELF, getDeltaMovement());
 		boolean rowing = speed > 0.02;
+		if (rowing)
+			cutPlants(level, forward);
 		entityData.set(DATA_ROWING, rowing);
 		if (rowing && tickCount % STROKE_TICKS == 0)
 			level.playSound(null, getX(), getY(), getZ(), SoundEvents.BOAT_PADDLE_WATER, SoundSource.NEUTRAL, 0.8F, 0.9F + random.nextFloat() * 0.2F);
