@@ -1,0 +1,319 @@
+package com.comedymonkey.postrider.gametest;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.jetbrains.annotations.Nullable;
+
+import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.content.postman.BargeEntity;
+import com.comedymonkey.postrider.content.postman.Journey;
+import com.comedymonkey.postrider.content.postman.PostmanEntity;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestAssertException;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+
+/**
+ * Riders on rivers and shores: where he crosses a river, when he rides round by a bridge or leaps it at a narrows
+ * instead, and that a sandbar or an island in his way doesn't catch him. Each is a whole delivery, judged by
+ * {@link Trials}.
+ * <p>
+ * The long-range plan samples four columns in each 8x8 cell, so it can't see a one-block wall, and the test world
+ * outside an arena is open flat ground: a river reaching the arena's edge would look, from afar, as if it could be
+ * ridden round outside. So each river here is closed off at both ends by a chasm (a strip of void, down out of the
+ * world, too wide for the plan's sampling to miss) behind a stone rim that keeps the water in and the rider out of
+ * the chasm. Rivers are 14 blocks wide and land strips at least 10, so they read as water and land in the plan's cells
+ * however the scene happens to line up with them; a bridge is 12 wide for the same reason.
+ */
+@GameTestHolder(PostRider.MOD_ID)
+@PrefixGameTestTemplate(false)
+public final class RiverGameTests {
+	private static final int DELIVERY_TICKS = 6000;
+	private static final String ARENA = "gametest/arena_128x64";
+	/** How wide the chasm at each end of the arena is, and the ground between the two (the rim stands on its edges). */
+	static final int CHASM = 12;
+	static final int X0 = CHASM, X1 = 127 - CHASM, Z0 = 0, Z1 = 63;
+	/** Rivers run east to west across the arena, between these rows. */
+	static final int BANK_SOUTH = 38, BANK_NORTH = 25;
+	static final double MIDSTREAM = (BANK_NORTH + BANK_SOUTH + 1) / 2.0;
+	/** A crossing longer than this, over a river 14 wide, went along the river rather than over it. */
+	static final double SENSIBLE_CROSSING = 26;
+
+	private RiverGameTests() {}
+
+	// ---------------------------------------------------------------- building
+
+	/** Grass between the chasms, the chasms, and the rim: the ground every river scene starts from. */
+	private static void banks(Scene scene) {
+		scene.ground(X0, Z0, X1, Z1);
+		BlockState air = Blocks.AIR.defaultBlockState();
+		scene.fill(0, -8, Z0, CHASM - 1, 4, Z1, air);
+		scene.fill(128 - CHASM, -8, Z0, 127, 4, Z1, air);
+		BlockState rim = Blocks.STONE.defaultBlockState();
+		scene.fill(X0, -2, Z0, X0, 4, Z1, rim);
+		scene.fill(X1, -2, Z0, X1, 4, Z1, rim);
+		scene.fill(X0, -2, Z0, X1, 4, Z0, rim);
+		scene.fill(X0, -2, Z1, X1, 4, Z1, rim);
+	}
+
+	/** Two blocks of water between the rows, from one column to another (inside the rim). */
+	private static void river(Scene scene, int x0, int z0, int x1, int z1) {
+		scene.water(x0, z0, x1, z1, 2);
+	}
+
+	/** Grass level with the banks where there was water (a sandbar, the ground at a narrows). */
+	private static void bank(Scene scene, int x0, int z0, int x1, int z1, BlockState top) {
+		scene.fill(x0, -1, z0, x1, -1, z1, Blocks.DIRT.defaultBlockState());
+		scene.fill(x0, 0, z0, x1, 0, z1, top);
+	}
+
+	private record Boxes(BlockPos to, Watch watch) {}
+
+	/** Mailboxes posted between: the near one south of the river facing it, the far one north facing back. */
+	private static Boxes post(Scene scene, String what, int nearX, int nearZ, int farX, int farZ) {
+		String fromName = Scene.address(what + " A"), toName = Scene.address(what + " B");
+		BlockPos from = scene.mailbox(nearX, nearZ, Direction.NORTH, fromName);
+		BlockPos to = scene.mailbox(farX, farZ, Direction.SOUTH, toName);
+		return new Boxes(to, new Watch(scene, scene.post(from, fromName, toName)));
+	}
+
+	// ---------------------------------------------------------------- watching
+
+	/** Where he's being carried: his horse or barge if he's on one, else himself. */
+	private static Entity body(PostmanEntity rider) {
+		return rider.getVehicle() != null ? rider.getVehicle() : rider;
+	}
+
+	/** Notes where the barge was launched and where he stepped ashore each time, in scene coordinates. */
+	private static final class Crossings {
+		final List<Vec3> launches = new ArrayList<>(), landings = new ArrayList<>();
+		private boolean aboard;
+
+		Crossings(Scene scene, Watch watch) {
+			scene.helper.onEachTick(() -> {
+				PostmanEntity rider = watch.rider;
+				if (rider == null || !rider.isAlive())
+					return;
+				boolean now = rider.getVehicle() instanceof BargeEntity;
+				if (now && !aboard)
+					launches.add(scene.helper.relativeVec(rider.getVehicle().position()));
+				else if (!now && aboard)
+					landings.add(scene.helper.relativeVec(rider.position()));
+				aboard = now;
+			});
+		}
+
+		/** Each crossing as "launched at ..., landed at ..., N blocks", for the log and failure messages. */
+		String describe() {
+			StringBuilder text = new StringBuilder();
+			for (int i = 0; i < launches.size(); i++) {
+				if (i > 0)
+					text.append("; ");
+				text.append("launched at ").append(spot(launches.get(i)));
+				if (i < landings.size())
+					text.append(", landed at ").append(spot(landings.get(i))).append(", ")
+						.append(Math.round(Journey.horizontalDistance(launches.get(i), landings.get(i)))).append(" blocks");
+				else
+					text.append(", still afloat");
+			}
+			return text.isEmpty() ? "never launched" : text.toString();
+		}
+	}
+
+	/** The blocks from (x0, z0) to (x1, z1) inclusive. */
+	private record Patch(int x0, int z0, int x1, int z1) {}
+
+	/** Follows him on land: where he crossed the river's middle row, and whether he ever stood on a patch of ground. */
+	private static final class Ride {
+		/** Where (x) he was each time he crossed {@link #MIDSTREAM} on land (on a bridge, or leaping). */
+		final List<Double> crossedAt = new ArrayList<>();
+		/** Where he was first seen standing on the patch, if ever. */
+		Vec3 onPatch;
+		private Vec3 last;
+
+		Ride(Scene scene, Watch watch) {
+			this(scene, watch, null);
+		}
+
+		Ride(Scene scene, Watch watch, @Nullable Patch patch) {
+			scene.helper.onEachTick(() -> {
+				PostmanEntity rider = watch.rider;
+				if (rider == null || !rider.isAlive())
+					return;
+				if (rider.getVehicle() instanceof BargeEntity) {
+					last = null;
+					return;
+				}
+				Vec3 at = scene.helper.relativeVec(body(rider).position());
+				if (last != null && crossed(last.z, at.z, MIDSTREAM))
+					crossedAt.add(at.x);
+				if (onPatch == null && patch != null && within(at.x, at.z, patch.x0(), patch.z0(), patch.x1(), patch.z1()))
+					onPatch = at;
+				last = at;
+			});
+		}
+	}
+
+	/** Whether going from one coordinate to another crosses a line (ending exactly on it counts). */
+	static boolean crossed(double before, double after, double line) {
+		return before < line ? after >= line : after < line;
+	}
+
+	/** Whether a point is over the blocks from (x0, z0) to (x1, z1) inclusive. */
+	static boolean within(double x, double z, int x0, int z0, int x1, int z1) {
+		return x >= x0 && x < x1 + 1 && z >= z0 && z < z1 + 1;
+	}
+
+	static String spot(Vec3 at) {
+		return String.format("%.0f %.0f %.0f", at.x, at.y, at.z);
+	}
+
+	// ---------------------------------------------------------------- the river mouth
+
+	/**
+	 * A sea down the west side and a river running into it from the east; the near box inland on the south bank near
+	 * the mouth, the far box inland on the north bank upstream, so the straight line between them crosses the river
+	 * at a slant. There's no bridge and the chasms stop him riding round, so he takes the barge.
+	 */
+	private static Scene riverMouth(GameTestHelper helper) {
+		Scene scene = new Scene(helper);
+		banks(scene);
+		river(scene, X0 + 1, Z0 + 1, 35, Z1 - 1);
+		river(scene, 36, BANK_NORTH, X1 - 1, BANK_SOUTH);
+		return scene;
+	}
+
+	@GameTest(skyAccess = true, template = ARENA, batch = "deliver_river_mouth", timeoutTicks = DELIVERY_TICKS)
+	public static void heCrossesTheRiverStraightOverNotAlongItOrOutToSea(GameTestHelper helper) {
+		Scene scene = riverMouth(helper);
+		Boxes boxes = post(scene, "GT Mouth", 44, 50, 84, 12);
+		Crossings crossings = new Crossings(scene, boxes.watch());
+		Trials.deliver("River mouth", scene, boxes.to(), boxes.watch(), () -> {
+			PostRider.LOGGER.info("Trial River mouth: {}", crossings.describe());
+			if (crossings.launches.size() != 1 || crossings.landings.size() != 1)
+				throw new GameTestAssertException("He should have crossed once: " + crossings.describe());
+			Vec3 launch = crossings.launches.get(0), landing = crossings.landings.get(0);
+			if (launch.x < 36)
+				throw new GameTestAssertException("He put out into the sea rather than the river: " + crossings.describe());
+			if (launch.z < MIDSTREAM || landing.z > BANK_NORTH + 1)
+				throw new GameTestAssertException("He didn't cross from the south bank to the north: " + crossings.describe());
+			if (Journey.horizontalDistance(launch, landing) > SENSIBLE_CROSSING)
+				throw new GameTestAssertException("He rowed along the river rather than across it: " + crossings.describe());
+		});
+	}
+
+	// ---------------------------------------------------------------- the bridge upstream
+
+	@GameTest(skyAccess = true, template = ARENA, batch = "deliver_river_bridge", timeoutTicks = DELIVERY_TICKS)
+	public static void heRidesRoundByTheBridgeUpstreamRatherThanRowing(GameTestHelper helper) {
+		Scene scene = riverMouth(helper);
+		// A plank bridge well upstream: the way round over it is nowhere near twice as far as rowing
+		int bridgeX0 = 96, bridgeX1 = 107;
+		scene.fill(bridgeX0, 0, BANK_NORTH, bridgeX1, 0, BANK_SOUTH, Blocks.OAK_PLANKS.defaultBlockState());
+		Boxes boxes = post(scene, "GT Bridge", 44, 50, 84, 12);
+		Ride ride = new Ride(scene, boxes.watch());
+		Trials.deliver("River bridge", scene, boxes.to(), boxes.watch(), () -> {
+			if (boxes.watch().rowed)
+				throw new GameTestAssertException("He took the barge with a bridge upstream");
+			if (ride.crossedAt.size() != 1)
+				throw new GameTestAssertException("He crossed the river " + ride.crossedAt.size() + " times, at x " + ride.crossedAt);
+			double x = ride.crossedAt.get(0);
+			if (x < bridgeX0 || x >= bridgeX1 + 1)
+				throw new GameTestAssertException("He crossed the river at x " + x + ", off the bridge");
+		});
+	}
+
+	// ---------------------------------------------------------------- the sandbar in the bend
+
+	/**
+	 * A river that widens into a pool at a bend, the near bank curving back upstream of it, with a sandbar
+	 * mid-stream in the pool: dry ground the barge could run its bow onto, which leads nowhere.
+	 */
+	@GameTest(skyAccess = true, template = ARENA, batch = "deliver_sandbar", timeoutTicks = DELIVERY_TICKS)
+	public static void heRowsPastTheSandbarWithoutLandingOnIt(GameTestHelper helper) {
+		Scene scene = new Scene(helper);
+		banks(scene);
+		river(scene, X0 + 1, BANK_NORTH, 59, BANK_SOUTH);
+		river(scene, 60, 11, 79, BANK_SOUTH);
+		river(scene, 80, 11, X1 - 1, 24);
+		int barX0 = 66, barZ0 = 20, barX1 = 70, barZ1 = 24;
+		bank(scene, barX0, barZ0, barX1, barZ1, Blocks.SAND.defaultBlockState());
+		Boxes boxes = post(scene, "GT Bar", 50, 50, 92, 4);
+		Crossings crossings = new Crossings(scene, boxes.watch());
+		Ride ride = new Ride(scene, boxes.watch(), new Patch(barX0, barZ0, barX1, barZ1));
+		scene.helper.onEachTick(() -> {
+			if (ride.onPatch != null)
+				throw new GameTestAssertException("He landed on the sandbar, at " + spot(ride.onPatch) + ": " + crossings.describe());
+		});
+		Trials.deliver("Sandbar bend", scene, boxes.to(), boxes.watch(), () -> {
+			PostRider.LOGGER.info("Trial Sandbar bend: {}", crossings.describe());
+			if (boxes.watch().launches != 1)
+				throw new GameTestAssertException("He put out " + boxes.watch().launches + " times: " + crossings.describe());
+		});
+	}
+
+	// ---------------------------------------------------------------- the narrows
+
+	/**
+	 * A wide river that narrows to a single block, a leap for a horse, well upstream of the straight line between the
+	 * boxes: riding up to the narrows and leaping is much shorter than launching the barge where he first meets the
+	 * water.
+	 */
+	@GameTest(skyAccess = true, template = ARENA, batch = "deliver_narrows", timeoutTicks = DELIVERY_TICKS)
+	public static void heLeapsTheRiverAtItsNarrows(GameTestHelper helper) {
+		Scene scene = new Scene(helper);
+		banks(scene);
+		river(scene, X0 + 1, BANK_NORTH, X1 - 1, BANK_SOUTH);
+		int narrowsX0 = 88, narrowsX1 = 95, streamZ = 31;
+		bank(scene, narrowsX0, BANK_NORTH, narrowsX1, BANK_SOUTH, Blocks.GRASS_BLOCK.defaultBlockState());
+		river(scene, narrowsX0, streamZ, narrowsX1, streamZ);
+		Boxes boxes = post(scene, "GT Narrows", 50, 50, 70, 12);
+		Ride ride = new Ride(scene, boxes.watch());
+		Trials.deliver("Narrows leap", scene, boxes.to(), boxes.watch(), () -> {
+			if (boxes.watch().rowed)
+				throw new GameTestAssertException("He took the barge rather than leaping the narrows");
+			if (ride.crossedAt.size() != 1)
+				throw new GameTestAssertException("He crossed the river " + ride.crossedAt.size() + " times, at x " + ride.crossedAt);
+			double x = ride.crossedAt.get(0);
+			if (x < narrowsX0 - 1 || x >= narrowsX1 + 2)
+				throw new GameTestAssertException("He crossed the river at x " + x + ", not at the narrows");
+		});
+	}
+
+	// ---------------------------------------------------------------- two channels and the island between
+
+	/**
+	 * Two channels with a long island between them, right across the way: he has to land on the island, which leads
+	 * nowhere, and put out again at once. Putting out again so soon after landing marks the island impassable for the
+	 * rest of the trip; this catches that marking (or a plan made afloat) sending him back and forth between the
+	 * island and a bank, or leaving him stalled on the island's shore.
+	 */
+	@GameTest(skyAccess = true, template = ARENA, batch = "deliver_two_channels", timeoutTicks = DELIVERY_TICKS)
+	public static void heCrossesTwoChannelsLandingOnTheIslandBetweenJustOnce(GameTestHelper helper) {
+		Scene scene = new Scene(helper);
+		banks(scene);
+		river(scene, X0 + 1, 14, X1 - 1, 27);
+		river(scene, X0 + 1, 38, X1 - 1, 51);
+		Boxes boxes = post(scene, "GT Channels", 64, 58, 64, 6);
+		Crossings crossings = new Crossings(scene, boxes.watch());
+		Ride ride = new Ride(scene, boxes.watch(), new Patch(X0 + 1, 28, X1 - 1, 37));
+		Trials.deliver("Two channels", scene, boxes.to(), boxes.watch(), () -> {
+			PostRider.LOGGER.info("Trial Two channels: {}", crossings.describe());
+			if (ride.onPatch == null)
+				throw new GameTestAssertException("He never set foot on the island: " + crossings.describe());
+			if (boxes.watch().launches != 2)
+				throw new GameTestAssertException("He put out " + boxes.watch().launches + " times: " + crossings.describe());
+			if (!boxes.watch().horseAboard)
+				throw new GameTestAssertException("His horse didn't cross with him");
+		});
+	}
+}
