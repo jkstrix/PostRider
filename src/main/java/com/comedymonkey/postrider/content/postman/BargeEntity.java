@@ -40,9 +40,25 @@ public class BargeEntity extends Entity {
 	/** How fast it comes up to speed, and how far it turns each tick. */
 	private static final double ACCELERATION = 0.02;
 	public static final float TURN_PER_TICK = 4.0F;
-	/** The deck sits this far above the water, as drawn: the hull's waterline is a pixel below the deck. */
-	public static final double FREEBOARD = 1 / 16.0;
-	/** Where the bench and deck are from the barge's middle (blocks forward, and up), as in blockbench/barge.bbmodel. */
+	/**
+	 * How far the hull's sides reach below the deck, as drawn in blockbench/barge.bbmodel. The barge's position is
+	 * the bottom of the hull, so its hit box runs from there up past the railings and bumps into a bank at the
+	 * waterline rather than sliding over it.
+	 */
+	public static final double HULL_DEPTH = 4 / 16.0;
+	/** The railings stand this high above the deck; the hit box reaches their tops. */
+	public static final double RAILING_HEIGHT = 14 / 16.0;
+	/**
+	 * How high the deck floats above the water: only the bottom pixel of the hull is in it, so it rides high and
+	 * floats in water a single block deep.
+	 */
+	public static final double FREEBOARD = 3 / 16.0;
+
+	/** Where the barge (the bottom of its hull) floats on water whose surface is at this height. */
+	public static double floatHeight(double surface) {
+		return surface + FREEBOARD - HULL_DEPTH;
+	}
+	/** Where the bench and deck are from the middle of the deck (blocks forward, and up), as in blockbench/barge.bbmodel. */
 	public static final double BENCH_FORWARD = 21 / 16.0, BENCH_HEIGHT = 7 / 16.0;
 	public static final double DECK_FORWARD = -5 / 16.0, DECK_HEIGHT = 2 / 16.0;
 	/** How far the bow reaches ahead of the middle. */
@@ -87,6 +103,11 @@ public class BargeEntity extends Entity {
 	/** Where the bow is: the middle of its leading edge. */
 	public Vec3 bow() {
 		return position().add(Vec3.directionFromRotation(0, getYRot()).scale(BOW_REACH));
+	}
+
+	/** The middle of the deck, as drawn: the hull's depth above the barge's position. */
+	public Vec3 deck() {
+		return position().add(0, HULL_DEPTH, 0);
 	}
 
 	/** Where something stands or sits aboard, given how far forward of the middle and how high. */
@@ -149,7 +170,7 @@ public class BargeEntity extends Entity {
 		Vec3 forward = Vec3.directionFromRotation(0, getYRot()).scale(speed);
 		// Float: hold the deck just above the water; with no water underneath it settles onto whatever is there
 		double surface = Crossing.surfaceIn(level, Mth.floor(getX()), Mth.floor(getZ()), Mth.floor(getY()));
-		double dy = Double.isNaN(surface) ? Math.max(motion.y - 0.04, -0.5) : Mth.clamp((surface + FREEBOARD - getY()) * 0.3, -0.1, 0.1);
+		double dy = Double.isNaN(surface) ? Math.max(motion.y - 0.04, -0.5) : Mth.clamp((floatHeight(surface) - getY()) * 0.3, -0.1, 0.1);
 		setDeltaMovement(forward.x, dy, forward.z);
 		move(MoverType.SELF, getDeltaMovement());
 		boolean rowing = speed > 0.02;
@@ -185,8 +206,8 @@ public class BargeEntity extends Entity {
 		if (!hasPassenger(passenger))
 			return;
 		Vec3 spot = passenger instanceof PostmanEntity
-			? aboard(position(), getYRot(), BENCH_FORWARD, BENCH_HEIGHT - HIP_HEIGHT)
-			: aboard(position(), getYRot(), DECK_FORWARD, DECK_HEIGHT);
+			? aboard(deck(), getYRot(), BENCH_FORWARD, BENCH_HEIGHT - HIP_HEIGHT)
+			: aboard(deck(), getYRot(), DECK_FORWARD, DECK_HEIGHT);
 		move.accept(passenger, spot.x, spot.y, spot.z);
 		passenger.setYRot(getYRot());
 		if (passenger instanceof LivingEntity living) {

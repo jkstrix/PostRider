@@ -475,7 +475,7 @@ public class DeliveryRun {
 		BargeEntity barge = spot == null ? null : ModEntities.BARGE.get().create(level);
 		if (barge == null)
 			return false;
-		barge.moveTo(spot.x, spot.y + BargeEntity.FREEBOARD, spot.z, yawToward(spot, target), 0);
+		barge.moveTo(spot.x, BargeEntity.floatHeight(spot.y), spot.z, yawToward(spot, target), 0);
 		level.addFreshEntity(barge);
 		PostmanEffects.puff(level, barge);
 		PostmanHorse horse = rider.getHorse();

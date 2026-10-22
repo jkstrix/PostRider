@@ -46,7 +46,7 @@ public final class ModEntities {
 
 	public static final DeferredHolder<EntityType<?>, EntityType<BargeEntity>> BARGE = ENTITIES.register("barge",
 		() -> EntityType.Builder.<BargeEntity>of(BargeEntity::new, MobCategory.MISC)
-			.sized(3.0F, 0.75F)
+			.sized(3.0F, (float) (BargeEntity.HULL_DEPTH + BargeEntity.RAILING_HEIGHT))
 			.fireImmune()
 			.noSummon()
 			.clientTrackingRange(10)

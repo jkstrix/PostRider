@@ -119,4 +119,22 @@ class BargeTest {
 		assertEquals(0.5, BargeEntity.turningSpeed(-45), 1e-9, "either way");
 		assertEquals(0.3, BargeEntity.turningSpeed(170), 1e-9, "never quite stops");
 	}
+
+	@Test
+	void itRidesHighEnoughToFloatInWaterOneBlockDeep() {
+		double surface = 62 + 8 / 9.0, bottom = BargeEntity.floatHeight(surface);
+		assertTrue(bottom < surface, "the hull sits in the water, not on top of it");
+		assertTrue(surface - bottom <= 1 / 16.0 + 1e-9, "only its bottom pixel is under");
+		// Still water a block deep: the hull clears the bottom with room to spare
+		assertTrue(bottom > 62, "afloat over a bed one block down");
+	}
+
+	@Test
+	void itsHitBoxRunsFromTheBottomOfTheHullToTheTopsOfTheRailings() {
+		assertEquals(3.0F, ModEntities.BARGE.get().getWidth());
+		assertEquals(BargeEntity.HULL_DEPTH + BargeEntity.RAILING_HEIGHT, ModEntities.BARGE.get().getHeight(), 1e-6);
+		// A solid block at the waterline (a beach, a sandbar) stands above the bottom of the hull, so it bumps into it
+		double surface = 62 + 8 / 9.0;
+		assertTrue(BargeEntity.floatHeight(surface) < 63, "it can't slide over the top of a bank at water level");
+	}
 }

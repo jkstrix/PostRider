@@ -33,7 +33,8 @@ public class BargeRenderer extends EntityRenderer<BargeEntity> {
 		poseStack.pushPose();
 		poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - yaw));
 		poseStack.scale(-1.0F, -1.0F, 1.0F);
-		poseStack.translate(0.0F, -1.501F, 0.0F);
+		// The model is drawn from the deck; the barge's position is the bottom of the hull, below it
+		poseStack.translate(0.0F, -1.501F - (float) BargeEntity.HULL_DEPTH, 0.0F);
 		model.setupAnim(barge, 0, 0, barge.tickCount + partialTick, 0, 0);
 		RenderType type = RenderType.entityCutoutNoCull(TEXTURE);
 		model.hideGlow(true);
