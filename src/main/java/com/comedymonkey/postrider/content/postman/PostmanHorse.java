@@ -40,6 +40,7 @@ public class PostmanHorse extends Horse {
 	public PostmanHorse(EntityType<? extends Horse> type, Level level) {
 		super(type, level);
 		setPersistenceRequired();
+		PostmanEntity.avoidWater(this);
 	}
 
 	/** A vanilla-style random horse speed, rolled again until it's at least {@link #MIN_SPEED}. */

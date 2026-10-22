@@ -12,6 +12,9 @@ import com.comedymonkey.postrider.content.lost.LostCause;
 import com.comedymonkey.postrider.content.lost.LostParcels;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlockEntity;
+import com.comedymonkey.postrider.content.postman.route.LevelTerrain;
+import com.comedymonkey.postrider.content.postman.route.LocalPlanner;
+import com.comedymonkey.postrider.content.postman.route.Navigator;
 import com.comedymonkey.postrider.post.JourneyNotes;
 import com.comedymonkey.postrider.post.Mail;
 import com.comedymonkey.postrider.post.MailboxDirectory;
@@ -47,7 +50,6 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -58,6 +60,8 @@ import net.minecraft.world.phys.Vec3;
 public class DeliveryRun {
 	public enum Stage {
 		PICKING_UP,
+		/** Looking at his map while he works out the route (before setting off, and when it has to be redone). */
+		PLANNING,
 		CALLING_HORSE,
 		RIDING,
 		CAMPING,
@@ -79,6 +83,16 @@ public class DeliveryRun {
 	/** How long he tries to walk up to the mailbox before stepping up to it. */
 	public static final int WALK_UP_TICKS = 200;
 	private static final int AIM_INTERVAL = 40;
+	/** He looks at his map for at least 5 seconds, and sets off with the best route so far after 20. */
+	public static final int MAP_MIN_TICKS = 100;
+	public static final int MAP_MAX_TICKS = 400;
+	/** After the pickup he walks this far out from the front of the mailbox to look at his map, for at most this long. */
+	public static final double MAP_STAND_OFF = 4.0;
+	public static final int STEP_AWAY_TICKS = 60;
+	/** He stops to look at his map again at most this often; more re-planning than that goes on as he rides. */
+	public static final int MAP_STOP_INTERVAL = 1200;
+	/** Run aground this long off the end of his planned water leg, he lands where he is. */
+	public static final int AGROUND_TICKS = 60;
 	/** On foot he runs as fast as a sprinting player; he only walks the last few steps to the mailbox. */
 	public static final double RUN_SPEED = 1.2;
 
@@ -91,12 +105,19 @@ public class DeliveryRun {
 	private ChunkPos loadedChunk;
 	private final Journey.Progress progress = new Journey.Progress();
 	private int aimCooldown;
-	private boolean detouring;
-	/** While he's going round something: how far he was from the destination when he started, and how far he's ridden. */
-	private double detourStart = -1;
-	private double detourRidden;
+	/** His route: worked out afresh after a restart, so not saved. */
+	private final Navigator navigator = new Navigator();
+	private boolean routeStarted;
+	/** What he does once he's looked at his map. */
+	private Stage afterPlanning = Stage.CALLING_HORSE;
+	private long lastMapStop = Long.MIN_VALUE / 2;
+	/** Walking a few steps from the mailbox before the map comes out, and where to. */
+	private boolean steppingAway;
 	@Nullable
-	private Vec3 lastSpot;
+	private Vec3 mapSpot;
+	/** The route was already being worked out when the map came out (from the end of the pickup). */
+	private boolean alreadyPlanning;
+	private int aground;
 	/** What the mail has been through, noted on it when it's delivered. */
 	private boolean crossedWater;
 	private int nightsOut;
@@ -205,6 +226,7 @@ public class DeliveryRun {
 		}
 		switch (stage) {
 			case PICKING_UP -> pickUp(rider, level);
+			case PLANNING -> plan(rider, level);
 			case CALLING_HORSE -> callHorse(rider, level);
 			case RIDING -> ride(rider, level);
 			case CAMPING -> camp(rider, level);
@@ -265,8 +287,104 @@ public class DeliveryRun {
 				fail(rider, level, LostCause.UNDELIVERABLE, noMailbox(rider), null, delivery.from().pos());
 				return;
 			}
-			enter(Stage.CALLING_HORSE);
+			// The route is worked out from now; he steps away from the box and then gets his map out
+			Vec3 target = destinationSpot(level);
+			if (target != null) {
+				navigator.replan(level, rider.position(), target);
+				routeStarted = true;
+				alreadyPlanning = true;
+			}
+			mapSpot = mapSpot(level, delivery.from().pos());
+			steppingAway = true;
+			afterPlanning = Stage.CALLING_HORSE;
+			enter(Stage.PLANNING);
 		}
+	}
+
+	/**
+	 * Where he stands to look at his map after the pickup: a few steps out from the front of the mailbox, or the
+	 * nearest spot about that far away he can stand on; null to stay where he is.
+	 */
+	@Nullable
+	private static Vec3 mapSpot(ServerLevel level, BlockPos mailbox) {
+		BlockState state = level.getBlockState(mailbox);
+		Direction facing = state.getBlock() instanceof MailboxBlock ? state.getValue(MailboxBlock.FACING) : Direction.NORTH;
+		LevelTerrain terrain = new LevelTerrain(level);
+		Vec3 box = Vec3.atBottomCenterOf(mailbox);
+		float ahead = facing.toYRot();
+		for (double standOff : new double[] {MAP_STAND_OFF, 3.5, 3.0})
+			for (int turn : new int[] {0, 30, -30, 60, -60, 90, -90}) {
+				Vec3 way = Vec3.directionFromRotation(0, ahead + turn).scale(standOff);
+				int x = Mth.floor(box.x + way.x), z = Mth.floor(box.z + way.z);
+				for (int dy : new int[] {0, 1, -1}) {
+					int y = mailbox.getY() + dy;
+					if (LocalPlanner.stands(terrain, false, x, y, z))
+						return new Vec3(x + 0.5, y, z + 0.5);
+				}
+			}
+		return null;
+	}
+
+	/**
+	 * He gets his map out and works out the route: at least {@link #MAP_MIN_TICKS}, and once it's done (or after
+	 * {@link #MAP_MAX_TICKS}, going with the best so far) he puts it away and gets going.
+	 */
+	private void plan(PostmanEntity rider, ServerLevel level) {
+		Vec3 target = destinationSpot(level);
+		if (target == null)
+			return;
+		progress.pause(level.getGameTime());
+		navigator.tickPlanning();
+		if (steppingAway) {
+			// A few steps out from the mailbox, at a walk; the planning time counts while he goes
+			if (mapSpot == null || Journey.horizontalDistance(rider.position(), mapSpot) < 0.6 || stageTicks >= STEP_AWAY_TICKS) {
+				steppingAway = false;
+				stageTicks = 0;
+			} else if (stageTicks % 20 == 1) {
+				rider.setSprinting(false);
+				rider.getNavigation().moveTo(mapSpot.x, mapSpot.y, mapSpot.z, 1.0);
+			}
+			return;
+		}
+		rider.getNavigation().stop();
+		if (stageTicks == 1) {
+			rider.setSprinting(false);
+			if (!alreadyPlanning)
+				navigator.replan(level, rider.position(), target);
+			alreadyPlanning = false;
+			routeStarted = true;
+			// On foot, he turns the way his route goes before he looks it over
+			if (rider.getVehicle() == null)
+				face(rider, yawToward(rider.position(), navigator.heading(rider.position(), target)));
+			showMap(rider, true);
+		}
+		if (stageTicks >= MAP_MIN_TICKS && (navigator.isPlanned() || stageTicks >= MAP_MAX_TICKS)) {
+			navigator.goWithBestSoFar();
+			showMap(rider, false);
+			enter(afterPlanning);
+		}
+	}
+
+	/** The map prop and its animation arrive with the approved model. */
+	private void showMap(PostmanEntity rider, boolean out) {}
+
+	/**
+	 * The route has to be worked out again: he stops and looks at his map, then carries on as {@code after}. If he
+	 * only looked at it a little while ago, he re-plans as he goes instead.
+	 */
+	private void stopToReplan(PostmanEntity rider, ServerLevel level, @Nullable Vec3 target, Stage after) {
+		long now = level.getGameTime();
+		if (now - lastMapStop < MAP_STOP_INTERVAL) {
+			if (target != null)
+				navigator.replan(level, rider.position(), target);
+			enter(after);
+			return;
+		}
+		lastMapStop = now;
+		afterPlanning = after;
+		steppingAway = false;
+		alreadyPlanning = false;
+		enter(Stage.PLANNING);
 	}
 
 	private void callHorse(PostmanEntity rider, ServerLevel level) {
@@ -296,60 +414,34 @@ public class DeliveryRun {
 			enter(Stage.WALKING_TO_BOX);
 			return;
 		}
-		// On foot because there was no room for the horse: whistle again every so often
-		if (rider.getHorse() == null && stageTicks % 200 == 0)
-			rider.whistleForHorse();
 		if (checkStuck(rider, level, distance, target))
 			return;
-		boolean onFoot = rider.getHorse() == null;
-		rider.setSprinting(onFoot);
-		if (!onFoot)
+		// Back on the road after a restart: the route is worked out again as he rides
+		if (!routeStarted) {
+			navigator.replan(level, rider.position(), target);
+			routeStarted = true;
+		}
+		if (rider.getHorse() != null)
 			jumpGaps(rider.getHorse(), level);
-		trackDetour(rider, distance);
-		if (--aimCooldown <= 0 || rider.getNavigation().isDone()) {
-			aimCooldown = AIM_INTERVAL;
-			List<Vec3> dry = safeAims(level, rider.position(), target);
-			// No dry way on, or riding round has stopped paying: over the water by barge, if there's water to launch it on
-			if ((dry.isEmpty() || Crossing.detourTooLong(detourRidden, detourStart, distance)) && launchBarge(rider, level, target))
-				return;
-			double speed = onFoot ? RUN_SPEED : 1.0;
-			Path path = bestPath(rider, target, dry, distance);
-			if (path != null) {
-				detouring = isDetour(rider.position(), Vec3.atBottomCenterOf(path.getTarget()), target);
-				rider.getNavigation().moveTo(path, speed);
-			} else {
-				Vec3 aim = dry.isEmpty() ? surface(level, Journey.nextAim(rider.position(), target)) : dry.get(0);
-				detouring = isDetour(rider.position(), aim, target);
-				rider.getNavigation().moveTo(aim.x, aim.y, aim.z, speed);
+		switch (navigator.tick(rider, level, target)) {
+			case LAUNCH -> {
+				Vec3 toward = navigator.launchAim();
+				if (toward != null && launchBarge(rider, level, toward))
+					return;
 			}
+			case REPLAN -> {
+				stopToReplan(rider, level, target, Stage.RIDING);
+				return;
+			}
+			default -> {}
 		}
-		rider.mannerisms().tick(rider, level, distance, detouring);
-	}
-
-	/** Keeps count, while he's going round something, of how far he's ridden against how much closer it's got him. */
-	private void trackDetour(PostmanEntity rider, double distance) {
-		Vec3 here = rider.position();
-		if (!detouring) {
-			detourStart = -1;
-			detourRidden = 0;
-		} else {
-			if (detourStart < 0)
-				detourStart = distance;
-			if (lastSpot != null)
-				detourRidden += Journey.horizontalDistance(lastSpot, here);
-		}
-		lastSpot = here;
+		rider.mannerisms().tick(rider, level, distance, navigator.isDetouring());
 	}
 
 	/** Whether an aim takes him off the straight line to the destination, round water or a hazard. */
 	public static boolean isDetour(Vec3 from, Vec3 aim, Vec3 target) {
 		Vec3 straight = Journey.nextAim(from, target);
 		return Journey.horizontalDistance(aim, straight) > DETOUR_SLACK;
-	}
-
-	/** The stretches ahead (straight on, then swerves) that end somewhere safe to stand, best first. */
-	static List<Vec3> safeAims(ServerLevel level, Vec3 from, Vec3 target) {
-		return safeOf(level, Journey.aims(from, target));
 	}
 
 	private static List<Vec3> safeOf(ServerLevel level, List<Vec3> aims) {
@@ -362,25 +454,6 @@ public class DeliveryRun {
 		return safe;
 	}
 
-	/**
-	 * Of the dry ways on, the first his horse (or he, on foot) can find a path all the way to, so he goes round a
-	 * ravine or a cliff rather than into it; failing that, whichever path gets him nearest. Null if none gets him closer.
-	 */
-	@Nullable
-	private static Path bestPath(PostmanEntity rider, Vec3 target, List<Vec3> aims, double distance) {
-		List<Path> paths = new ArrayList<>();
-		List<Journey.Route> routes = new ArrayList<>();
-		for (Vec3 aim : aims) {
-			Path path = rider.getNavigation().createPath(BlockPos.containing(aim), 1);
-			if (path == null || path.getEndNode() == null)
-				continue;
-			paths.add(path);
-			routes.add(new Journey.Route(path.canReach(), Journey.horizontalDistance(Vec3.atBottomCenterOf(path.getEndNode().asBlockPos()), target)));
-		}
-		int best = Journey.pickRoute(routes, distance);
-		return best < 0 ? null : paths.get(best);
-	}
-
 	private static Vec3 surface(ServerLevel level, Vec3 aim) {
 		BlockPos column = BlockPos.containing(aim);
 		return new Vec3(aim.x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column.getX(), column.getZ()), aim.z);
@@ -388,7 +461,7 @@ public class DeliveryRun {
 
 	// ---------------------------------------------------------------- the barge
 
-	/** Calls up the barge on the water ahead, puts his horse and himself aboard, and pushes off. */
+	/** Calls up the barge on the water ahead (towards {@code target}), puts his horse and himself aboard, and pushes off. */
 	private boolean launchBarge(PostmanEntity rider, ServerLevel level, Vec3 target) {
 		int nearY = rider.getBlockY();
 		Vec3 spot = Crossing.launchSpot(rider.position(), target, (x, z) -> Crossing.surfaceIn(level, x, z, nearY));
@@ -409,15 +482,14 @@ public class DeliveryRun {
 		rider.startRiding(barge, true);
 		rider.setActivity(PostmanEntity.Activity.ROW);
 		crossedWater = true;
-		detouring = false;
-		detourStart = -1;
-		detourRidden = 0;
 		aimCooldown = 0;
+		aground = 0;
+		navigator.launched();
 		enter(Stage.BARGING);
 		return true;
 	}
 
-	/** Rowing across: on for the far shore (day or night), round ocean monuments and drowned, and ashore as soon as he can be. */
+	/** Rowing across along his planned water leg (day or night), round ocean monuments and drowned, and ashore at its end. */
 	private void barge(PostmanEntity rider, ServerLevel level) {
 		if (!(rider.getVehicle() instanceof BargeEntity barge)) {
 			// The barge is gone from under him somehow: carry on as best he can
@@ -438,25 +510,32 @@ public class DeliveryRun {
 			int nearY = barge.getBlockY();
 			List<Vec3> drowned = level.getEntitiesOfClass(Drowned.class, barge.getBoundingBox().inflate(Journey.stretch() + Crossing.DROWNED_BERTH))
 				.stream().map(Entity::position).toList();
-			Vec3 aim = Crossing.waterAim(barge.position(), target,
+			Vec3 planned = navigator.bargeAim(barge.position());
+			Vec3 toward = planned != null ? planned : target;
+			Vec3 aim = Crossing.waterAim(barge.position(), toward,
 				a -> !Hazards.isDangerous(level, BlockPos.containing(surface(level, a))),
 				a -> !Double.isNaN(Crossing.surfaceIn(level, Mth.floor(a.x), Mth.floor(a.z), nearY)),
 				a -> Crossing.nearAny(a, drowned, Crossing.DROWNED_BERTH) || Crossing.nearMonument(level, a));
-			barge.steer(aim != null ? aim : Journey.nextAim(barge.position(), target));
+			barge.steer(aim != null ? aim : Journey.nextAim(barge.position(), toward));
 		}
 	}
 
 	/** How long after launching before the bank behind it counts as reaching shore. */
 	private static final int PUSH_OFF_TICKS = 40;
 
-	/** Whether he can step ashore: the bow is up against land, or he's as good as at the mailbox. */
+	/**
+	 * Whether he can step ashore: the bow is up against land near the end of the water leg (he rows on round anything
+	 * before that, unless he's run hard aground), or he's as good as at the mailbox.
+	 */
 	private boolean ashore(ServerLevel level, BargeEntity barge, double distance) {
 		if (distance <= Journey.DISMOUNT_DISTANCE + BargeEntity.BOW_REACH)
 			return true;
 		if (stageTicks < PUSH_OFF_TICKS)
 			return false;
+		aground = barge.horizontalCollision ? aground + 1 : 0;
 		Vec3 bow = barge.bow();
-		return barge.horizontalCollision || Double.isNaN(Crossing.surfaceIn(level, Mth.floor(bow.x), Mth.floor(bow.z), barge.getBlockY()));
+		boolean land = barge.horizontalCollision || Double.isNaN(Crossing.surfaceIn(level, Mth.floor(bow.x), Mth.floor(bow.z), barge.getBlockY()));
+		return land && (navigator.nearLanding(barge.position()) || aground >= AGROUND_TICKS);
 	}
 
 	/** Steps ashore by the bow: his horse appears on the bank, he climbs back on, and the barge vanishes. */
@@ -484,6 +563,7 @@ public class DeliveryRun {
 		}
 		barge.vanish(level);
 		aimCooldown = 0;
+		navigator.landed();
 		enter(Stage.RIDING);
 		return true;
 	}
@@ -576,6 +656,7 @@ public class DeliveryRun {
 			tendFire(level);
 		if (PostOfficeHours.isOpen(level.getDayTime())) {
 			breakCamp(rider, level);
+			navigator.clearStretch();
 			enter(Stage.CALLING_HORSE);
 			return;
 		}
@@ -762,9 +843,11 @@ public class DeliveryRun {
 	private void flee(PostmanEntity rider, ServerLevel level) {
 		progress.pause(level.getGameTime());
 		if (PostOfficeHours.isOpen(level.getDayTime())) {
+			// Daylight: he's run off his route, so out comes the map before he whistles for his horse
 			rider.setSprinting(false);
 			attacker = null;
-			enter(Stage.CALLING_HORSE);
+			navigator.clearStretch();
+			stopToReplan(rider, level, destinationSpot(level), Stage.CALLING_HORSE);
 			return;
 		}
 		if (stageTicks % 20 != 1 && !rider.getNavigation().isDone())
@@ -866,6 +949,10 @@ public class DeliveryRun {
 		aimCooldown = 0;
 		progress.unstuck(Journey.horizontalDistance(free, target), level.getGameTime());
 		rider.mannerisms().prompt(PostmanEntity.Gesture.SCRATCH_HEAD);
+		// Somewhere new: on land he gets his map out and works the route out again from here
+		navigator.clearStretch();
+		if (stage == Stage.RIDING)
+			stopToReplan(rider, level, target, Stage.RIDING);
 		return true;
 	}
 
@@ -952,6 +1039,7 @@ public class DeliveryRun {
 			GlobalPos.CODEC.encodeStart(NbtOps.INSTANCE, destination).result().ifPresent(d -> tag.put("destination", d));
 		tag.putString("stage", stage.name());
 		tag.putInt("stage_ticks", stageTicks);
+		tag.putString("after_planning", afterPlanning.name());
 		tag.putBoolean("crossed_water", crossedWater);
 		tag.putInt("nights_out", nightsOut);
 		if (loadedChunk != null)
@@ -988,6 +1076,14 @@ public class DeliveryRun {
 			run.stage = Stage.RIDING;
 		}
 		run.stageTicks = tag.getInt("stage_ticks");
+		try {
+			run.afterPlanning = Stage.valueOf(tag.getString("after_planning"));
+		} catch (IllegalArgumentException e) {
+			run.afterPlanning = Stage.CALLING_HORSE;
+		}
+		// The map comes out again and the route is worked out afresh
+		if (run.stage == Stage.PLANNING)
+			run.stageTicks = 0;
 		run.crossedWater = tag.getBoolean("crossed_water");
 		run.nightsOut = tag.getInt("nights_out");
 		if (tag.contains("loaded_chunk"))

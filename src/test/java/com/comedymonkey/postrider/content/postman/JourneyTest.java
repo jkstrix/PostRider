@@ -87,21 +87,6 @@ class JourneyTest {
 	}
 
 	@Test
-	void heTakesTheFirstWayHeCanActuallyGetTo() {
-		List<Journey.Route> routes = List.of(new Journey.Route(false, 10), new Journey.Route(true, 40), new Journey.Route(true, 30));
-		assertEquals(1, Journey.pickRoute(routes, 100), "straight on is blocked; the first swerve he can reach");
-	}
-
-	@Test
-	void withNoWayThroughHeGetsAsCloseAsHeCan() {
-		List<Journey.Route> routes = List.of(new Journey.Route(false, 90), new Journey.Route(false, 70), new Journey.Route(false, 80));
-		assertEquals(1, Journey.pickRoute(routes, 100));
-		assertEquals(-1, Journey.pickRoute(List.of(new Journey.Route(false, 100), new Journey.Route(false, 120)), 100),
-			"nothing gets him any closer");
-		assertEquals(-1, Journey.pickRoute(List.of(), 100));
-	}
-
-	@Test
 	void standingStillForFiveSecondsCountsAsStuck() {
 		Journey.Progress progress = new Journey.Progress();
 		assertFalse(progress.isStalled(0, 0, 0));

@@ -21,19 +21,6 @@ class CrossingTest {
 	private static final Crossing.Water LAKE_EAST = (x, z) -> x >= 10 ? 62.875 : Double.NaN;
 
 	@Test
-	void heRidesRoundWaterUntilTheDetourIsTwiceTheGroundGained() {
-		// 40 blocks ridden to get 30 closer: still worth it
-		assertFalse(Crossing.detourTooLong(40, 100, 70));
-		// Riding up and down the shore getting nowhere: barge
-		assertTrue(Crossing.detourTooLong(60, 100, 100));
-		// Twice the gain plus a stretch of slack is the limit
-		assertFalse(Crossing.detourTooLong(2 * 20 + Crossing.DETOUR_SLACK, 100, 80));
-		assertTrue(Crossing.detourTooLong(2 * 20 + Crossing.DETOUR_SLACK + 1, 100, 80));
-		// Not going round anything
-		assertFalse(Crossing.detourTooLong(0, -1, 50));
-	}
-
-	@Test
 	void theBargeIsLaunchedOnOpenWaterAheadWithRoomAllRound() {
 		Vec3 rider = new Vec3(6.5, 64, 0.5), target = new Vec3(200, 64, 0.5);
 		Vec3 launch = Crossing.launchSpot(rider, target, LAKE_EAST);

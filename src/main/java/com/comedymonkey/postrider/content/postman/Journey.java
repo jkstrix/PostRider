@@ -60,27 +60,6 @@ public final class Journey {
 		return escapes;
 	}
 
-	/** A way on he's found a path along: whether the path gets all the way to its aim, and how far it leaves him to go. */
-	public record Route(boolean reaches, double leftToGo) {}
-
-	/**
-	 * Which way to go: the first route that gets all the way to its aim; otherwise the one that leaves him least far to
-	 * go, as long as that's closer than he is now. -1 if none gets him anywhere.
-	 */
-	public static int pickRoute(List<Route> routes, double distanceNow) {
-		for (int i = 0; i < routes.size(); i++)
-			if (routes.get(i).reaches())
-				return i;
-		int best = -1;
-		double bestLeft = distanceNow - 1;
-		for (int i = 0; i < routes.size(); i++)
-			if (routes.get(i).leftToGo() < bestLeft) {
-				bestLeft = routes.get(i).leftToGo();
-				best = i;
-			}
-		return best;
-	}
-
 	private static List<Vec3> aims(Vec3 from, Vec3 destination, double stretch) {
 		double distance = horizontalDistance(from, destination);
 		List<Vec3> aims = new ArrayList<>();
