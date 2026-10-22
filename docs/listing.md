@@ -29,7 +29,8 @@ eyepatch, and Mattie Cole's red braid flies behind her. You'll get to know them:
 ### A real journey
 
 Riders really ride the whole way, over hills, around ravines and across rivers by ferry barge. At dusk they pick a
-flat pitch, hammer in the tent pegs and play the harmonica until the monsters come out. Then they turn in, boots
+flat pitch, hammer in the tent pegs, strike up a campfire with a flint and steel and play the harmonica until the
+monsters come out. Then they turn in, boots
 sticking out of the tent door, and ride on at 6am. Along the way they wave at you, tip their hats to villagers, swat
 flies in the swamp and wipe their brows in the desert.
 
@@ -45,10 +46,12 @@ telling them what happened and where.
 
 - Mailboxes in all 16 colours, with a 27-delivery inbox, a raising flag and an old-time post office screen.
 - Letters you write and sign, with postmarks, and parcels of up to 9 stacks.
-- 20 unique riders, each with their own horse, plus 34 animations: riding, camping, rowing, drinking and 20 little
-  mannerisms.
+- 20 unique riders, each with their own horse, plus 35 animations: riding, camping, rowing, drinking, lighting the
+  campfire and 20 little mannerisms.
 - Real routes, gap-jumping horses, ferry barges, camping and fleeing.
+- Campfires that light up the camp through the evening and burn down to embers by 3am.
 - Lost Parcels and failure letters when things go wrong.
+- Fifteen advancements on their own tab, one of them secret.
 - Server settings for rider count, route planning range, potions, barge speed and collection hours.
 - No other mods needed.
 
