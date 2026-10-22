@@ -2,6 +2,10 @@ package com.comedymonkey.postrider.client.gui;
 
 import com.comedymonkey.postrider.PostRider;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.ToIntFunction;
+
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -83,7 +87,28 @@ public final class PostOfficeStyle {
 	}
 
 	public static void panel(GuiGraphics graphics, int x, int y) {
-		blit(graphics, x, y, 0, 0, PANEL_WIDTH, PANEL_HEIGHT);
+		panel(graphics, x, y, PANEL_WIDTH);
+	}
+
+	/** The panel at any width from its own up: its two ends as drawn, the parchment and planks between drawn on. */
+	public static void panel(GuiGraphics graphics, int x, int y, int width) {
+		stretch(graphics, x, y, width, 0, 0, PANEL_WIDTH, PANEL_HEIGHT, 64);
+	}
+
+	/**
+	 * Draws a piece of the sheet ({@code u, v}, {@code pieceWidth} wide) at another width: its left and right
+	 * {@code ends} as they are, and the middle repeated across the gap.
+	 */
+	private static void stretch(GuiGraphics graphics, int x, int y, int width, int u, int v, int pieceWidth, int height, int ends) {
+		if (width <= pieceWidth) {
+			blit(graphics, x, y, u, v, width, height);
+			return;
+		}
+		blit(graphics, x, y, u, v, ends, height);
+		blit(graphics, x + width - ends, y, u + pieceWidth - ends, v, ends, height);
+		int middle = pieceWidth - 2 * ends;
+		for (int dx = ends; dx < width - ends; dx += middle)
+			blit(graphics, x + dx, y, u + ends, v, Math.min(middle, width - ends - dx), height);
 	}
 
 	/** An 18x18 slot frame; pass the slot's own position, the frame goes one pixel outside it. */
@@ -104,19 +129,33 @@ public final class PostOfficeStyle {
 
 	/** The brass name plaque, centred on the panel, with its text engraved in the middle. */
 	public static void plaque(GuiGraphics graphics, Font font, int panelX, int panelY, Component text) {
-		int x = panelX + (PANEL_WIDTH - PLAQUE_WIDTH) / 2;
+		plaque(graphics, font, panelX, panelY, PANEL_WIDTH, text);
+	}
+
+	/** The brass name plaque, in the middle of the top of a panel this wide. */
+	public static void plaque(GuiGraphics graphics, Font font, int panelX, int panelY, int panelWidth, Component text) {
+		int x = panelX + (panelWidth - PLAQUE_WIDTH) / 2;
 		blit(graphics, x, panelY + 3, 100, 210, PLAQUE_WIDTH, PLAQUE_HEIGHT);
 		String shown = font.plainSubstrByWidth(text.getString(), PLAQUE_WIDTH - 12);
 		graphics.drawString(font, shown, x + (PLAQUE_WIDTH - font.width(shown)) / 2, panelY + 6, ENGRAVED, false);
 	}
 
 	public static void textField(GuiGraphics graphics, int x, int y) {
-		blit(graphics, x, y, 0, 194, TEXT_FIELD_WIDTH, TEXT_FIELD_HEIGHT);
+		textField(graphics, x, y, TEXT_FIELD_WIDTH);
+	}
+
+	public static void textField(GuiGraphics graphics, int x, int y, int width) {
+		stretch(graphics, x, y, width, 0, 194, TEXT_FIELD_WIDTH, TEXT_FIELD_HEIGHT, 4);
 	}
 
 	/** A ruled ledger page with a red margin, as used for lists of addresses. */
 	public static void ledger(GuiGraphics graphics, int x, int y) {
-		blit(graphics, x, y, 0, 210, LEDGER_WIDTH, LEDGER_HEIGHT);
+		ledger(graphics, x, y, LEDGER_WIDTH);
+	}
+
+	/** The ledger page at any width: its red margin as drawn, the ruled page carried on to the right. */
+	public static void ledger(GuiGraphics graphics, int x, int y, int width) {
+		stretch(graphics, x, y, width, 0, 210, LEDGER_WIDTH, LEDGER_HEIGHT, 16);
 	}
 
 	public static void button(GuiGraphics graphics, Font font, ButtonStyle style, int x, int y, Component label,
@@ -162,6 +201,48 @@ public final class PostOfficeStyle {
 	}
 
 	/** Writing on the parchment, without the drop shadow vanilla text has. */
+	/** Text wrapped to a width, a word at a time (a word too long for a line is broken where it has to be). */
+	public static List<String> wrap(String text, int width, ToIntFunction<String> widthOf) {
+		List<String> lines = new ArrayList<>();
+		StringBuilder line = new StringBuilder();
+		for (String word : text.trim().split("\\s+")) {
+			String tried = line.isEmpty() ? word : line + " " + word;
+			if (widthOf.applyAsInt(tried) <= width) {
+				line.setLength(0);
+				line.append(tried);
+				continue;
+			}
+			if (!line.isEmpty())
+				lines.add(line.toString());
+			line.setLength(0);
+			// A word wider than a whole line goes on as many lines as it takes
+			while (widthOf.applyAsInt(word) > width) {
+				int fits = 1;
+				while (fits < word.length() && widthOf.applyAsInt(word.substring(0, fits + 1)) <= width)
+					fits++;
+				lines.add(word.substring(0, fits));
+				word = word.substring(fits);
+			}
+			line.append(word);
+		}
+		if (!line.isEmpty())
+			lines.add(line.toString());
+		return lines;
+	}
+
+	/** Text wrapped to a width, at most this many lines; if there's more, the last line is cut short with "...". */
+	public static List<String> clamp(String text, int width, int maxLines, ToIntFunction<String> widthOf) {
+		List<String> lines = wrap(text, width, widthOf);
+		if (lines.size() <= maxLines)
+			return lines;
+		List<String> kept = new ArrayList<>(lines.subList(0, maxLines));
+		String last = kept.get(maxLines - 1);
+		while (!last.isEmpty() && widthOf.applyAsInt(last + "...") > width)
+			last = last.substring(0, last.length() - 1);
+		kept.set(maxLines - 1, last.stripTrailing() + "...");
+		return kept;
+	}
+
 	public static void write(GuiGraphics graphics, Font font, Component text, int x, int y, int color) {
 		graphics.drawString(font, text, x, y, color, false);
 	}

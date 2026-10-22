@@ -26,9 +26,12 @@ public class MailboxMenu extends AbstractContainerMenu {
 	public static final int TAB_SETTINGS = 2;
 	public static final int TAB_COUNT = 3;
 
-	public static final int WIDTH = 176;
+	/** Wider than a chest, so addresses and messages have room. */
+	public static final int WIDTH = 248;
 	public static final int HEIGHT = 192;
 	public static final int GRID_X = 8;
+	/** The inbox and the player's inventory, nine slots across, sit in the middle. */
+	public static final int INVENTORY_X = (WIDTH - 9 * 18) / 2 + 1;
 	public static final int GRID_Y = 20;
 	public static final int INVENTORY_LABEL_Y = 98;
 	public static final int INVENTORY_Y = 110;
@@ -66,15 +69,15 @@ public class MailboxMenu extends AbstractContainerMenu {
 
 		for (int row = 0; row < 3; row++)
 			for (int col = 0; col < 9; col++)
-				addSlot(new TabSlot(inbox, row * 9 + col, GRID_X + col * 18, GRID_Y + row * 18, TAB_INBOX, false));
+				addSlot(new TabSlot(inbox, row * 9 + col, INVENTORY_X + col * 18, GRID_Y + row * 18, TAB_INBOX, false));
 		for (int row = 0; row < 3; row++)
 			for (int col = 0; col < 3; col++)
 				addSlot(new TabSlot(parcel, row * 3 + col, GRID_X + col * 18, GRID_Y + row * 18, TAB_SEND, true));
 		for (int row = 0; row < 3; row++)
 			for (int col = 0; col < 9; col++)
-				addSlot(new Slot(inventory, col + row * 9 + 9, GRID_X + col * 18, INVENTORY_Y + row * 18));
+				addSlot(new Slot(inventory, col + row * 9 + 9, INVENTORY_X + col * 18, INVENTORY_Y + row * 18));
 		for (int col = 0; col < 9; col++)
-			addSlot(new Slot(inventory, col, GRID_X + col * 18, HOTBAR_Y));
+			addSlot(new Slot(inventory, col, INVENTORY_X + col * 18, HOTBAR_Y));
 	}
 
 	public String getOpenedName() {

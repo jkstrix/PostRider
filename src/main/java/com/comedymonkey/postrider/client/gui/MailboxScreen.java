@@ -24,12 +24,21 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	private static final String[] TAB_KEYS = {"inbox", "send", "settings"};
 	/** On the Settings tab, the address rules and then a line for what's wrong (or that it's saved), clear of the inventory. */
 	private static final int RULES_Y = 66;
-	private static final int RULES_WIDTH = 160;
+	private static final int RULES_WIDTH = MailboxMenu.WIDTH - 16;
 	private static final int STATUS_Y = 86;
 	/** On the Send tab, two lines beside the Send button for how sending went. */
 	private static final int SEND_NOTICE_Y = 79;
-	private static final int SEND_NOTICE_WIDTH = 100;
 	private static final int LEDGER_X = 68;
+	/** The ledger of addresses fills the panel to the right of the parcel slots. */
+	private static final int LEDGER_WIDTH = MailboxMenu.WIDTH - LEDGER_X - 8;
+	private static final int SEND_NOTICE_WIDTH = LEDGER_WIDTH;
+	private static final int SEND_NOTICE_LINES = 2;
+	/** On the Settings tab, the owner's name beside the Save button, as far as the edge of the parchment. */
+	private static final int OWNER_X = 70;
+	private static final int OWNER_WIDTH = MailboxMenu.WIDTH - OWNER_X - 8;
+	private static final int TOOLTIP_WIDTH = 200;
+	/** The address box runs across the panel. */
+	private static final int FIELD_WIDTH = MailboxMenu.WIDTH - 16;
 	private static final int LEDGER_Y = 19;
 	private static final int LEDGER_ROWS = PostOfficeStyle.LEDGER_HEIGHT / PostOfficeStyle.LEDGER_ROW;
 
@@ -43,6 +52,10 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	@Nullable
 	private String selected;
 	private int scroll;
+	/** A message drawn cut short to fit, and where (relative to the panel): hovering there shows all of it. */
+	@Nullable
+	private Component cutShort;
+	private int cutX, cutY, cutWidth, cutHeight;
 
 	public MailboxScreen(MailboxMenu menu, Inventory inventory, Component title) {
 		super(menu, inventory, title);
@@ -54,7 +67,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	@Override
 	protected void init() {
 		super.init();
-		nameBox = new InkTextField(font, leftPos + 11, topPos + 32, 150, 9, Component.translatable("gui.postrider.mailbox.address"));
+		nameBox = new InkTextField(font, leftPos + 11, topPos + 32, FIELD_WIDTH - 10, 9, Component.translatable("gui.postrider.mailbox.address"));
 		nameBox.setMaxLength(MailboxNames.MAX_LENGTH);
 		nameBox.setValue(hasName() ? name : "");
 		addRenderableWidget(nameBox);
@@ -167,7 +180,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 		for (int k = 0; k < MailboxMenu.TAB_COUNT; k++)
 			if (k != menu.getTab())
 				PostOfficeStyle.tab(graphics, tabX(k), topPos, k, TAB_ICONS[k], false);
-		PostOfficeStyle.panel(graphics, leftPos, topPos);
+		PostOfficeStyle.panel(graphics, leftPos, topPos, imageWidth);
 		PostOfficeStyle.tab(graphics, tabX(menu.getTab()), topPos, menu.getTab(), TAB_ICONS[menu.getTab()], true);
 
 		for (Slot slot : menu.slots) {
@@ -181,18 +194,18 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 		if (menu.getTab() == MailboxMenu.TAB_SEND)
 			renderLedger(graphics, mouseX, mouseY);
 		if (menu.getTab() == MailboxMenu.TAB_SETTINGS)
-			PostOfficeStyle.textField(graphics, leftPos + 8, topPos + 30);
+			PostOfficeStyle.textField(graphics, leftPos + 8, topPos + 30, FIELD_WIDTH);
 	}
 
 	private void renderLedger(GuiGraphics graphics, int mouseX, int mouseY) {
 		int x = leftPos + LEDGER_X, y = topPos + LEDGER_Y;
-		PostOfficeStyle.ledger(graphics, x, y);
+		PostOfficeStyle.ledger(graphics, x, y, LEDGER_WIDTH);
 		if (!hasName()) {
-			graphics.drawWordWrap(font, Component.translatable("gui.postrider.mailbox.name_first"), x + 12, y + 3, 84, PostOfficeStyle.INK_ERROR);
+			graphics.drawWordWrap(font, Component.translatable("gui.postrider.mailbox.name_first"), x + 12, y + 3, LEDGER_WIDTH - 16, PostOfficeStyle.INK_ERROR);
 			return;
 		}
 		if (addresses.isEmpty()) {
-			graphics.drawWordWrap(font, Component.translatable("gui.postrider.mailbox.no_addresses"), x + 12, y + 3, 84, PostOfficeStyle.PENCIL);
+			graphics.drawWordWrap(font, Component.translatable("gui.postrider.mailbox.no_addresses"), x + 12, y + 3, LEDGER_WIDTH - 16, PostOfficeStyle.PENCIL);
 			return;
 		}
 		int hovered = ledgerRowAt(mouseX, mouseY);
@@ -200,16 +213,16 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 			String address = addresses.get(scroll + row);
 			int rowY = y + 1 + row * PostOfficeStyle.LEDGER_ROW;
 			if (address.equals(selected))
-				graphics.fill(x + 1, rowY, x + PostOfficeStyle.LEDGER_WIDTH - 1, rowY + PostOfficeStyle.LEDGER_ROW, PostOfficeStyle.LEDGER_SELECTED);
+				graphics.fill(x + 1, rowY, x + LEDGER_WIDTH - 1, rowY + PostOfficeStyle.LEDGER_ROW, PostOfficeStyle.LEDGER_SELECTED);
 			else if (row == hovered)
-				graphics.fill(x + 1, rowY, x + PostOfficeStyle.LEDGER_WIDTH - 1, rowY + PostOfficeStyle.LEDGER_ROW, PostOfficeStyle.LEDGER_HOVER);
-			graphics.drawString(font, font.plainSubstrByWidth(address, 84), x + 12, rowY + 1, PostOfficeStyle.INK, false);
+				graphics.fill(x + 1, rowY, x + LEDGER_WIDTH - 1, rowY + PostOfficeStyle.LEDGER_ROW, PostOfficeStyle.LEDGER_HOVER);
+			graphics.drawString(font, font.plainSubstrByWidth(address, LEDGER_WIDTH - 16), x + 12, rowY + 1, PostOfficeStyle.INK, false);
 		}
 		if (addresses.size() > LEDGER_ROWS) {
 			int track = PostOfficeStyle.LEDGER_HEIGHT - 4;
 			int thumb = Math.max(6, track * LEDGER_ROWS / addresses.size());
 			int thumbY = y + 2 + (track - thumb) * scroll / Math.max(1, addresses.size() - LEDGER_ROWS);
-			graphics.fill(x + PostOfficeStyle.LEDGER_WIDTH - 4, thumbY, x + PostOfficeStyle.LEDGER_WIDTH - 2, thumbY + thumb, 0xAA8A6E45);
+			graphics.fill(x + LEDGER_WIDTH - 4, thumbY, x + LEDGER_WIDTH - 2, thumbY + thumb, 0xAA8A6E45);
 		}
 	}
 
@@ -221,42 +234,56 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 			case MailboxMenu.TAB_SETTINGS -> Component.translatable("gui.postrider.mailbox.tab.settings");
 			default -> hasName() ? Component.literal(name) : Component.translatable("container.postrider.mailbox");
 		};
-		PostOfficeStyle.plaque(graphics, font, 0, 0, plaque);
+		PostOfficeStyle.plaque(graphics, font, 0, 0, imageWidth, plaque);
+		cutShort = null;
 
 		if (tab == MailboxMenu.TAB_INBOX) {
 			int count = inboxCount();
 			Component status = count == 0 ? Component.translatable("gui.postrider.mailbox.inbox_empty")
 				: count == 1 ? Component.translatable("gui.postrider.mailbox.inbox_one")
 				: Component.translatable("gui.postrider.mailbox.inbox_many", count);
-			PostOfficeStyle.write(graphics, font, status, 8, 80, PostOfficeStyle.INK);
+			PostOfficeStyle.write(graphics, font, status, MailboxMenu.INVENTORY_X, 80, PostOfficeStyle.INK);
 		} else if (tab == MailboxMenu.TAB_SEND) {
 			if (selected != null) {
-				Component to = Component.translatable("gui.postrider.mailbox.to", font.plainSubstrByWidth(selected, 70));
+				Component to = Component.translatable("gui.postrider.mailbox.to", font.plainSubstrByWidth(selected, LEDGER_WIDTH - 20));
 				PostOfficeStyle.write(graphics, font, to, LEDGER_X, 68, PostOfficeStyle.INK);
 			}
 			MailboxInfoCache.Notice notice = MailboxInfoCache.notice();
 			if (notice != null)
-				graphics.drawWordWrap(font, notice.message(), LEDGER_X, SEND_NOTICE_Y, SEND_NOTICE_WIDTH, notice.good() ? PostOfficeStyle.INK : PostOfficeStyle.INK_ERROR);
+				writeLines(graphics, notice.message(), LEDGER_X, SEND_NOTICE_Y, SEND_NOTICE_WIDTH, SEND_NOTICE_LINES,
+					notice.good() ? PostOfficeStyle.INK : PostOfficeStyle.INK_ERROR);
 		} else if (tab == MailboxMenu.TAB_SETTINGS) {
 			PostOfficeStyle.write(graphics, font, Component.translatable("gui.postrider.mailbox.address"), 8, 20, PostOfficeStyle.INK);
 			if (!ownerName.isEmpty())
-				PostOfficeStyle.write(graphics, font, Component.translatable("gui.postrider.mailbox.owner", ownerName), 70, 52, PostOfficeStyle.PENCIL);
+				writeLines(graphics, Component.translatable("gui.postrider.mailbox.owner", ownerName), OWNER_X, 52, OWNER_WIDTH, 1, PostOfficeStyle.PENCIL);
 			graphics.drawWordWrap(font, Component.translatable("gui.postrider.mailbox.name_rules", MailboxNames.MIN_LENGTH, MailboxNames.MAX_LENGTH),
 				8, RULES_Y, RULES_WIDTH, PostOfficeStyle.PENCIL);
 			Component problem = nameProblem();
 			MailboxInfoCache.Notice notice = MailboxInfoCache.notice();
 			if (problem != null)
-				PostOfficeStyle.write(graphics, font, fit(problem, RULES_WIDTH), 8, STATUS_Y, PostOfficeStyle.INK_ERROR);
+				writeLines(graphics, problem, 8, STATUS_Y, RULES_WIDTH, 1, PostOfficeStyle.INK_ERROR);
 			else if (notice != null)
-				PostOfficeStyle.write(graphics, font, fit(notice.message(), RULES_WIDTH), 8, STATUS_Y, notice.good() ? PostOfficeStyle.INK : PostOfficeStyle.INK_ERROR);
+				writeLines(graphics, notice.message(), 8, STATUS_Y, RULES_WIDTH, 1, notice.good() ? PostOfficeStyle.INK : PostOfficeStyle.INK_ERROR);
 		}
-		PostOfficeStyle.write(graphics, font, playerInventoryTitle, 8, MailboxMenu.INVENTORY_LABEL_Y, PostOfficeStyle.CREAM);
+		PostOfficeStyle.write(graphics, font, playerInventoryTitle, MailboxMenu.INVENTORY_X, MailboxMenu.INVENTORY_LABEL_Y, PostOfficeStyle.CREAM);
 	}
 
-	/** A message cut to fit on one line of the parchment. */
-	private Component fit(Component message, int width) {
+	/**
+	 * A message written in at most this many lines of this width; if it doesn't fit, it's cut short with "..." and
+	 * hovering over it shows the whole of it.
+	 */
+	private void writeLines(GuiGraphics graphics, Component message, int x, int y, int width, int maxLines, int color) {
 		String text = message.getString();
-		return font.width(text) <= width ? message : Component.literal(font.plainSubstrByWidth(text, width - font.width("...")) + "...");
+		List<String> lines = PostOfficeStyle.clamp(text, width, maxLines, font::width);
+		for (int i = 0; i < lines.size(); i++)
+			PostOfficeStyle.write(graphics, font, Component.literal(lines.get(i)), x, y + i * font.lineHeight, color);
+		if (PostOfficeStyle.wrap(text, width, font::width).size() > maxLines) {
+			cutShort = message;
+			cutX = x;
+			cutY = y;
+			cutWidth = width;
+			cutHeight = lines.size() * font.lineHeight;
+		}
 	}
 
 	@Override
@@ -265,6 +292,9 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 		int tab = tabAt(mouseX, mouseY);
 		if (tab >= 0)
 			graphics.renderTooltip(font, Component.translatable("gui.postrider.mailbox.tab." + TAB_KEYS[tab]), mouseX, mouseY);
+		else if (cutShort != null && mouseX >= leftPos + cutX && mouseX < leftPos + cutX + cutWidth && mouseY >= topPos + cutY
+				&& mouseY < topPos + cutY + cutHeight)
+			graphics.renderTooltip(font, font.split(cutShort, TOOLTIP_WIDTH), mouseX, mouseY);
 		else
 			renderTooltip(graphics, mouseX, mouseY);
 	}
@@ -286,7 +316,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 
 	private int ledgerRowAt(double mouseX, double mouseY) {
 		int x = leftPos + LEDGER_X, y = topPos + LEDGER_Y + 1;
-		if (mouseX < x || mouseX >= x + PostOfficeStyle.LEDGER_WIDTH || mouseY < y || mouseY >= y + LEDGER_ROWS * PostOfficeStyle.LEDGER_ROW)
+		if (mouseX < x || mouseX >= x + LEDGER_WIDTH || mouseY < y || mouseY >= y + LEDGER_ROWS * PostOfficeStyle.LEDGER_ROW)
 			return -1;
 		int row = (int) (mouseY - y) / PostOfficeStyle.LEDGER_ROW;
 		return scroll + row < addresses.size() ? row : -1;

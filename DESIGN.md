@@ -99,4 +99,4 @@ A Post Rider tab (tools/gen_advancements.py writes them; one `postrider:post_eve
 - `potionsPerDay` (default 2, 0-10).
 - `bargeSpeed` (default 8 blocks/s, 2-16).
 - `firstCollection` / `lastCollection` (default 6 and 18): the hours riders set out; mail posted outside them waits, and the sender is told when it'll be collected. Riders on the road still camp from dusk to 6am.
-- Saving an address and sending mail report back on the mailbox screen itself (a hotbar message would be hidden behind it).
+- Saving an address and sending mail report back on the mailbox screen itself (a hotbar message would be hidden behind it). The mailbox screen is 248 pixels wide (wider than a chest, the panel art stretched between its ends) so addresses and messages have room; a message that still doesn't fit its lines is cut short with "..." and shown whole when you hover over it.
