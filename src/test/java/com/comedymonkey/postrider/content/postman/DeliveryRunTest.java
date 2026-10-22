@@ -168,4 +168,18 @@ class DeliveryRunTest {
 		assertTrue(PostmanHorse.RIDERLESS_TICKS > PostmanEntity.MOUNTS_AFTER, "time for him to climb on");
 		assertTrue(PostmanHorse.RIDERLESS_TICKS <= 10 * 20);
 	}
+
+	@Test
+	void whenStuckHeTriesTheNearestSpotsFirstAndOnlyThenFurtherOut() {
+		List<int[]> offsets = DeliveryRun.jumpOffsets();
+		double last = 0;
+		for (int[] offset : offsets) {
+			double distance = Math.hypot(offset[0], offset[1]);
+			assertTrue(distance >= last - 1.5, "nearer rings come first: " + offset[0] + "," + offset[1] + " after " + last);
+			last = Math.max(last, distance);
+		}
+		assertTrue(Math.hypot(offsets.get(0)[0], offsets.get(0)[1]) <= 2.0, "a couple of blocks away to start with");
+		assertEquals(24, DeliveryRun.JUMP_RADII[DeliveryRun.JUMP_RADII.length - 1], "and no further than this before the old long jumps");
+		assertTrue(offsets.size() >= 8 * DeliveryRun.JUMP_RADII.length);
+	}
 }

@@ -502,6 +502,48 @@ public final class Navigator {
 		return false;
 	}
 
+	/** What a search from a spot found: the way (empty if none), how much was looked at, and whether it was to the mailbox. */
+	public record Probe(LocalPlanner.Status status, List<LocalPlanner.Step> steps, int expanded, boolean toMailbox) {
+		public boolean found() {
+			return status == LocalPlanner.Status.FOUND;
+		}
+	}
+
+	/**
+	 * A search there and then (not spread over ticks) from a spot to where the stretch was going, or the mailbox,
+	 * looking at up to {@code budget} places: for getting unstuck, and for the in-world trials.
+	 */
+	public Probe probe(ServerLevel level, int x, int y, int z, boolean mounted, Vec3 target, int budget) {
+		boolean toMailbox = localGoal == null || localIsFinal;
+		LocalPlanner.Goal goal = toMailbox ? new LocalPlanner.Goal(target.x, Mth.floor(target.y), target.z, MAILBOX_RADIUS, 3)
+			: LocalPlanner.Goal.anyHeight(localGoal.x, localGoal.z, WAYPOINT_RADIUS);
+		LocalPlanner search = new LocalPlanner(new LevelTerrain(level), x, y, z, mounted, goal, true);
+		LocalPlanner.Status status = search.step(budget);
+		while (status == LocalPlanner.Status.RUNNING && search.expanded() < budget)
+			status = search.step(budget - search.expanded());
+		return new Probe(status, search.steps(), search.expanded(), toMailbox);
+	}
+
+	/** As {@link #probe}, from where he (or his horse) stands now. */
+	public Probe probeFromHere(PostmanEntity rider, ServerLevel level, Vec3 target, int budget) {
+		Entity body = rider.getVehicle() instanceof PostmanHorse horse ? horse : rider;
+		boolean mounted = body != rider;
+		int x = mounted ? Mth.floor(body.getX() - 0.5) : Mth.floor(body.getX());
+		int z = mounted ? Mth.floor(body.getZ() - 0.5) : Mth.floor(body.getZ());
+		return probe(level, x, Mth.floor(body.getY() + 1e-3), z, mounted, target, budget);
+	}
+
+	/** Takes the way a probe found from where he is as the stretch to follow now. */
+	public void follow(PostmanEntity rider, Probe way, long now) {
+		local = null;
+		steps = way.steps();
+		stepsAreFinal = way.toMailbox() && way.found();
+		segmentStart = 0;
+		segmentEnd = segmentEnd(steps, 0);
+		retryAt = now + 20;
+		startSegment(rider);
+	}
+
 	private void startStretch(PostmanEntity rider, ServerLevel level, Vec3 target, long now) {
 		Entity body = rider.getVehicle() instanceof PostmanHorse horse ? horse : rider;
 		boolean mounted = body != rider;

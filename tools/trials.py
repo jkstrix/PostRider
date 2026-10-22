@@ -15,7 +15,7 @@ import sys
 LATEST = os.path.join("run-gametest", "trials.jsonl")
 BASELINE = os.path.join("docs", "trials", "baseline.jsonl")
 # What's compared, and whether lower is better
-COLUMNS = [("roadTicks", True), ("launches", True), ("jumpsFree", True), ("mostVisits", True), ("longestStill", True),
+COLUMNS = [("roadTicks", True), ("launches", True), ("jumpsFree", True), ("waysFollowed", True), ("unneededJumps", True), ("mostVisits", True), ("longestStill", True),
            ("routeCells", True), ("stretches", True), ("stretchesFailed", True), ("stretchBlocks", True)]
 # A change this big (as a share of the baseline) is worth pointing out
 NOTABLE = 0.2
@@ -65,6 +65,14 @@ def main():
         for name in baseline:
             if name not in latest:
                 print(name.ljust(width) + "(not in this run)")
+    jumps = [(name, j) for name, row in latest.items() for j in row.get("jumps", [])]
+    if jumps:
+        print()
+        print("jumps free:")
+        for name, j in jumps:
+            print("  %s: %s, %s at %s: %s" % (name, j.get("stage"), j.get("why"), j.get("from"), j.get("diagnosis")))
+    print()
+    print("(scenes land at random coordinates, so one run's numbers wander: compare several runs before drawing conclusions)")
     if worse:
         print()
         print("worse than the baseline:")

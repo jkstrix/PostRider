@@ -161,6 +161,16 @@ public class DeliveryRun {
 		return navigator.stats();
 	}
 
+	/** A jump free: where he was stuck and why, where he went, and whether a way through existed from there (then it wasn't needed). */
+	public record Jump(Stage stage, String why, BlockPos from, BlockPos to, boolean wayExisted, String diagnosis) {}
+
+	private final List<Jump> jumps = new ArrayList<>();
+
+	/** The jumps free this trip, in order (not saved; for the in-world trials). */
+	public List<Jump> jumps() {
+		return List.copyOf(jumps);
+	}
+
 	/** What the mail has been through so far. */
 	public JourneyNotes notes() {
 		return new JourneyNotes(crossedWater, nightsOut);
@@ -977,8 +987,11 @@ public class DeliveryRun {
 		if (stageTicks % 20 != 0)
 			return false;
 		long now = level.getGameTime();
-		if (!progress.isStuck(distance, now) && !progress.isStalled(rider.getX(), rider.getZ(), now))
+		boolean noProgress = progress.isStuck(distance, now);
+		boolean stalled = progress.isStalled(rider.getX(), rider.getZ(), now);
+		if (!noProgress && !stalled)
 			return false;
+		String why = noProgress ? "no nearer in " + Journey.Progress.PATIENCE / 20 + " s" : "not moved in " + Journey.Progress.STALL_TICKS / 20 + " s";
 		if (progress.outOfTries()) {
 			fail(rider, level, LostCause.STUCK, rider.getName().getString()
 				+ " lost " + rider.possessive() + " way in the wilds and had to turn back.", null, rider.blockPosition());
@@ -997,18 +1010,42 @@ public class DeliveryRun {
 				return true;
 			}
 		}
-		Vec3 free = freeSpot(level, rider.position(), target, rider.level().canSeeSky(rider.blockPosition()));
+		Entity mover = rider.getVehicle() != null ? rider.getVehicle() : rider;
+		String stuck = "stuck at " + Navigator.spot(mover.position()) + " (" + stage + ", " + why + "; " + navigator.state() + "; "
+			+ (rider.getNavigation().isDone() ? "not moving" : "moving") + ")";
+		Vec3 free = null;
+		String found = "on the water";
+		boolean wayFromHere = false;
+		if (stage == Stage.RIDING) {
+			// Is there a way through the blocks from where he stands? Then he follows it, and nobody is jumped anywhere
+			Navigator.Probe here = navigator.probeFromHere(rider, level, target, LocalPlanner.MAX_NODES);
+			wayFromHere = here.found();
+			if (wayFromHere && !triedFollowingNear(mover.position())) {
+				lastFollowSpot = mover.position();
+				waysFollowed++;
+				logRoute(rider, stuck + "; a way through the blocks existed (" + here.steps().size() + " steps): following it rather than jumping");
+				navigator.follow(rider, here, now);
+				progress.unstuck(distance, now);
+				return true;
+			}
+			found = wayFromHere ? "a way existed from here but following it didn't work" : "no way through from here (" + here.expanded() + " looked at)";
+			// Failing that, the nearest safe spot a way does lead on from: a hop of a few blocks, usually
+			free = nearestWayOut(rider, level, target);
+		}
+		if (free == null)
+			free = freeSpot(level, rider.position(), target, rider.level().canSeeSky(rider.blockPosition()));
 		// Nowhere safe to jump to this time (lava all round, say); it still counts as a try
 		if (free == null) {
 			progress.unstuck(distance, level.getGameTime());
 			return true;
 		}
-		Entity mover = rider.getVehicle() != null ? rider.getVehicle() : rider;
-		logRoute(rider, "stuck at " + Navigator.spot(mover.position()) + " (" + stage + "; " + navigator.state() + "; "
-			+ (rider.getNavigation().isDone() ? "not moving" : "moving") + "), jumped free to " + Navigator.spot(free));
+		String diagnosis = found + "; jumped " + Math.round(Journey.horizontalDistance(mover.position(), free)) + " blocks";
+		logRoute(rider, stuck + "; " + diagnosis + ", to " + Navigator.spot(free));
+		jumps.add(new Jump(stage, why, BlockPos.containing(mover.position()), BlockPos.containing(free), wayFromHere, diagnosis));
 		PostmanEffects.puff(level, mover);
 		mover.teleportTo(free.x, free.y, free.z);
 		jumpsFree++;
+		lastFollowSpot = null;
 		PostmanEffects.puff(level, mover);
 		rider.getNavigation().stop();
 		aimCooldown = 0;
@@ -1021,10 +1058,68 @@ public class DeliveryRun {
 		return true;
 	}
 
+	/** How far out he looks for somewhere to jump to, nearest first; the long jumps below only past all of these. */
+	public static final int[] JUMP_RADII = {2, 3, 4, 6, 8, 12, 16, 24};
+	/** Places looked at by each search from a spot he might jump to. */
+	public static final int JUMP_PROBE_BUDGET = 4000;
+	/** Having followed a way found from about here once, he doesn't try that again from within this far. */
+	public static final double FOLLOW_AGAIN_DISTANCE = 4.0;
+
+	/** Where he last followed a way found from where he stood, rather than jumping. */
+	@Nullable
+	private Vec3 lastFollowSpot;
+	private int waysFollowed;
+
+	/** How many times this trip he's got unstuck by following a way found from where he stood, with no jump. */
+	public int waysFollowed() {
+		return waysFollowed;
+	}
+
+	private boolean triedFollowingNear(Vec3 here) {
+		return lastFollowSpot != null && Journey.horizontalDistance(lastFollowSpot, here) < FOLLOW_AGAIN_DISTANCE;
+	}
+
+	/** Spots to try round a place, nearest first: at each radius, eight ways round (sixteen further out). */
+	public static List<int[]> jumpOffsets() {
+		List<int[]> offsets = new ArrayList<>();
+		for (int radius : JUMP_RADII) {
+			int ways = radius >= 8 ? 16 : 8;
+			for (int i = 0; i < ways; i++) {
+				double angle = 2 * Math.PI * i / ways;
+				offsets.add(new int[] {(int) Math.round(radius * Math.cos(angle)), (int) Math.round(radius * Math.sin(angle))});
+			}
+		}
+		return offsets;
+	}
+
 	/**
-	 * Out of a cave: straight up to the surface; otherwise the best of {@link Journey#escapes} (a stretch ahead, a
-	 * shorter hop, anywhere round about), on top of whatever is there. Never onto water, lava, fire and the like: null
-	 * if there's nowhere safe at all.
+	 * The nearest safe spot round him that a way through the blocks leads on from (each is searched before he's
+	 * put there); null if none of the usual spots has one.
+	 */
+	@Nullable
+	private Vec3 nearestWayOut(PostmanEntity rider, ServerLevel level, Vec3 target) {
+		Entity body = rider.getVehicle() != null ? rider.getVehicle() : rider;
+		boolean mounted = rider.getHorse() != null;
+		LevelTerrain terrain = new LevelTerrain(level);
+		int fromY = Mth.floor(body.getY() + 1e-3);
+		for (int[] offset : jumpOffsets()) {
+			double cx = body.getX() + offset[0], cz = body.getZ() + offset[1];
+			int x = mounted ? Mth.floor(cx - 0.5) : Mth.floor(cx), z = mounted ? Mth.floor(cz - 0.5) : Mth.floor(cz);
+			for (int y = fromY + 3; y >= fromY - 6; y--) {
+				if (!LocalPlanner.stands(terrain, mounted, x, y, z))
+					continue;
+				if (navigator.probe(level, x, y, z, mounted, target, JUMP_PROBE_BUDGET).found())
+					return new Vec3(x + (mounted ? 1.0 : 0.5), y, z + (mounted ? 1.0 : 0.5));
+				break;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * The long jumps, when nothing nearer will do. Out of a cave: straight up to the surface; otherwise the best of
+	 * {@link Journey#escapes} (a stretch ahead, a shorter hop, anywhere round about), on top of whatever is there.
+	 * Never onto water, lava, fire and the like: null if there's nowhere safe at all.
 	 */
 	@Nullable
 	static Vec3 freeSpot(ServerLevel level, Vec3 from, Vec3 target, boolean underOpenSky) {

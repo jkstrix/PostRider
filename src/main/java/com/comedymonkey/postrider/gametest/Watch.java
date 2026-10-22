@@ -130,7 +130,7 @@ final class Watch {
 	String describe() {
 		long road = deliveredAt >= 0 && setOff >= 0 ? deliveredAt - setOff : -1;
 		return (road >= 0 ? road + " ticks on the road" : "still out after " + ticks + " ticks")
-			+ ", " + launches + " barge launches, " + jumpsFree() + " jumps free, busiest patch " + mostVisits + " visits"
+			+ ", " + launches + " barge launches, " + jumpsFree() + " jumps free (" + unneededJumps() + " not needed), " + (run == null ? 0 : run.waysFollowed()) + " ways followed, busiest patch " + mostVisits + " visits"
 			+ (mostVisits > 1 ? " (" + busiest + ")" : "") + ", longest stand " + longestStill + " ticks"
 			+ (run == null ? "" : ", route finding " + run.routeStats())
 			+ (rider == null ? "" : ", last at " + lastSeen() + ", " + rider.getName().getString() + " " + (run == null ? "" : run.stage()));
@@ -144,7 +144,11 @@ final class Watch {
 			+ ",\"launches\":" + launches + ",\"jumpsFree\":" + jumpsFree() + ",\"mostVisits\":" + mostVisits + ",\"longestStill\":" + longestStill
 			+ ",\"routesAsked\":" + stats.routesAsked() + ",\"routesFound\":" + stats.routesFound() + ",\"routeCells\":" + stats.routeCells()
 			+ ",\"stretches\":" + stats.stretches() + ",\"stretchesFailed\":" + stats.stretchesFailed() + ",\"stretchBlocks\":" + stats.stretchBlocks()
-			+ ",\"waded\":" + (waded != null) + "}";
+			+ ",\"waysFollowed\":" + (run == null ? 0 : run.waysFollowed()) + ",\"unneededJumps\":" + unneededJumps() + ",\"jumps\":[" + (run == null ? "" : run.jumps().stream()
+				.map(j -> "{\"stage\":" + quoted(j.stage().name()) + ",\"why\":" + quoted(j.why()) + ",\"needed\":" + !j.wayExisted()
+					+ ",\"from\":" + quoted(scene.helper.relativePos(j.from()).toShortString()) + ",\"diagnosis\":" + quoted(j.diagnosis()) + "}")
+				.collect(java.util.stream.Collectors.joining(",")))
+			+ "],\"waded\":" + (waded != null) + "}";
 	}
 
 	private boolean feetWet(Entity entity) {
@@ -153,5 +157,14 @@ final class Watch {
 
 		int jumpsFree() {
 		return run == null ? 0 : run.jumpsFree();
+	}
+
+	/** Jumps free that a full search from the spot showed weren't needed. */
+	int unneededJumps() {
+		return run == null ? 0 : (int) run.jumps().stream().filter(DeliveryRun.Jump::wayExisted).count();
+	}
+
+	private static String quoted(String text) {
+		return "\"" + text.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
 	}
 }
