@@ -174,6 +174,16 @@ class CoarsePlannerTest {
 	}
 
 	@Test
+	void theMailboxsOwnCellCanNeverBeMarkedImpassable() {
+		// A shore he had to put out from again can be marked, cells round it and all; the mailbox's cell among them
+		Map open = new Map(".".repeat(30), ".".repeat(30), ".".repeat(30));
+		Set<Long> blocked = new HashSet<>(Set.of(CoarsePlanner.key(28, 1), CoarsePlanner.key(27, 1), CoarsePlanner.key(28, 0)));
+		Plan plan = plan(open, 2, 1, 28, 1, blocked);
+		assertNotNull(plan, "a way to the mailbox is always found");
+		assertEquals(CoarsePlanner.cellOf(plan.legs().get(0).last().x), 28);
+	}
+
+	@Test
 	void heWaitsForTerrainStillBeingSurveyedAndCarriesOn() {
 		Set<Long> asked = new HashSet<>();
 		boolean[] arrived = {false};

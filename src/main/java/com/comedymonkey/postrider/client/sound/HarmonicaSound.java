@@ -1,7 +1,6 @@
 package com.comedymonkey.postrider.client.sound;
 
-import java.util.Collections;
-import java.util.Set;
+import java.util.Map;
 import java.util.WeakHashMap;
 
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
@@ -10,6 +9,7 @@ import com.comedymonkey.postrider.registry.ModSounds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.sounds.SoundSource;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
@@ -18,8 +18,10 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
  * who comes along mid-tune, and stops the moment he does, without touching any other rider's tune.
  */
 public class HarmonicaSound extends AbstractTickableSoundInstance {
-	/** The riders whose tune is playing here already. */
-	private static final Set<PostmanEntity> PLAYING = Collections.newSetFromMap(new WeakHashMap<>());
+	/** Each rider's tune, as last struck up here. */
+	private static final Map<PostmanEntity, HarmonicaSound> PLAYING = new WeakHashMap<>();
+	/** A tune the sound engine didn't take (the volume was down, say) is tried again this often. */
+	private static final int RETRY_TICKS = 20;
 
 	private final PostmanEntity rider;
 
@@ -35,8 +37,16 @@ public class HarmonicaSound extends AbstractTickableSoundInstance {
 
 	/** Strikes up the tune for any rider who has started playing. */
 	public static void onEntityTick(EntityTickEvent.Post event) {
-		if (event.getEntity() instanceof PostmanEntity rider && rider.level().isClientSide && plays(rider) && PLAYING.add(rider))
-			Minecraft.getInstance().getSoundManager().play(new HarmonicaSound(rider));
+		if (!(event.getEntity() instanceof PostmanEntity rider) || !rider.level().isClientSide || !plays(rider))
+			return;
+		SoundManager sounds = Minecraft.getInstance().getSoundManager();
+		HarmonicaSound current = PLAYING.get(rider);
+		// Struck up once he starts; and again if the engine didn't take it, or dropped it (a resource reload)
+		if (current == null || !sounds.isActive(current) && rider.tickCount % RETRY_TICKS == 0) {
+			HarmonicaSound tune = new HarmonicaSound(rider);
+			PLAYING.put(rider, tune);
+			sounds.play(tune);
+		}
 	}
 
 	private static boolean plays(PostmanEntity rider) {

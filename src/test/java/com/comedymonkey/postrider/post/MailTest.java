@@ -24,7 +24,6 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.Level;
 
 class MailTest {
@@ -52,7 +51,7 @@ class MailTest {
 	void aLetterWithAnythingElseArrivesInsideAParcel() {
 		ItemStack mail = Mail.wrap(delivery(letter("Here's the iron"), new ItemStack(Items.IRON_INGOT, 20)), 5);
 		assertTrue(mail.is(ModItems.PARCEL.get()));
-		List<ItemStack> inside = mail.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).nonEmptyStream().toList();
+		List<ItemStack> inside = ParcelItem.contents(mail);
 		assertEquals(2, inside.size());
 		assertTrue(inside.get(0).get(ModDataComponents.LETTER.get()).postmark().isPresent());
 		assertEquals(20, inside.get(1).getCount());
@@ -62,7 +61,7 @@ class MailTest {
 	void theTimeItTookGoesOnTheLabelAndPostmarks() {
 		ItemStack parcel = Mail.wrap(delivery(letter("Hi"), new ItemStack(Items.BREAD)), 7, 27000);
 		assertEquals(27000, parcel.get(ModDataComponents.PARCEL_LABEL.get()).travelTicks());
-		ItemStack inside = parcel.get(DataComponents.CONTAINER).nonEmptyStream().findFirst().orElseThrow();
+		ItemStack inside = ParcelItem.contents(parcel).get(0);
 		assertEquals(27000, inside.get(ModDataComponents.LETTER.get()).postmark().orElseThrow().travelTicks());
 
 		ItemStack alone = Mail.wrap(delivery(letter("Hi")), 7, 1500);

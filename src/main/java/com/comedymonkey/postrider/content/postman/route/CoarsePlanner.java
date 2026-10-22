@@ -389,7 +389,7 @@ public final class CoarsePlanner {
 		void expand(Node from) {
 			for (int[] d : DIRECTIONS) {
 				int x = from.x + d[0], z = from.z + d[1];
-				if (blocked.contains(key(x, z)))
+				if (isBlocked(x, z))
 					continue;
 				boolean diagonal = d[0] != 0 && d[1] != 0;
 				// No squeezing between two cells he couldn't cross
@@ -417,7 +417,12 @@ public final class CoarsePlanner {
 
 		boolean impassable(int x, int z) {
 			Cell cell = cells.cell(x, z);
-			return cell == null || cell.isVoid() || blocked.contains(key(x, z)) || !barge && cell.water();
+			return cell == null || cell.isVoid() || isBlocked(x, z) || !barge && cell.water();
+		}
+
+		/** Whether a cell was found impassable this trip; never the goal, or the plan could never end. */
+		boolean isBlocked(int x, int z) {
+			return (x != goalX || z != goalZ) && blocked.contains(key(x, z));
 		}
 
 		void push(Node node) {

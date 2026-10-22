@@ -326,14 +326,15 @@ public final class Navigator {
 		boolean hasPlan = plan != null && localGoal != null;
 		CoarsePlanner.Leg current = currentLeg();
 		boolean toWater = current != null && current.kind() == CoarsePlanner.LegKind.WATER;
-		Failed what = whenStretchFails(localIsFinal, water != null, hasPlan, toWater, blocked.size());
+		Failed what = whenStretchFails(localIsFinal, water != null, hasPlan, toWater, coarse != null, blocked.size());
 		log.accept("no way through the blocks from " + spot(rider.position()) + " towards " + (localGoal != null ? spot(localGoal) : "the mailbox")
 			+ ": " + what.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '));
 		switch (what) {
 			case BARGE -> {
 				// Where he couldn't get to still goes down as impassable, so the route worked out afloat doesn't
 				// bring him straight back to the same dead end
-				if (hasPlan && !localIsFinal)
+				// (not the water of a water leg: that's where he's going, not what stopped him)
+				if (hasPlan && !localIsFinal && !toWater)
 					blocked.add(CoarsePlanner.key(CoarsePlanner.cellOf(localGoal.x), CoarsePlanner.cellOf(localGoal.z)));
 				launchAim = water;
 				return Action.LAUNCH;
@@ -394,12 +395,14 @@ public final class Navigator {
 	 * thought (a river narrower than its cells can slip through it as land); otherwise the plan is redone round the
 	 * blockage, unless it was the mailbox he couldn't reach or the water at the end of a land leg.
 	 */
-	public static Failed whenStretchFails(boolean toMailbox, boolean waterToLaunchOn, boolean hasPlan, boolean toWater, int blockedSoFar) {
+	public static Failed whenStretchFails(boolean toMailbox, boolean waterToLaunchOn, boolean hasPlan, boolean toWater, boolean planning,
+			int blockedSoFar) {
 		if (waterToLaunchOn)
 			return Failed.BARGE;
 		// Heading down to a water leg and no nearer: the water is what's in the way, so it's no use marking that part
-		// of the plan blocked; he tries again in a moment
-		if (toMailbox || !hasPlan || toWater)
+		// of the plan blocked; he tries again in a moment. Likewise while a new long-range plan is still being worked
+		// out (it can take a while): starting it over each time would mean it never finishes
+		if (toMailbox || !hasPlan || toWater || planning)
 			return Failed.CARRY_ON;
 		return blockedSoFar + 1 > MAX_BLOCKED ? Failed.DROP_PLAN : Failed.REPLAN;
 	}
@@ -625,7 +628,7 @@ public final class Navigator {
 		// Putting out again soon after landing, close by: that shore led nowhere, so he doesn't land there again
 		long now = level.getGameTime();
 		if (lastLanding != null && landedBackSoon(lastLanding, landedAt, from, now)) {
-			for (long cell : cellsAround(lastLanding))
+			for (long cell : shoreAround(lastLanding, TerrainSurvey.of(level)))
 				blocked.add(cell);
 			log.accept("the shore at " + spot(lastLanding) + " led nowhere; he won't land there again");
 		}
@@ -637,7 +640,6 @@ public final class Navigator {
 		waterPath = List.of();
 	}
 
-	/** Ashore again: on to the leg after the water. */
 	/** Where and when he last stepped ashore. */
 	@Nullable
 	private Vec3 lastLanding;
@@ -651,16 +653,23 @@ public final class Navigator {
 		return now - landedAt <= LANDED_BACK_TICKS && Journey.horizontalDistance(landing, launch) <= LANDED_BACK_DISTANCE;
 	}
 
-	/** The long-range plan's cells round a place: the one it's in and those next to it. */
-	public static List<Long> cellsAround(Vec3 at) {
+	/**
+	 * The long-range plan's cells of shore round a place: the one it's in and those next to it that are land (never
+	 * the water, which is what he leaves by).
+	 */
+	public static List<Long> shoreAround(Vec3 at, CoarsePlanner.Cells cells) {
 		int cx = CoarsePlanner.cellOf(at.x), cz = CoarsePlanner.cellOf(at.z);
-		List<Long> cells = new ArrayList<>();
+		List<Long> shore = new ArrayList<>();
 		for (int dx = -1; dx <= 1; dx++)
-			for (int dz = -1; dz <= 1; dz++)
-				cells.add(CoarsePlanner.key(cx + dx, cz + dz));
-		return cells;
+			for (int dz = -1; dz <= 1; dz++) {
+				CoarsePlanner.Cell cell = cells.cell(cx + dx, cz + dz);
+				if (cell != null && !cell.water())
+					shore.add(CoarsePlanner.key(cx + dx, cz + dz));
+			}
+		return shore;
 	}
 
+	/** Ashore again: on to the leg after the water. */
 	public void landed(Vec3 at, long now) {
 		lastLanding = at;
 		landedAt = now;

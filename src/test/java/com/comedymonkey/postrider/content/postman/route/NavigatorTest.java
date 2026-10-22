@@ -98,14 +98,16 @@ class NavigatorTest {
 	@Test
 	void waterHeCantPlanPastMeansTheBargeEvenIfTheLongRangePlanCalledItLand() {
 		// A river narrower than the long-range plan's cells: no way through the blocks, open water ahead
-		assertEquals(Navigator.Failed.BARGE, Navigator.whenStretchFails(false, true, true, false, 0));
-		assertEquals(Navigator.Failed.BARGE, Navigator.whenStretchFails(true, true, true, false, 0), "even with the mailbox over the water");
+		assertEquals(Navigator.Failed.BARGE, Navigator.whenStretchFails(false, true, true, false, false, 0));
+		assertEquals(Navigator.Failed.BARGE, Navigator.whenStretchFails(true, true, true, false, false, 0), "even with the mailbox over the water");
 		// No water: the plan is redone round whatever's in the way
-		assertEquals(Navigator.Failed.REPLAN, Navigator.whenStretchFails(false, false, true, false, 0));
-		assertEquals(Navigator.Failed.DROP_PLAN, Navigator.whenStretchFails(false, false, true, false, Navigator.MAX_BLOCKED));
-		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(true, false, true, false, 0), "can't reach the mailbox itself: getting unstuck sorts it");
-		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(false, false, false, false, 0));
-		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(false, false, true, true, 0), "down at the water's edge, nothing to mark blocked");
+		assertEquals(Navigator.Failed.REPLAN, Navigator.whenStretchFails(false, false, true, false, false, 0));
+		assertEquals(Navigator.Failed.DROP_PLAN, Navigator.whenStretchFails(false, false, true, false, false, Navigator.MAX_BLOCKED));
+		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(true, false, true, false, false, 0), "can't reach the mailbox itself: getting unstuck sorts it");
+		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(false, false, false, false, false, 0));
+		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(false, false, true, true, false, 0), "down at the water's edge, nothing to mark blocked");
+		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(false, false, true, false, true, 0), "a new route is still being worked out: not started over");
+		assertEquals(Navigator.Failed.BARGE, Navigator.whenStretchFails(false, true, true, false, true, 0), "but water in the way is still the barge");
 	}
 
 	@Test
@@ -151,8 +153,12 @@ class NavigatorTest {
 		assertTrue(Navigator.landedBackSoon(landing, 1000, new Vec3(110, 64, 95), 1400), "back on the water within a minute, close by");
 		assertFalse(Navigator.landedBackSoon(landing, 1000, new Vec3(110, 64, 95), 1000 + Navigator.LANDED_BACK_TICKS + 1), "a while later");
 		assertFalse(Navigator.landedBackSoon(landing, 1000, new Vec3(200, 64, 100), 1400), "somewhere else altogether");
-		List<Long> cells = Navigator.cellsAround(landing);
-		assertEquals(9, cells.size());
-		assertTrue(cells.contains(CoarsePlanner.key(CoarsePlanner.cellOf(100), CoarsePlanner.cellOf(100))));
+		// The shore round where he landed is marked, but not the water (it's what he launches from)
+		CoarsePlanner.Cell land = new CoarsePlanner.Cell(64, 0, 0, false), water = new CoarsePlanner.Cell(62, 4, 0, false);
+		int lx = CoarsePlanner.cellOf(100), lz = CoarsePlanner.cellOf(100);
+		List<Long> shore = Navigator.shoreAround(landing, (cx, cz) -> cx < lx ? water : land);
+		assertEquals(6, shore.size());
+		assertTrue(shore.contains(CoarsePlanner.key(lx, lz)));
+		assertFalse(shore.contains(CoarsePlanner.key(lx - 1, lz)), "the water next to it stays open");
 	}
 }

@@ -193,9 +193,13 @@ public class DeliveryRun {
 	}
 
 	public static Vec3 standingSpot(ServerLevel level, BlockPos mailbox, double standOff) {
+		return standingSpot(mailbox, facingOf(level, mailbox), standOff);
+	}
+
+	/** Which way a mailbox's door faces (north if the mailbox has gone). */
+	public static Direction facingOf(ServerLevel level, BlockPos mailbox) {
 		BlockState state = level.getBlockState(mailbox);
-		Direction facing = state.getBlock() instanceof MailboxBlock ? state.getValue(MailboxBlock.FACING) : Direction.NORTH;
-		return standingSpot(mailbox, facing, standOff);
+		return state.getBlock() instanceof MailboxBlock ? state.getValue(MailboxBlock.FACING) : Direction.NORTH;
 	}
 
 	/** The way to face to look straight at a point, as a Minecraft yaw. */
@@ -323,8 +327,7 @@ public class DeliveryRun {
 	 */
 	@Nullable
 	private static Vec3 mapSpot(ServerLevel level, BlockPos mailbox) {
-		BlockState state = level.getBlockState(mailbox);
-		Direction facing = state.getBlock() instanceof MailboxBlock ? state.getValue(MailboxBlock.FACING) : Direction.NORTH;
+		Direction facing = facingOf(level, mailbox);
 		LevelTerrain terrain = new LevelTerrain(level);
 		Vec3 box = Vec3.atBottomCenterOf(mailbox);
 		float ahead = facing.toYRot();
@@ -501,6 +504,9 @@ public class DeliveryRun {
 		rider.stopRiding();
 		rider.getNavigation().stop();
 		rider.setSprinting(false);
+		// On foot: a horse he'd whistled for and that hasn't come yet isn't wanted now
+		if (horse == null)
+			rider.dismissHorse();
 		if (horse != null) {
 			PostmanEffects.puff(level, horse);
 			horse.startRiding(barge, true);

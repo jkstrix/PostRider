@@ -466,7 +466,7 @@ public class PostmanEntity extends PathfinderMob {
 			}
 		}
 		if (arrivingHorse != null && --mountCountdown <= 0) {
-			if (arrivingHorse.isAlive())
+			if (arrivingHorse.isAlive() && getVehicle() == null)
 				startRiding(arrivingHorse, true);
 			arrivingHorse = null;
 		}

@@ -41,6 +41,8 @@ public class ParcelItem extends Item {
 		// Thrown out rather than put in the inventory: the game puts the result back in the hand after use, which
 		// would wipe anything slipped into that slot meanwhile
 		List<ItemStack> contents = contents(parcel);
+		if (contents.isEmpty())
+			return InteractionResultHolder.fail(parcel);
 		parcel.shrink(1);
 		if (!level.isClientSide) {
 			for (ItemStack item : contents)

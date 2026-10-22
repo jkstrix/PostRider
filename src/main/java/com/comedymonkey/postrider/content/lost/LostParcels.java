@@ -38,7 +38,7 @@ public final class LostParcels {
 			@Nullable UUID recipient, @Nullable UUID killer, String killerName) {
 		// Lost out on the water, it floats where he went down; otherwise it lands on the ground nearby, or failing that
 		// floats on any water close by
-		BlockPos afloat = findSurface(near, pos -> isOpenWater(level, pos));
+		BlockPos afloat = findSpot(near, pos -> isOpenWater(level, pos));
 		BlockPos spot = afloat != null && isOpenWater(level, near.atY(afloat.getY())) ? afloat : findSpot(near, pos -> canHold(level, pos));
 		if (spot == null)
 			spot = afloat;
@@ -106,15 +106,6 @@ public final class LostParcels {
 	static boolean isOpenWater(ServerLevel level, BlockPos pos) {
 		return level.getFluidState(pos).isSourceOfType(Fluids.WATER) && level.getBlockState(pos).is(Blocks.WATER)
 			&& level.getBlockState(pos.above()).isAir();
-	}
-
-	/**
-	 * The nearest water surface: straight up or down from the spot first, then rings further out, the way
-	 * {@link #findSpot} looks for ground.
-	 */
-	@Nullable
-	public static BlockPos findSurface(BlockPos origin, Predicate<BlockPos> isOpenWater) {
-		return findSpot(origin, isOpenWater);
 	}
 
 	/** Empty (or replaceable) space with solid ground under it, and no water or lava. */
