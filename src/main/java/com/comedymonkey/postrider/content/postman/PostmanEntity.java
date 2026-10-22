@@ -135,10 +135,30 @@ public class PostmanEntity extends PathfinderMob {
 		mob.setPathfindingMalus(PathType.WATER_BORDER, -1);
 	}
 
+	/** His movement speed attribute; sprinting adds 30% to it, as it does a player's. */
+	public static final double BASE_SPEED = 0.3;
+	public static final double SPRINT_BOOST = 1.3;
+	/**
+	 * How fast a mob settles to on ordinary ground, in blocks a second, for each unit of (speed squared): vanilla
+	 * walking pushes it by its speed scaled by its speed again, against the ground's friction (0.6 x 0.91 a tick).
+	 */
+	public static final double PACE = 20 / (1 - 0.6 * 0.91);
+
+	/** The move speed (the number pathfinding is given) that has a mob with this speed attribute cover so many blocks a second. */
+	public static double moveSpeedFor(double blocksPerSecond, double attribute) {
+		return Math.sqrt(blocksPerSecond / PACE) / attribute;
+	}
+
+	/** How many blocks a second a mob with this speed attribute covers at this move speed. */
+	public static double blocksPerSecond(double moveSpeed, double attribute) {
+		double speed = moveSpeed * attribute;
+		return speed * speed * PACE;
+	}
+
 	public static AttributeSupplier.Builder createAttributes() {
 		return PathfinderMob.createMobAttributes()
 			.add(Attributes.MAX_HEALTH, 20.0)
-			.add(Attributes.MOVEMENT_SPEED, 0.3)
+			.add(Attributes.MOVEMENT_SPEED, BASE_SPEED)
 			.add(Attributes.FOLLOW_RANGE, 64.0);
 	}
 

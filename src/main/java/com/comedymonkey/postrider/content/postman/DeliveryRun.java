@@ -96,7 +96,8 @@ public class DeliveryRun {
 	/** Run aground this long off the end of his planned water leg, he lands where he is. */
 	public static final int AGROUND_TICKS = 60;
 	/** On foot he runs as fast as a sprinting player; he only walks the last few steps to the mailbox. */
-	public static final double RUN_SPEED = 1.2;
+	public static final double RUN_BLOCKS_PER_SECOND = 5.6;
+	public static final double RUN_SPEED = PostmanEntity.moveSpeedFor(RUN_BLOCKS_PER_SECOND, PostmanEntity.BASE_SPEED * PostmanEntity.SPRINT_BOOST);
 
 	private final PendingDelivery delivery;
 	@Nullable

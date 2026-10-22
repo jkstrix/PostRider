@@ -61,14 +61,6 @@ class PostmanHorseTest {
 	}
 
 	@Test
-	void onFootHeRunsAboutAsFastAsASprintingPlayer() {
-		// A mob's push and pace both scale with its speed, so its pace goes with speed squared; a sprinting player's
-		// goes with 0.13 (walking speed 0.1, sprinting 30% faster) at full push
-		double pace = Math.pow(0.3 * DeliveryRun.RUN_SPEED, 2);
-		assertEquals(0.13, pace, 0.01);
-	}
-
-	@Test
 	void isHorseSizedAndHasHorseAttributes() {
 		assertEquals(EntityType.HORSE.getWidth(), ModEntities.POSTMAN_HORSE.get().getWidth());
 		assertEquals(EntityType.HORSE.getHeight(), ModEntities.POSTMAN_HORSE.get().getHeight());
@@ -86,5 +78,17 @@ class PostmanHorseTest {
 		assertTrue(PostmanHorse.gallopInput(0.25, PostmanHorse.distanceToGo(here, new Vec3(1.5, 64, 0), new Vec3(1, 64, 0))) < 1.0);
 		// With no path, the mark he's steering for is all there is
 		assertEquals(5.0, PostmanHorse.distanceToGo(here, null, new Vec3(3, 64, 4)), 1e-9);
+	}
+
+	@Test
+	void onFootHeRunsLikeASprintingPlayerWellBehindAnyHorse() {
+		double sprinting = PostmanEntity.BASE_SPEED * PostmanEntity.SPRINT_BOOST;
+		double running = PostmanEntity.blocksPerSecond(DeliveryRun.RUN_SPEED, sprinting);
+		assertEquals(DeliveryRun.RUN_BLOCKS_PER_SECOND, running, 1e-6);
+		assertTrue(running < PostmanHorse.MIN_BLOCKS_PER_SECOND - 1, "his slowest horse is quicker than his legs");
+		// Walking up to a mailbox (not sprinting, at the usual move speed) is about a player's walk
+		assertEquals(4.0, PostmanEntity.blocksPerSecond(1.0, PostmanEntity.BASE_SPEED), 0.3);
+		// The sums: twice the move speed is four times as fast
+		assertEquals(4 * PostmanEntity.blocksPerSecond(0.5, 0.3), PostmanEntity.blocksPerSecond(1.0, 0.3), 1e-9);
 	}
 }
