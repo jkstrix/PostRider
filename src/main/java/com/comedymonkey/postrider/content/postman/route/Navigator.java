@@ -115,6 +115,7 @@ public final class Navigator {
 
 	/** As above; {@code afloat} on the barge, the plan heads for the nearest land that takes him on. */
 	public void replan(ServerLevel level, Vec3 from, Vec3 target, boolean afloat) {
+		routesAsked++;
 		clearStretch();
 		plannedAfloat = afloat;
 		landedSincePlanned = false;
@@ -135,7 +136,9 @@ public final class Navigator {
 	public void tickPlanning() {
 		if (coarse == null)
 			return;
+		int before = coarse.expanded();
 		CoarsePlanner.Status status = coarse.step(PlanningBudget.takeCoarse());
+		routeCells += coarse.expanded() - before;
 		if (status == CoarsePlanner.Status.DONE) {
 			adopt(coarse.plan());
 			coarse = null;
@@ -148,6 +151,26 @@ public final class Navigator {
 	public void goWithBestSoFar() {
 		if (coarse != null && plan == null)
 			adopt(coarse.bestSoFar());
+	}
+
+	// How much route finding the trip has taken, for the in-world trials to record
+	private int routesAsked, routesFound, stretches, stretchesFailed;
+	private long routeCells, stretchBlocks;
+
+	/**
+	 * What the route finding has done this trip: long-range routes asked for and found, and the cells they settled;
+	 * stretches planned and how many wouldn't plan, and the blocks they looked at.
+	 */
+	public record Stats(int routesAsked, int routesFound, long routeCells, int stretches, int stretchesFailed, long stretchBlocks) {
+		@Override
+		public String toString() {
+			return routesFound + "/" + routesAsked + " routes (" + routeCells + " cells), " + stretches + " stretches, " + stretchesFailed
+				+ " failed (" + stretchBlocks + " blocks)";
+		}
+	}
+
+	public Stats stats() {
+		return new Stats(routesAsked, routesFound, routeCells, stretches, stretchesFailed, stretchBlocks);
 	}
 
 	/** Where his routing decisions are noted (the server log), so a strange route can be worked out afterwards. */
@@ -163,6 +186,8 @@ public final class Navigator {
 	private boolean plannedAfloat, landedSincePlanned;
 
 	private void adopt(@Nullable CoarsePlanner.Plan found) {
+		if (found != null)
+			routesFound++;
 		log.accept(found == null ? "no long-range route; heading straight there" : "route planned: " + describe(found));
 		plan = found;
 		// A plan takes a while to work out: he picks it up where he is now, not where he was when he asked for it
@@ -295,9 +320,12 @@ public final class Navigator {
 		int before = local.expanded();
 		LocalPlanner.Status status = local.step(budget);
 		PlanningBudget.giveBackLocal(budget - (local.expanded() - before));
+		stretchBlocks += local.expanded() - before;
 		if (status == LocalPlanner.Status.RUNNING)
 			return Action.GOING;
+		stretches++;
 		if (status == LocalPlanner.Status.FAILED) {
+			stretchesFailed++;
 			local = null;
 			retryAt = now + RETRY_TICKS;
 			return stretchFailed(rider, level, target);

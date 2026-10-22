@@ -10,6 +10,7 @@ import com.comedymonkey.postrider.content.postman.Crossing;
 import com.comedymonkey.postrider.content.postman.DeliveryRun;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.PostmanHorse;
+import com.comedymonkey.postrider.content.postman.route.Navigator;
 import com.comedymonkey.postrider.post.PendingDelivery;
 
 import net.minecraft.core.BlockPos;
@@ -131,7 +132,19 @@ final class Watch {
 		return (road >= 0 ? road + " ticks on the road" : "still out after " + ticks + " ticks")
 			+ ", " + launches + " barge launches, " + jumpsFree() + " jumps free, busiest patch " + mostVisits + " visits"
 			+ (mostVisits > 1 ? " (" + busiest + ")" : "") + ", longest stand " + longestStill + " ticks"
+			+ (run == null ? "" : ", route finding " + run.routeStats())
 			+ (rider == null ? "" : ", last at " + lastSeen() + ", " + rider.getName().getString() + " " + (run == null ? "" : run.stage()));
+	}
+
+	/** The trip's numbers as one line of JSON, for the results file. */
+	String json(String trial, boolean passed) {
+		long road = deliveredAt >= 0 && setOff >= 0 ? deliveredAt - setOff : -1;
+		Navigator.Stats stats = run == null ? new Navigator.Stats(0, 0, 0, 0, 0, 0) : run.routeStats();
+		return "{\"trial\":\"" + trial + "\",\"passed\":" + passed + ",\"roadTicks\":" + road + ",\"watchedTicks\":" + ticks
+			+ ",\"launches\":" + launches + ",\"jumpsFree\":" + jumpsFree() + ",\"mostVisits\":" + mostVisits + ",\"longestStill\":" + longestStill
+			+ ",\"routesAsked\":" + stats.routesAsked() + ",\"routesFound\":" + stats.routesFound() + ",\"routeCells\":" + stats.routeCells()
+			+ ",\"stretches\":" + stats.stretches() + ",\"stretchesFailed\":" + stats.stretchesFailed() + ",\"stretchBlocks\":" + stats.stretchBlocks()
+			+ ",\"waded\":" + (waded != null) + "}";
 	}
 
 	private boolean feetWet(Entity entity) {

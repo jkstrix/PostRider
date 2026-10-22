@@ -125,6 +125,12 @@ public final class CoarsePlanner {
 	@Nullable
 	private Plan plan;
 	private Status status = Status.RUNNING;
+	/** How many cells the searches have settled so far (a measure of the work a plan took). */
+	private int expanded;
+
+	public int expanded() {
+		return expanded;
+	}
 
 	/** A plan between two cells, never through any of the blocked ones (cell keys, as {@link #key}). */
 	public CoarsePlanner(Cells cells, int startX, int startZ, int goalX, int goalZ, Set<Long> blocked) {
@@ -359,6 +365,7 @@ public final class CoarsePlanner {
 					return Status.WAITING;
 				}
 				node.closed = true;
+				expanded++;
 				if (node.h < best.h)
 					best = node;
 				expand(node);

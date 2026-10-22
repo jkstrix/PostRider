@@ -156,6 +156,11 @@ public class DeliveryRun {
 		return jumpsFree;
 	}
 
+	/** What the route finding has done this trip (for the in-world trials). */
+	public Navigator.Stats routeStats() {
+		return navigator.stats();
+	}
+
 	/** What the mail has been through so far. */
 	public JourneyNotes notes() {
 		return new JourneyNotes(crossedWater, nightsOut);

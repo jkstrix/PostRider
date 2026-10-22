@@ -104,17 +104,7 @@ public final class RiderGameTests {
 
 	/** Succeeds once the mail is in the far box and the checks pass, the rider having been watched all the way. */
 	private static void deliver(Scene scene, BlockPos to, Watch watch, Runnable checks) {
-		scene.helper.succeedWhen(() -> {
-			if (watch.waded != null)
-				throw new GameTestAssertException("He waded into water at " + watch.waded);
-			if (watch.jumpsFree() > 0)
-				throw new GameTestAssertException("He had to be teleported free " + watch.jumpsFree() + " times");
-			if (!scene.delivered(to) || scene.stillOut(watch.delivery))
-				throw new GameTestAssertException("Not delivered yet" + (watch.rider == null ? "" : ": " + watch.rider.getRun()));
-			if (!watch.studiedMap)
-				throw new GameTestAssertException("He never studied his map");
-			checks.run();
-		});
+		Trials.deliver(watch.delivery.toName().replaceAll(" \\d+$", ""), scene, to, watch, checks);
 	}
 
 	@GameTest(skyAccess = true, template = "gametest/arena_48x32", batch = "deliver_flat", timeoutTicks = DELIVERY_TICKS)
