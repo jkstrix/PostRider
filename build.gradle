@@ -19,6 +19,9 @@ neoForge {
     runs {
         client {
             client()
+            // The in-world tests can be watched from a creative world: /test run postrider:<name>, or /test runall
+            systemProperty 'neoforge.enableGameTest', 'true'
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
         }
         server {
             server()

@@ -13,6 +13,10 @@ ARENAS = {
     "arena_48x32": (48, 16, 32),
     "arena_64x48": (64, 16, 48),
     "arena_80x64": (80, 16, 64),
+    # Taller and wider, for hills with caves in them, towers, mazes and long approaches to a river
+    "arena_96x96": (96, 48, 96),
+    "arena_128x64": (128, 32, 64),
+    "tower_48x48": (48, 80, 48),
 }
 DATA_VERSION = 3955  # Minecraft 1.21.1
 OUT = os.path.join("src", "main", "resources", "data", "postrider", "structure", "gametest")
