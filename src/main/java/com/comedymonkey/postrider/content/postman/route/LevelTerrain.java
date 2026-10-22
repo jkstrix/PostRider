@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.BubbleColumnBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -66,6 +67,8 @@ public final class LevelTerrain implements Terrain {
 	public static Kind classify(BlockState state, VoxelShape collision) {
 		if (Hazards.isDangerous(state))
 			return Kind.DANGER;
+		if (state.is(Blocks.BUBBLE_COLUMN))
+			return state.getValue(BubbleColumnBlock.DRAG_DOWN) ? Kind.BUBBLE_DOWN : Kind.BUBBLE_UP;
 		if (!state.getFluidState().isEmpty())
 			return Kind.LIQUID;
 		if (state.is(BlockTags.CLIMBABLE) && !state.is(Blocks.SCAFFOLDING))

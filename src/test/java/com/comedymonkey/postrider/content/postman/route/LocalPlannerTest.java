@@ -209,4 +209,79 @@ class LocalPlannerTest {
 		assertEquals(whole.status(), sliced.status());
 		assertEquals(whole.steps(), sliced.steps());
 	}
+
+	/** A cliff ten blocks high from x 10 on, with a bubble column over soul sand up its face at x 9, open at the top. */
+	private static GridTerrain cliffWithAColumnUp() {
+		return new GridTerrain().fill(10, Y, -400, 60, Y + 9, 400, Kind.SOLID).fill(9, Y, 0, 9, Y + 9, 0, Kind.BUBBLE_UP);
+	}
+
+	/** A plateau ten blocks high up to x 10, with a whirlpool over magma down its face at x 11 and the low ground beyond. */
+	private static GridTerrain plateauWithAWhirlpool() {
+		return new GridTerrain().fill(-400, Y, -400, 10, Y + 9, 400, Kind.SOLID).fill(11, Y, 0, 11, Y + 9, 0, Kind.BUBBLE_DOWN)
+			.fill(11, Y - 1, 0, 11, Y - 1, 0, Kind.DANGER);
+	}
+
+	@Test
+	void onFootHeRidesABubbleColumnUpToTheLedgeAtItsTop() {
+		LocalPlanner planner = walking(cliffWithAColumnUp(), 20.5, 0.5, false);
+		assertEquals(Status.FOUND, planner.finishNow());
+		List<Step> steps = planner.steps();
+		assertTrue(steps.stream().filter(s -> s.move() == Move.RISE).count() >= 10, "into the column and up it: " + steps);
+		assertEquals(Y + 10, steps.get(steps.size() - 1).y());
+		for (Step step : steps)
+			assertFalse(step.move() != Move.RISE && touches(cliffWithAColumnUp(), step, Kind.BUBBLE_UP, false), "in the water off the column: " + step);
+	}
+
+	@Test
+	void onFootHeGoesDownAWhirlpoolAndStraightOffTheMagmaOntoTheLedgeBesideIt() {
+		GridTerrain plateau = plateauWithAWhirlpool();
+		LocalPlanner planner = new LocalPlanner(plateau, 0, Y + 10, 0, false, LocalPlanner.Goal.anyHeight(20.5, 0.5, 1.5), false);
+		assertEquals(Status.FOUND, planner.finishNow());
+		List<Step> steps = planner.steps();
+		assertTrue(steps.stream().filter(s -> s.move() == Move.SINK).count() >= 10, "into the whirlpool and down it: " + steps);
+		int last = -1;
+		for (int i = 0; i < steps.size(); i++)
+			if (steps.get(i).move() == Move.SINK)
+				last = i;
+		assertEquals(Y, steps.get(last).y(), "to the foot of it");
+		Step off = steps.get(last + 1);
+		assertEquals(Y, off.y(), "off the magma onto the ledge, not up");
+		assertTrue(LocalPlanner.stands(plateau, false, off.x(), off.y(), off.z()), "onto something he can stand on: " + off);
+		for (Step step : steps)
+			assertFalse(step.move() != Move.SINK && touches(plateau, step, Kind.DANGER, true), "standing on the magma: " + step);
+	}
+
+	@Test
+	void hisHorseCantUseABubbleColumnSoHeGetsDownFirst() {
+		LocalPlanner planner = riding(cliffWithAColumnUp(), 20.5, 0.5);
+		assertEquals(Status.FOUND, planner.finishNow());
+		List<Step> steps = planner.steps();
+		assertTrue(steps.stream().anyMatch(s -> s.move() == Move.DISMOUNT), steps.toString());
+		for (Step step : steps)
+			assertFalse(step.mounted() && touches(cliffWithAColumnUp(), step, Kind.BUBBLE_UP, false), "the horse in the column: " + step);
+		assertTrue(steps.stream().anyMatch(s -> s.move() == Move.RISE));
+	}
+
+	@Test
+	void aWhirlpoolWithNoLedgeAtItsFootIsNoWayDown() {
+		// The foot of the whirlpool walled in on every side
+		GridTerrain walled = plateauWithAWhirlpool().fill(12, Y, -1, 12, Y + 2, 1, Kind.SOLID).fill(10, Y, -1, 12, Y + 2, -1, Kind.SOLID)
+			.fill(10, Y, 1, 12, Y + 2, 1, Kind.SOLID);
+		LocalPlanner planner = new LocalPlanner(walled, 0, Y + 10, 0, false, LocalPlanner.Goal.anyHeight(20.5, 0.5, 1.5), false);
+		assertNotEquals(Status.FOUND, planner.finishNow());
+		for (Step step : planner.steps())
+			assertNotEquals(Move.SINK, step.move(), "a way that ends in the water: " + step);
+	}
+
+	@Test
+	void aBubbleColumnWithARoofOverItOnlyLetsHimOutLevelWithTheWater() {
+		// A roof two blocks over the top of the column: no being thrown up onto the cliff top, but a ledge level with
+		// the top of the water is still reached
+		GridTerrain roofed = cliffWithAColumnUp().fill(9, Y + 11, 0, 9, Y + 11, 0, Kind.SOLID).fill(10, Y + 9, 0, 10, Y + 9, 0, Kind.OPEN)
+			.fill(10, Y + 10, 0, 10, Y + 10, 0, Kind.OPEN).fill(11, Y + 9, 0, 11, Y + 10, 0, Kind.OPEN);
+		LocalPlanner planner = walking(roofed, 11.5, 0.5, false);
+		assertEquals(Status.FOUND, planner.finishNow());
+		List<Step> steps = planner.steps();
+		assertEquals(Y + 9, steps.get(steps.size() - 1).y(), "out level with the top of the water: " + steps);
+	}
 }

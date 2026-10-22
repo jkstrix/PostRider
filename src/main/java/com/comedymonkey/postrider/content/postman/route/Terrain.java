@@ -20,6 +20,10 @@ public interface Terrain {
 		DANGER,
 		/** Ladders and vines: climbable on foot, and not in the way. */
 		CLIMB,
+		/** A bubble column rising from soul sand: carries someone on foot up to the top of it (the one water he enters). */
+		BUBBLE_UP,
+		/** A whirlpool over magma: carries someone on foot down to the foot of it. */
+		BUBBLE_DOWN,
 		/** Somewhere the planner can't see (the chunk isn't loaded). */
 		UNKNOWN;
 
