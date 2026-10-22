@@ -24,17 +24,29 @@ public interface Terrain {
 		BUBBLE_UP,
 		/** A whirlpool over magma: carries someone on foot down to the foot of it. */
 		BUBBLE_DOWN,
+		/** A door, either half, open or shut, wooden or iron: he opens it and goes through on foot; no horse does. */
+		DOOR,
 		/** Somewhere the planner can't see (the chunk isn't loaded). */
 		UNKNOWN;
 
-		/** Whether a body can be in this block. */
+		/** Whether a body on foot can be in this block. */
 		public boolean isClear() {
-			return this == OPEN || this == CLIMB;
+			return this == OPEN || this == CLIMB || this == DOOR;
 		}
 
 		/** Whether a rider's feet can be in this block (as well as clear blocks, a low floor). */
 		public boolean feetFit() {
 			return isClear() || this == LOW;
+		}
+
+		/** Whether a horse can be in this block: as on foot, but never a doorway. */
+		public boolean horseClear() {
+			return this == OPEN || this == CLIMB;
+		}
+
+		/** Whether a horse's feet can be in this block. */
+		public boolean horseFeetFit() {
+			return horseClear() || this == LOW;
 		}
 	}
 

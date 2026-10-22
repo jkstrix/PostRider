@@ -331,4 +331,70 @@ class LocalPlannerTest {
 		}
 		assertTrue(mounted, "and he does whistle it back once he's over");
 	}
+
+	/** A goal at a fixed height, as the mailbox is. */
+	private static LocalPlanner toTheBox(Terrain terrain, int x, int y, int z, boolean mounted, double goalX, double goalZ, boolean mayMount) {
+		return new LocalPlanner(terrain, x, y, z, mounted, new LocalPlanner.Goal(goalX, Y, goalZ, 3, 3), mayMount);
+	}
+
+	@Test
+	void aMailboxInARoomIsFoundByTheRoomsOneWayOutHoweverFarRoundItIs() {
+		// Two rooms side by side in solid rock, a wall between them, the goal in one and him in the other; the only way
+		// from his to the goal's is a corridor that runs 60 blocks east, up a step, 10 north and 60 back: 130 blocks
+		// of walking to a box 8 blocks away through the wall
+		GridTerrain rock = new GridTerrain().fill(-10, Y, -10, 90, Y + 3, 30, Kind.SOLID)
+			.fill(0, Y, 0, 4, Y + 2, 4, Kind.OPEN).fill(0, Y, 10, 4, Y + 2, 14, Kind.OPEN)
+			.fill(5, Y, 2, 70, Y + 2, 2, Kind.OPEN).fill(70, Y, 2, 70, Y + 2, 12, Kind.OPEN).fill(5, Y, 12, 70, Y + 2, 12, Kind.OPEN);
+		LocalPlanner planner = toTheBox(rock, 2, Y, 2, false, 2.5, 12.5, false);
+		assertEquals(Status.FOUND, planner.finishNow(), "found from the goal's end, by the corridor");
+		assertTrue(planner.expanded() < 2000, "without wandering: " + planner.expanded() + " places looked at");
+		List<Step> steps = planner.steps();
+		assertEquals(new Step(2, Y, 2, false, Move.START), steps.get(0));
+		Step last = steps.get(steps.size() - 1);
+		assertTrue(last.z() >= 10 && last.z() <= 14, "ends in the goal's room: " + last);
+		assertTrue(steps.stream().anyMatch(st -> st.x() == 70), "by way of the corridor's far end");
+		allStand(rock, steps);
+		for (int i = 1; i < steps.size(); i++) {
+			Step before = steps.get(i - 1), after = steps.get(i);
+			assertTrue(Math.abs(before.x() - after.x()) <= 1 && Math.abs(before.z() - after.z()) <= 1, "one block at a time: " + before + " then " + after);
+		}
+	}
+
+	@Test
+	void theBackwardSearchAgreesWithTheForwardOneOnOpenGround() {
+		GridTerrain flat = new GridTerrain();
+		LocalPlanner backward = toTheBox(flat, 0, Y, 0, true, 30.5, 10.5, true);
+		assertEquals(Status.FOUND, backward.finishNow());
+		LocalPlanner forward = new LocalPlanner(flat, 0, Y, 0, true, LocalPlanner.Goal.anyHeight(30.5, 10.5, 3), true);
+		assertEquals(Status.FOUND, forward.finishNow());
+		assertEquals(forward.steps().size(), backward.steps().size(), 2, "as short a way either way");
+		assertTrue(backward.steps().stream().allMatch(Step::mounted), "and ridden the whole way");
+		allStand(flat, backward.steps());
+	}
+
+	@Test
+	void aDoorInAWallIsGoneThroughOnFootRatherThanRiddenRound() {
+		// A long wall, three high, with a door (both halves) in it straight ahead
+		GridTerrain walled = new GridTerrain().fill(10, Y, -40, 10, Y + 2, 40, Kind.SOLID).fill(10, Y, 0, 10, Y + 1, 0, Kind.DOOR);
+		LocalPlanner planner = riding(walled, 41, 1);
+		assertEquals(Status.FOUND, planner.finishNow());
+		List<Step> steps = planner.steps();
+		Step inTheDoor = steps.stream().filter(step -> step.x() == 10).findFirst().orElseThrow();
+		assertFalse(inTheDoor.mounted(), "through the door on foot");
+		assertEquals(0, inTheDoor.z(), "through the door, not the wall");
+		assertTrue(steps.get(steps.size() - 1).mounted(), "back on his horse beyond it");
+		allStand(walled, steps);
+	}
+
+	@Test
+	void aHorseNeverGoesThroughADoorwayHoweverWideAndHighItIs() {
+		// A double door, with headroom enough for a horse above it, in a long wall
+		GridTerrain walled = new GridTerrain().fill(10, Y, -40, 10, Y + 3, 40, Kind.SOLID).fill(10, Y, 0, 10, Y + 1, 1, Kind.DOOR)
+			.fill(10, Y + 2, 0, 10, Y + 2, 1, Kind.OPEN);
+		assertFalse(LocalPlanner.stands(walled, true, 10, Y, 0), "a horse can't stand in a doorway");
+		assertTrue(LocalPlanner.stands(walled, false, 10, Y, 0), "he can");
+		LocalPlanner planner = riding(walled, 21, 1);
+		assertEquals(Status.FOUND, planner.finishNow());
+		assertTrue(planner.steps().stream().filter(step -> step.x() == 10).noneMatch(Step::mounted), "on foot through the doors");
+	}
 }

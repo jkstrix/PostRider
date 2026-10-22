@@ -471,7 +471,8 @@ public class DeliveryRun {
 			return;
 		}
 		double distance = Journey.horizontalDistance(rider.position(), target);
-		if (Journey.closeEnoughToWalkUp(rider.position(), target)) {
+		// Not while a ladder or a bubble column has him (he'd be left in it, over the magma at a whirlpool's foot)
+		if (Journey.closeEnoughToWalkUp(rider.position(), target) && navigator.columnActivity() == null) {
 			rider.dismissHorse();
 			rider.setSprinting(false);
 			enter(Stage.WALKING_TO_BOX);
@@ -743,6 +744,7 @@ public class DeliveryRun {
 	 */
 	private void camp(PostmanEntity rider, ServerLevel level) {
 		progress.pause(level.getGameTime());
+		navigator.putDoorsBack(level);
 		if (stepTicks % 20 == 0)
 			tendFire(level);
 		if (PostOfficeHours.isOpen(level.getDayTime())) {
@@ -1064,7 +1066,7 @@ public class DeliveryRun {
 				progress.unstuck(distance, now);
 				return true;
 			}
-			found = wayFromHere ? "a way existed from here but following it didn't work" : "no way through from here (" + here.expanded() + " looked at)";
+			found = wayFromHere ? "a way existed from here but following it didn't work" : "no way through from here (" + here.report() + ")";
 			// Failing that, the nearest safe spot a way does lead on from: a hop of a few blocks, usually
 			free = nearestWayOut(rider, level, target);
 		}
@@ -1246,6 +1248,7 @@ public class DeliveryRun {
 
 	private void finish(PostmanEntity rider, ServerLevel level) {
 		enter(Stage.DONE);
+		navigator.putDoorsBack(level);
 		PostOffice.get(level.getServer()).finish(delivery.id());
 		if (loadedChunk != null)
 			RiderChunks.release(level, rider.getUUID(), loadedChunk);

@@ -18,6 +18,11 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
  * <p>
  * On horseback a step is the corner of the 2x2 blocks the horse stands over (as vanilla paths have it for anything
  * wider than a block), with the horse's middle at the shared corner; on foot it's the block he stands in.
+ * <p>
+ * A goal at a fixed height (a mailbox) is searched for backwards first, from the goal towards him, with every move
+ * turned round: a mailbox in a room is found by the room's few ways out, where a search from him towards it would
+ * spend its budget on the open ground outside the room's walls, which looks nearly as close. If that doesn't reach
+ * him, the search from him runs as usual.
  */
 public final class LocalPlanner {
 	public enum Status {
@@ -75,11 +80,17 @@ public final class LocalPlanner {
 	public static final double COLUMN_COST = 1.0;
 	public static final double DISMOUNT_COST = 12.0;
 	public static final double MOUNT_COST = 10.0;
+	/** Opening a door and going through it, on foot: a moment at the handle. */
+	public static final double DOOR_COST = 2.0;
 	/** Under a roof (a cave, a tunnel) every step costs this much more. */
 	public static final double COVERED_COST = 1.15;
 	/** How greedy the search is: a little, for speed, at a small cost in how short the way is. */
 	public static final double WEIGHT = 1.2;
 	public static final int MAX_NODES = 40_000;
+	/** Places the search backwards from a fixed goal settles before the search from him takes over. */
+	public static final int BACKWARD_NODES = 16_000;
+	/** Only a goal this near (a mailbox, not a waypoint) is worth searching backwards for. */
+	public static final double BACKWARD_RADIUS = 8;
 	public static final int MOUNTED_DROP = 5;
 	public static final int FOOT_DROP = 3;
 	/** A plan that doesn't reach the goal is only worth having if it gets him at least this much closer. */
@@ -103,6 +114,21 @@ public final class LocalPlanner {
 	private Status status = Status.RUNNING;
 	private long order;
 	private int expanded;
+	// The search backwards from the goal, while it runs: its own places, and the one that reached where he stands
+	private boolean backward;
+	private final Long2ObjectOpenHashMap<Node> back = new Long2ObjectOpenHashMap<>();
+	private final PriorityQueue<Entry> openBack = new PriorityQueue<>();
+	private Node reachedBack;
+	private int expandedBack, seeds;
+	private Node nearestBack;
+
+	/** What the search did, for the log when it finds nothing. */
+	public String report() {
+		String backwards = seeds == 0 ? "no search back from the goal (nowhere to stand in it)"
+			: "back from the goal: " + seeds + " places to start, " + expandedBack + " settled"
+				+ (nearestBack == null ? "" : ", got within " + Math.round(nearestBack.h) + " of him at " + nearestBack.x + " " + nearestBack.y + " " + nearestBack.z + (nearestBack.mounted ? " mounted" : " on foot"));
+		return backwards + "; from him: " + (expanded - expandedBack) + " settled, " + nodes.size() + " seen";
+	}
 
 	public LocalPlanner(Terrain terrain, int x, int y, int z, boolean mounted, Goal goal, boolean mayMount) {
 		this.terrain = terrain;
@@ -112,10 +138,12 @@ public final class LocalPlanner {
 		this.originZ = z;
 		start = new Node(x, y, z, mounted);
 		start.move = Move.START;
-		start.h = toGo(start);
+		start.far = blocksToGo(start);
+		start.h = atLeast(start.far, start.mounted);
 		nodes.put(key(x, y, z, mounted), start);
 		best = start;
 		push(start);
+		backward = goal.yTolerance() >= 0 && goal.radius() <= BACKWARD_RADIUS && seedBackward();
 	}
 
 	public Status status() {
@@ -128,6 +156,8 @@ public final class LocalPlanner {
 
 	/** Works on the plan for up to {@code budget} more places; returns how it stands. */
 	public Status step(int budget) {
+		if (backward)
+			budget = stepBackward(budget);
 		while (status == Status.RUNNING && budget-- > 0) {
 			Entry entry = open.poll();
 			if (entry == null) {
@@ -146,7 +176,7 @@ public final class LocalPlanner {
 				status = Status.FOUND;
 				break;
 			}
-			if (!afloat && (node.h < best.h || node.h == best.h && node.g < best.g))
+			if (!afloat && (node.far < best.far || node.far == best.far && node.g < best.g))
 				best = node;
 			expand(node);
 			if (nodes.size() > MAX_NODES)
@@ -164,6 +194,15 @@ public final class LocalPlanner {
 
 	/** The way from where he is (the first step) to the goal or as near as he can get; empty if there's none. */
 	public List<Step> steps() {
+		if (reachedBack != null) {
+			// Found from the goal's end: the chain runs from where he stands towards the goal, each place noting the
+			// move on to the next
+			List<Step> steps = new ArrayList<>();
+			steps.add(new Step(reachedBack.x, reachedBack.y, reachedBack.z, reachedBack.mounted, Move.START));
+			for (Node node = reachedBack; node.parent != null; node = node.parent)
+				steps.add(new Step(node.parent.x, node.parent.y, node.parent.z, node.parent.mounted, node.move));
+			return steps;
+		}
 		Node last = status == Status.FOUND ? reached : status == Status.PARTIAL ? best : null;
 		if (last == null)
 			return List.of();
@@ -175,7 +214,216 @@ public final class LocalPlanner {
 	}
 
 	private void finish() {
-		status = best != start && best.h <= start.h - MIN_PARTIAL_GAIN ? Status.PARTIAL : Status.FAILED;
+		status = best != start && best.far <= start.far - MIN_PARTIAL_GAIN ? Status.PARTIAL : Status.FAILED;
+	}
+
+	// ---------------------------------------------------------------- backwards from the goal
+
+	/** Every place in the goal he could stand, as the beginnings of the search backwards; false if there's none. */
+	private boolean seedBackward() {
+		int reach = (int) Math.ceil(goal.radius());
+		for (int x = (int) Math.floor(goal.x()) - reach - 1; x <= Math.floor(goal.x()) + reach; x++)
+			for (int z = (int) Math.floor(goal.z()) - reach - 1; z <= Math.floor(goal.z()) + reach; z++)
+				for (int y = goal.y() - goal.yTolerance(); y <= goal.y() + goal.yTolerance(); y++)
+					for (boolean mounted : new boolean[] {false, true}) {
+						if (mounted && !mayMount && !start.mounted)
+							continue;
+						Node node = new Node(x, y, z, mounted);
+						if (blocksToGo(node) > 0 || !stands(terrain, mounted, x, y, z))
+							continue;
+						node.h = toStart(node);
+						back.put(key(x, y, z, mounted), node);
+						openBack.add(new Entry(node, 0, WEIGHT * node.h, node.h, order++));
+						seeds++;
+					}
+		return !openBack.isEmpty();
+	}
+
+	/** Works the search backwards for up to {@code budget} places; what's left of the budget when it's done with. */
+	private int stepBackward(int budget) {
+		while (budget > 0) {
+			Entry entry = openBack.poll();
+			if (entry == null || expandedBack >= BACKWARD_NODES) {
+				backward = false;
+				return budget;
+			}
+			Node node = entry.node;
+			if (node.closed || entry.g != node.g)
+				continue;
+			node.closed = true;
+			expanded++;
+			expandedBack++;
+			budget--;
+			if (nearestBack == null || node.h < nearestBack.h)
+				nearestBack = node;
+			if (node.x == start.x && node.y == start.y && node.z == start.z && node.mounted == start.mounted) {
+				reachedBack = node;
+				status = Status.FOUND;
+				backward = false;
+				return 0;
+			}
+			expandBackward(node);
+		}
+		return 0;
+	}
+
+	private double toStart(Node node) {
+		double dx = (node.x + (node.mounted ? 1.0 : 0.5)) - (start.x + (start.mounted ? 1.0 : 0.5));
+		double dz = (node.z + (node.mounted ? 1.0 : 0.5)) - (start.z + (start.mounted ? 1.0 : 0.5));
+		return atLeast(Math.sqrt(dx * dx + dz * dz), node.mounted);
+	}
+
+	/**
+	 * The least this many blocks can cost from a place: a block each on horseback; on foot, walking them, or
+	 * whistling the horse and riding them if he may.
+	 */
+	private double atLeast(double blocks, boolean mounted) {
+		if (mounted)
+			return blocks;
+		return mayMount ? Math.min(blocks * FOOT_COST, MOUNT_COST + blocks) : blocks * FOOT_COST;
+	}
+
+	/** The places he could have come to {@code to} from, each with the move that brings him on from it. */
+	private void expandBackward(Node to) {
+		Terrain.Kind at = to.mounted ? Terrain.Kind.OPEN : terrain.kind(to.x, to.y, to.z);
+		if (at == Terrain.Kind.BUBBLE_UP || at == Terrain.Kind.BUBBLE_DOWN) {
+			// In a column: from the cell before it in the column, or, at its start, from the ledge beside it
+			int dy = at == Terrain.Kind.BUBBLE_UP ? 1 : -1;
+			if (terrain.kind(to.x, to.y - dy, to.z) == at)
+				before(to, to.x, to.y - dy, to.z, false, dy > 0 ? Move.RISE : Move.SINK, COLUMN_COST);
+			for (int i = 0; i < 4; i++) {
+				int x = to.x + DIRECTIONS[i][0], z = to.z + DIRECTIONS[i][1];
+				if (at == Terrain.Kind.BUBBLE_UP && (terrain.kind(to.x, to.y + 1, to.z) == at || terrain.kind(to.x, to.y + 1, to.z).isClear())
+						&& stands(terrain, false, x, to.y, z))
+					before(to, x, to.y, z, false, Move.RISE, COLUMN_COST);
+				if (at == Terrain.Kind.BUBBLE_DOWN) {
+					if (stands(terrain, false, x, to.y, z))
+						before(to, x, to.y, z, false, Move.SINK, COLUMN_COST);
+					if (terrain.kind(to.x, to.y + 1, to.z).isClear() && stands(terrain, false, x, to.y + 1, z))
+						before(to, x, to.y + 1, z, false, Move.SINK, COLUMN_COST + DROP_COST);
+				}
+			}
+			return;
+		}
+		boolean m = to.mounted;
+		for (int[] d : DIRECTIONS) {
+			boolean diagonal = d[0] != 0 && d[1] != 0;
+			int px = to.x - d[0], pz = to.z - d[1];
+			double length = diagonal ? DIAGONAL : 1.0;
+			// A walk along, or a step up, or a drop down to here
+			if (standsSquarely(terrain, m, to.x, to.y, to.z)) {
+				if (stands(terrain, m, px, to.y, pz) && cornersClear(m, px, to.y, pz, d))
+					before(to, px, to.y, pz, m, Move.WALK, length);
+				if (!diagonal && stands(terrain, m, px, to.y - 1, pz) && headroom(m, px, to.y - 1, pz))
+					before(to, px, to.y - 1, pz, m, Move.WALK, length + STEP_UP_COST);
+			}
+			int maxDrop = m ? MOUNTED_DROP : FOOT_DROP;
+			int[] outs = m && !diagonal ? new int[] {1, 2} : new int[] {1};
+			for (int out : outs) {
+				int fx = to.x - d[0] * out, fz = to.z - d[1] * out;
+				for (int drop = 1; drop <= maxDrop; drop++) {
+					int fy = to.y + drop;
+					if (!stands(terrain, m, fx, fy, fz) || !cornersClear(m, fx, fy, fz, d))
+						continue;
+					if (!(m ? landsOn(terrain, to.x, to.y, to.z, d[0], d[1]) : stands(terrain, m, to.x, to.y, to.z)))
+						continue;
+					if (!fits(terrain, m, fx + d[0], fy, fz + d[1]) || out == 2 && !fits(terrain, m, to.x, fy, to.z))
+						continue;
+					boolean clearDown = true;
+					for (int y = fy - 1; y > to.y; y--)
+						if (!fits(terrain, m, to.x, y, to.z) || stands(terrain, m, to.x, y, to.z)) {
+							clearDown = false;
+							break;
+						}
+					if (clearDown)
+						before(to, fx, fy, fz, m, Move.WALK, length * out + DROP_COST * drop);
+				}
+			}
+		}
+		if (m) {
+			// A leap to here, from across a gap
+			for (int i = 0; i < 4; i++) {
+				int dx = DIRECTIONS[i][0], dz = DIRECTIONS[i][1];
+				for (int across = 2; across <= GapJump.MAX_GAP + 1; across++) {
+					int fx = to.x - dx * across, fz = to.z - dz * across;
+					for (int fy : new int[] {to.y, to.y + 1, to.y - 1}) {
+						if (!landsOn(terrain, to.x, to.y, to.z, dx, dz) || !stands(terrain, true, fx, fy, fz))
+							continue;
+						if (fy == to.y - 1 && !headroom(true, to.x, fy, to.z))
+							continue;
+						boolean gap = true;
+						for (int k = 1; k < across && gap; k++) {
+							int gx = fx + dx * k, gz = fz + dz * k;
+							gap = !standsSquarely(terrain, true, gx, fy, gz) && !standsSquarely(terrain, true, gx, fy - 1, gz) && fits(terrain, true, gx, fy, gz);
+						}
+						if (gap)
+							before(to, fx, fy, fz, true, Move.LEAP, across + LEAP_COST);
+					}
+				}
+			}
+			// Got on here, from beside the horse
+			if (mayMount && standsSquarely(terrain, true, to.x, to.y, to.z))
+				for (int dx = 0; dx <= 1; dx++)
+					for (int dz = 0; dz <= 1; dz++)
+						if (stands(terrain, false, to.x + dx, to.y, to.z + dz))
+							before(to, to.x + dx, to.y, to.z + dz, false, Move.MOUNT, 0);
+		} else {
+			// A ladder, up or down
+			if (at == Terrain.Kind.CLIMB && terrain.kind(to.x, to.y + 1, to.z).isClear() && terrain.kind(to.x, to.y - 1, to.z).isClear())
+				before(to, to.x, to.y - 1, to.z, false, Move.CLIMB, CLIMB_COST);
+			if (at == Terrain.Kind.CLIMB)
+				before(to, to.x, to.y + 1, to.z, false, Move.CLIMB, CLIMB_COST);
+			// Out of a column beside here, at its end
+			for (int i = 0; i < 4; i++) {
+				int x = to.x + DIRECTIONS[i][0], z = to.z + DIRECTIONS[i][1];
+				for (int fy : new int[] {to.y, to.y - 1}) {
+					Terrain.Kind column = terrain.kind(x, fy, z);
+					if (column != Terrain.Kind.BUBBLE_UP && column != Terrain.Kind.BUBBLE_DOWN)
+						continue;
+					int dy = column == Terrain.Kind.BUBBLE_UP ? 1 : -1;
+					if (terrain.kind(x, fy + dy, z) == column)
+						continue;
+					boolean thrownOut = column == Terrain.Kind.BUBBLE_UP && terrain.kind(x, fy + 1, z).isClear() && terrain.kind(x, fy + 2, z).isClear();
+					if (fy == to.y && stands(terrain, false, to.x, to.y, to.z))
+						before(to, x, fy, z, false, Move.WALK, 1.0);
+					else if (fy == to.y - 1 && thrownOut && stands(terrain, false, to.x, to.y, to.z))
+						before(to, x, fy, z, false, Move.WALK, 1.0 + STEP_UP_COST);
+				}
+			}
+			// Got down here, off the horse
+			if (stands(terrain, false, to.x, to.y, to.z))
+				for (int dx = 0; dx <= 1; dx++)
+					for (int dz = 0; dz <= 1; dz++)
+						if (stands(terrain, true, to.x - dx, to.y, to.z - dz))
+							before(to, to.x - dx, to.y, to.z - dz, true, Move.DISMOUNT, 0);
+		}
+	}
+
+	/** Whether a diagonal step from here in direction d cuts no corner (both sides clear); always, straight on. */
+	private boolean cornersClear(boolean mounted, int x, int y, int z, int[] d) {
+		if (d[0] == 0 || d[1] == 0)
+			return true;
+		return fits(terrain, mounted, x + d[0], y, z) && fits(terrain, mounted, x, y, z + d[1]);
+	}
+
+	/** Considers that he came to {@code to} from here by this move (costed as the move on to {@code to} is). */
+	private void before(Node to, int x, int y, int z, boolean mounted, Move move, double length) {
+		if (Math.abs(x - originX) >= SPAN || Math.abs(z - originZ) >= SPAN)
+			return;
+		double g = to.g + cost(move, length, to.mounted, to.x, to.y, to.z);
+		long key = key(x, y, z, mounted);
+		Node node = back.get(key);
+		if (node == null) {
+			node = new Node(x, y, z, mounted);
+			node.h = toStart(node);
+			back.put(key, node);
+		} else if (node.closed || g >= node.g) {
+			return;
+		}
+		node.g = g;
+		node.parent = to;
+		node.move = move;
+		openBack.add(new Entry(node, node.g, node.g + WEIGHT * node.h, node.h, order++));
 	}
 
 	// ---------------------------------------------------------------- where he can be
@@ -193,7 +441,7 @@ public final class LocalPlanner {
 		for (int dx = 0; dx <= 1; dx++)
 			for (int dz = 0; dz <= 1; dz++) {
 				Terrain.Kind feet = terrain.kind(x + dx, y, z + dz);
-				if (!feet.feetFit() || !terrain.kind(x + dx, y + 1, z + dz).isClear() || !terrain.kind(x + dx, y + 2, z + dz).isClear())
+				if (!feet.horseFeetFit() || !terrain.kind(x + dx, y + 1, z + dz).horseClear() || !terrain.kind(x + dx, y + 2, z + dz).horseClear())
 					return false;
 				Terrain.Kind below = terrain.kind(x + dx, y - 1, z + dz);
 				if (below == Terrain.Kind.DANGER)
@@ -248,8 +496,8 @@ public final class LocalPlanner {
 			return terrain.kind(x, y, z).feetFit() && terrain.kind(x, y + 1, z).isClear();
 		for (int dx = 0; dx <= 1; dx++)
 			for (int dz = 0; dz <= 1; dz++)
-				if (!terrain.kind(x + dx, y, z + dz).feetFit() || !terrain.kind(x + dx, y + 1, z + dz).isClear()
-						|| !terrain.kind(x + dx, y + 2, z + dz).isClear())
+				if (!terrain.kind(x + dx, y, z + dz).horseFeetFit() || !terrain.kind(x + dx, y + 1, z + dz).horseClear()
+						|| !terrain.kind(x + dx, y + 2, z + dz).horseClear())
 					return false;
 		return true;
 	}
@@ -261,7 +509,7 @@ public final class LocalPlanner {
 			return terrain.kind(x, above, z).isClear();
 		for (int dx = 0; dx <= 1; dx++)
 			for (int dz = 0; dz <= 1; dz++)
-				if (!terrain.kind(x + dx, above, z + dz).isClear())
+				if (!terrain.kind(x + dx, above, z + dz).horseClear())
 					return false;
 		return true;
 	}
@@ -430,26 +678,29 @@ public final class LocalPlanner {
 				}
 	}
 
+	/** What a move to a place costs: {@code length} is in blocks, before what the move and mode add. */
+	private double cost(Move move, double length, boolean mounted, int x, int y, int z) {
+		if (move == Move.DISMOUNT)
+			return DISMOUNT_COST;
+		if (move == Move.MOUNT)
+			return MOUNT_COST;
+		double cost = length * (mounted ? 1.0 : FOOT_COST);
+		if (!mounted && terrain.kind(x, y, z) == Terrain.Kind.DOOR)
+			cost += DOOR_COST;
+		return terrain.covered(x, y, z) ? cost * COVERED_COST : cost;
+	}
+
 	/** Considers getting to a place this way: {@code length} is in blocks, before what the move and mode add. */
 	private void add(Node from, int x, int y, int z, boolean mounted, Move move, double length) {
 		if (Math.abs(x - originX) >= SPAN || Math.abs(z - originZ) >= SPAN)
 			return;
-		double cost;
-		if (move == Move.DISMOUNT)
-			cost = DISMOUNT_COST;
-		else if (move == Move.MOUNT)
-			cost = MOUNT_COST;
-		else {
-			cost = length * (mounted ? 1.0 : FOOT_COST);
-			if (terrain.covered(x, y, z))
-				cost *= COVERED_COST;
-		}
-		double g = from.g + cost;
+		double g = from.g + cost(move, length, mounted, x, y, z);
 		long key = key(x, y, z, mounted);
 		Node node = nodes.get(key);
 		if (node == null) {
 			node = new Node(x, y, z, mounted);
-			node.h = toGo(node);
+			node.far = blocksToGo(node);
+			node.h = atLeast(node.far, node.mounted);
 			nodes.put(key, node);
 		} else if (node.closed || g >= node.g) {
 			return;
@@ -464,13 +715,14 @@ public final class LocalPlanner {
 		open.add(new Entry(node, node.g, node.g + WEIGHT * node.h, node.h, order++));
 	}
 
-	private double toGo(Node node) {
+	/** How many blocks there are still to go to the goal from a place. */
+	private double blocksToGo(Node node) {
 		double dx = (node.x + (node.mounted ? 1.0 : 0.5)) - goal.x(), dz = (node.z + (node.mounted ? 1.0 : 0.5)) - goal.z();
 		return Math.max(0, Math.sqrt(dx * dx + dz * dz) - goal.radius());
 	}
 
 	private boolean reaches(Node node) {
-		return node.h <= 0 && (goal.yTolerance() < 0 || Math.abs(node.y - goal.y()) <= goal.yTolerance());
+		return node.far <= 0 && (goal.yTolerance() < 0 || Math.abs(node.y - goal.y()) <= goal.yTolerance());
 	}
 
 	private long key(int x, int y, int z, boolean mounted) {
@@ -481,7 +733,8 @@ public final class LocalPlanner {
 	private static final class Node {
 		final int x, y, z;
 		final boolean mounted;
-		double g, h;
+		/** The cost so far, the least cost to go (for ordering), and the blocks to go (for how far he'd get). */
+		double g, h, far;
 		Node parent;
 		Move move;
 		boolean closed;

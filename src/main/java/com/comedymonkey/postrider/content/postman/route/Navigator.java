@@ -103,6 +103,7 @@ public final class Navigator {
 	private boolean detouring;
 	@Nullable
 	private Vec3 launchAim;
+	private final Doors doors = new Doors();
 	// The way across the water
 	private List<Vec3> waterPath = List.of();
 	private boolean waterPathFinal;
@@ -226,6 +227,7 @@ public final class Navigator {
 		stepsAreFinal = false;
 		waitingForHorse = 0;
 		columnEnd = -1;
+		leavingColumn = false;
 	}
 
 	public boolean isDetouring() {
@@ -241,6 +243,7 @@ public final class Navigator {
 
 	public Action tick(PostmanEntity rider, ServerLevel level, Vec3 target) {
 		lastHere = rider.position();
+		tendDoors(rider, level);
 		tickPlanning();
 		long now = level.getGameTime();
 		Vec3 here = rider.position();
@@ -279,6 +282,25 @@ public final class Navigator {
 		return Action.GOING;
 	}
 
+	// ---------------------------------------------------------------- doors
+
+	/** Opens any door among the next few steps on foot, and shuts (or leaves open) each one as it was once he's through. */
+	private void tendDoors(PostmanEntity rider, ServerLevel level) {
+		Path path = rider.getNavigation().getPath();
+		int next = !steps.isEmpty() && rider.getVehicle() == null && path != null && !path.isDone() ? segmentStart + path.getNextNodeIndex() : -1;
+		doors.tick(level, rider, steps, next, segmentEnd);
+	}
+
+	/** Every door he's opened goes back as he found it (he's leaving the road: delivered, camping, lost). */
+	public void putDoorsBack(ServerLevel level) {
+		doors.putAllBack(level);
+	}
+
+	/** How many doors he's opened and not yet put back. */
+	public int doorsOpen() {
+		return doors.open();
+	}
+
 	// ---------------------------------------------------------------- up and down a ladder or a bubble column
 
 	/** The last step of the run of column steps he's riding (a ladder or a bubble column), or -1. */
@@ -293,8 +315,14 @@ public final class Navigator {
 		return columnEnd >= 0 ? columnKind : null;
 	}
 	private int columnTicks;
+	/** Thrown up out of a rising column, or nearly at the foot of a whirlpool: being pushed across onto the ledge beside it. */
+	private boolean leavingColumn;
+	/** This close (in blocks) to the foot of a whirlpool he's pushed out, so his feet never touch the magma under it. */
+	public static final double FOOT_OF_WHIRLPOOL = 1.5;
 	/** He's pulled this far off the column's middle: knocked out of it. */
 	public static final double COLUMN_OFF = 0.8;
+	/** How hard he's pushed, a tick, from the top of a rising column onto the ledge beside it (blocks a tick). */
+	public static final double PUSH_OUT = 0.3;
 	/** Longer than this up or down one column means something's wrong. */
 	public static final int COLUMN_TICKS = 400;
 
@@ -340,27 +368,58 @@ public final class Navigator {
 		}
 		LocalPlanner.Step end = steps.get(columnEnd);
 		double cx = end.x() + 0.5, cz = end.z() + 0.5;
-		if (Math.hypot(rider.getX() - cx, rider.getZ() - cz) > COLUMN_OFF || ++columnTicks > COLUMN_TICKS) {
+		if (++columnTicks > COLUMN_TICKS || !leavingColumn && Math.hypot(rider.getX() - cx, rider.getZ() - cz) > COLUMN_OFF) {
 			log.accept("knocked out of the column at " + spot(rider.position()) + ": planning again");
 			columnEnd = -1;
+			leavingColumn = false;
 			clearStretch();
 			return false;
 		}
-		rider.setPos(cx, rider.getY(), cz);
-		boolean up = end.y() > rider.getY();
-		if (up && rider.onClimbable())
-			rider.getJumpControl().jump();
-		boolean there = up ? rider.getY() >= end.y() - 0.05 : rider.getY() <= end.y() + 0.05 && (rider.onGround() || rider.onClimbable());
-		if (!there)
-			return true;
-		// At the other end: on along the rest of the way
 		int resume = columnEnd + 1;
+		if (!leavingColumn) {
+			rider.setPos(cx, rider.getY(), cz);
+			boolean up = end.y() > rider.getY();
+			if (up && rider.onClimbable())
+				rider.getJumpControl().jump();
+			boolean there = up ? rider.getY() >= end.y() - 0.05 : rider.getY() <= end.y() + 0.05 && (rider.onGround() || rider.onClimbable());
+			// The water of a rising column throws him up and would hold him bobbing there, and the magma at the foot
+			// of a whirlpool burns: from the top of the one, and just above the foot of the other, he's pushed across
+			// onto the ledge beside it, which the next step is
+			boolean nearTheFoot = !up && rider.getY() <= end.y() + FOOT_OF_WHIRLPOOL;
+			if (columnKind == PostmanEntity.Activity.DRIFT && resume <= segmentEnd && (nearTheFoot || there && up)) {
+				leavingColumn = true;
+				return true;
+			}
+			if (!there)
+				return true;
+		} else {
+			LocalPlanner.Step ledge = steps.get(resume);
+			boolean onTheLedge = Math.hypot(rider.getX() - ledge.centreX(), rider.getZ() - ledge.centreZ()) < 0.5
+				|| rider.onGround() && !rider.isInWater() && Math.hypot(rider.getX() - cx, rider.getZ() - cz) > 0.6;
+			if (!onTheLedge) {
+				Vec3 push = pushOut(rider.getX(), rider.getZ(), ledge);
+				rider.setDeltaMovement(push.x, rider.getDeltaMovement().y, push.z);
+				return true;
+			}
+			leavingColumn = false;
+		}
+		// At the other end: on along the rest of the way
 		columnEnd = -1;
 		if (resume > segmentEnd)
 			return false;
 		segmentStart = resume;
 		startSegment(rider);
 		return true;
+	}
+
+	/** The push, a tick, from here towards the middle of a step beside him (at most {@link #PUSH_OUT}, less when it's close). */
+	public static Vec3 pushOut(double x, double z, LocalPlanner.Step ledge) {
+		double dx = ledge.centreX() - x, dz = ledge.centreZ() - z;
+		double distance = Math.hypot(dx, dz);
+		if (distance < 1e-6)
+			return Vec3.ZERO;
+		double push = Math.min(PUSH_OUT, distance);
+		return new Vec3(dx / distance * push, 0, dz / distance * push);
 	}
 
 	/** Coming up to a ladder or a bubble column, he's set this far from square in it at most before he's put square. */
@@ -461,8 +520,11 @@ public final class Navigator {
 			return stretchFailed(rider, level, target);
 		}
 		List<LocalPlanner.Step> found = local.steps();
-		stepsAreFinal = localIsFinal && status == LocalPlanner.Status.FOUND;
 		local = null;
+		// Planned before he got into a ladder or a bubble column: it's taking him along, and he plans again at its end
+		if (columnEnd >= 0)
+			return Action.GOING;
+		stepsAreFinal = localIsFinal && status == LocalPlanner.Status.FOUND;
 		if (found.size() < 2) {
 			steps = List.of();
 			return Action.GOING;
@@ -651,7 +713,7 @@ public final class Navigator {
 	}
 
 	/** What a search from a spot found: the way (empty if none), how much was looked at, and whether it was to the mailbox. */
-	public record Probe(LocalPlanner.Status status, List<LocalPlanner.Step> steps, int expanded, boolean toMailbox) {
+	public record Probe(LocalPlanner.Status status, List<LocalPlanner.Step> steps, int expanded, boolean toMailbox, String report) {
 		public boolean found() {
 			return status == LocalPlanner.Status.FOUND;
 		}
@@ -669,7 +731,7 @@ public final class Navigator {
 		LocalPlanner.Status status = search.step(budget);
 		while (status == LocalPlanner.Status.RUNNING && search.expanded() < budget)
 			status = search.step(budget - search.expanded());
-		return new Probe(status, search.steps(), search.expanded(), toMailbox);
+		return new Probe(status, search.steps(), search.expanded(), toMailbox, search.report());
 	}
 
 	/** As {@link #probe}, from where he (or his horse) stands now. */
@@ -684,6 +746,8 @@ public final class Navigator {
 	/** Takes the way a probe found from where he is as the stretch to follow now. */
 	public void follow(PostmanEntity rider, Probe way, long now) {
 		local = null;
+		columnEnd = -1;
+		leavingColumn = false;
 		steps = way.steps();
 		stepsAreFinal = way.toMailbox() && way.found();
 		segmentStart = 0;

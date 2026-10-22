@@ -34,6 +34,7 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.PathType;
 
@@ -177,6 +178,11 @@ public class PostmanEntity extends PathfinderMob {
 	@Override
 	protected void registerGoals() {
 		goalSelector.addGoal(0, new FloatGoal(this));
+	}
+
+	@Override
+	protected PathNavigation createNavigation(Level level) {
+		return new RiderNavigation(this, level);
 	}
 
 	// ---------------------------------------------------------------- state

@@ -187,4 +187,16 @@ class NavigatorTest {
 		assertTrue(Navigator.isColumn(Move.RISE));
 		assertFalse(Navigator.isColumn(Move.LEAP));
 	}
+
+	@Test
+	void outOfTheTopOfARisingColumnHesPushedTowardsTheLedgeAndNoFurther() {
+		Step ledge = new Step(65, 13, 45, false, Move.WALK);
+		Vec3 push = Navigator.pushOut(66.5, 45.5, ledge);
+		assertEquals(-Navigator.PUSH_OUT, push.x, 1e-9, "west, onto the ledge");
+		assertEquals(0, push.z, 1e-9);
+		assertEquals(0, push.y, 1e-9, "the water does the lifting");
+		Vec3 nearly = Navigator.pushOut(65.6, 45.5, ledge);
+		assertEquals(-0.1, nearly.x, 1e-9, "only as far as the middle of the ledge");
+		assertEquals(Vec3.ZERO, Navigator.pushOut(65.5, 45.5, ledge));
+	}
 }

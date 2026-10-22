@@ -282,7 +282,7 @@ public final class ClimbingGameTests {
 		// that room's floor a whirlpool over magma down to the ground level, out at the bottom through ladders into
 		// the mailbox's room
 		scene.fill(58, 13, 41, 66, 15, 48, AIR);
-		scene.fill(60, 13, 49, 60, 14, 51, AIR);
+		scene.fill(60, 13, 49, 60, 14, 52, AIR);
 		scene.fill(56, 13, 52, 59, 14, 52, AIR);
 		scene.fill(48, 13, 50, 55, 15, 57, AIR);
 		bubbleColumn(scene, 52, 1, 12, 54, true);
