@@ -365,8 +365,13 @@ public class DeliveryRun {
 		}
 	}
 
-	/** The map prop and its animation arrive with the approved model. */
-	private void showMap(PostmanEntity rider, boolean out) {}
+	/** Out comes his map (held open in both hands, the study_map animation), or away it goes. */
+	private static void showMap(PostmanEntity rider, boolean out) {
+		if (out)
+			rider.setActivity(PostmanEntity.Activity.STUDY_MAP);
+		else if (rider.getActivity() == PostmanEntity.Activity.STUDY_MAP)
+			rider.setActivity(PostmanEntity.Activity.NONE);
+	}
 
 	/**
 	 * The route has to be worked out again: he stops and looks at his map, then carries on as {@code after}. If he
