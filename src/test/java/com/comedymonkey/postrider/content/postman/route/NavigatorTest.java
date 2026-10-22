@@ -161,4 +161,30 @@ class NavigatorTest {
 		assertTrue(shore.contains(CoarsePlanner.key(lx, lz)));
 		assertFalse(shore.contains(CoarsePlanner.key(lx - 1, lz)), "the water next to it stays open");
 	}
+
+	@Test
+	void laddersAndBubbleColumnsAreWhatHeIsSetSquareInto() {
+		assertTrue(Navigator.climbable(Terrain.Kind.CLIMB));
+		assertTrue(Navigator.climbable(Terrain.Kind.BUBBLE_UP));
+		assertTrue(Navigator.climbable(Terrain.Kind.BUBBLE_DOWN));
+		assertFalse(Navigator.climbable(Terrain.Kind.OPEN));
+		assertTrue(Navigator.CLIMB_NUDGE < 2, "only from right beside it");
+	}
+
+	@Test
+	void aLadderIsARunOfColumnStepsInOneColumn() {
+		List<Step> shaft = List.of(
+			new Step(5, 70, 5, false, Move.WALK),
+			new Step(6, 70, 5, false, Move.WALK),
+			new Step(6, 69, 5, false, Move.CLIMB),
+			new Step(6, 68, 5, false, Move.CLIMB),
+			new Step(6, 67, 5, false, Move.CLIMB),
+			new Step(7, 67, 5, false, Move.WALK),
+			new Step(7, 66, 5, false, Move.SINK));
+		assertEquals(4, Navigator.columnRunEnd(shaft, 2), "down the three ladder steps");
+		assertEquals(1, Navigator.columnRunEnd(shaft, 1), "a walk isn't a column");
+		assertEquals(6, Navigator.columnRunEnd(shaft, 6), "a whirlpool on its own");
+		assertTrue(Navigator.isColumn(Move.RISE));
+		assertFalse(Navigator.isColumn(Move.LEAP));
+	}
 }

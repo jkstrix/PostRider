@@ -80,6 +80,18 @@ public final class Crossing {
 		return null;
 	}
 
+	/** Whether there's open water on the straight line from here towards somewhere, within this many blocks. */
+	public static boolean waterAhead(Vec3 from, Vec3 toward, double within, Water water) {
+		double distance = Journey.horizontalDistance(from, toward);
+		if (distance < 1e-6)
+			return false;
+		double dx = (toward.x - from.x) / distance, dz = (toward.z - from.z) / distance;
+		for (int step = 1; step <= Math.min(within, distance); step++)
+			if (!Double.isNaN(water.surface(Mth.floor(from.x + dx * step), Mth.floor(from.z + dz * step))))
+				return true;
+		return false;
+	}
+
 	/** Whether a spot is within some distance (across the water) of any of these. */
 	public static boolean nearAny(Vec3 spot, List<Vec3> dangers, double berth) {
 		for (Vec3 danger : dangers)
@@ -91,8 +103,14 @@ public final class Crossing {
 	/** The dry ground nearest the bow (and, among equals, nearest the destination) to step off onto; null if none. */
 	@Nullable
 	public static BlockPos landingSpot(Vec3 bow, Vec3 target, CampSites.Floor floor) {
+		return landingSpot(bow, target, floor, LANDING_REACH);
+	}
+
+	/** As above, looking up to {@code reach} blocks from the bow (further than usual when he's stuck against a bank). */
+	@Nullable
+	public static BlockPos landingSpot(Vec3 bow, Vec3 target, CampSites.Floor floor, int reach) {
 		int bx = Mth.floor(bow.x), bz = Mth.floor(bow.z);
-		for (int radius = 0; radius <= LANDING_REACH; radius++) {
+		for (int radius = 0; radius <= reach; radius++) {
 			BlockPos best = null;
 			double bestDistance = Double.MAX_VALUE;
 			for (int dx = -radius; dx <= radius; dx++)

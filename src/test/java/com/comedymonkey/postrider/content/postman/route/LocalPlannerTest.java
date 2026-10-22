@@ -284,4 +284,51 @@ class LocalPlannerTest {
 		List<Step> steps = planner.steps();
 		assertEquals(Y + 9, steps.get(steps.size() - 1).y(), "out level with the top of the water: " + steps);
 	}
+
+	@Test
+	void aHorseIsNeverWalkedAlongHalfOverAnEdge() {
+		GridTerrain ground = new GridTerrain();
+		assertTrue(LocalPlanner.standsSquarely(ground, true, 10, Y, 10));
+		// The two eastern columns of the footprint over a drop: it can land there (half a horse on the ground stands),
+		// but it isn't walked along like that; on foot the western column is all he needs
+		GridTerrain edge = new GridTerrain().fill(11, Y - 6, 0, 30, Y - 1, 30, Kind.OPEN);
+		assertTrue(LocalPlanner.stands(edge, true, 10, Y, 10), "enough to land on");
+		assertFalse(LocalPlanner.standsSquarely(edge, true, 10, Y, 10), "not enough to walk along");
+		assertTrue(LocalPlanner.standsSquarely(edge, false, 10, Y, 10));
+		assertTrue(LocalPlanner.standsSquarely(edge, true, 8, Y, 10), "a step back, all four feet on the ground");
+		// A one-block step up: the back half of the horse over the lower tread is fine
+		GridTerrain step = new GridTerrain().fill(11, Y, 0, 30, Y, 30, Kind.SOLID);
+		assertTrue(LocalPlanner.standsSquarely(step, true, 10, Y + 1, 10), "stepping up with the back feet still on the lower tread");
+	}
+
+	@Test
+	void aLeapNeverLandsAlongAOneBlockBridge() {
+		// A chasm from x 12 to 15, bridged by a single line of blocks along z 10
+		GridTerrain chasm = new GridTerrain(40).fill(12, Y - 6, -40, 15, Y - 1, 40, Kind.OPEN).fill(12, Y - 1, 10, 15, Y - 1, 10, Kind.SOLID);
+		assertTrue(LocalPlanner.stands(chasm, true, 13, Y, 9), "half the horse is on the bridge");
+		assertFalse(LocalPlanner.landsOn(chasm, 13, Y, 9, 1, 0), "but it can't land along it coming from the west");
+		assertTrue(LocalPlanner.landsOn(chasm, 16, Y, 9, 1, 0), "the far bank, front feet on solid ground");
+		LocalPlanner planner = riding(chasm, 25, 10);
+		assertEquals(Status.FOUND, planner.step(100_000), "over by the bridge, on foot");
+		for (Step step : planner.steps())
+			if (step.x() >= 12 && step.x() <= 15)
+				assertFalse(step.mounted(), "a horse on the one-block bridge at " + step);
+	}
+
+	@Test
+	void heDoesntGetBackOnHisHorseOnAOneBlockBridge() {
+		// A one-block causeway along z 10 from x 12 to 40 over a chasm, with open ground beyond
+		GridTerrain causeway = new GridTerrain(120).fill(12, Y - 6, -120, 40, Y - 1, 120, Kind.OPEN).fill(12, Y - 1, 10, 40, Y - 1, 10, Kind.SOLID);
+		// Far enough beyond it that riding the rest beats walking it
+		LocalPlanner planner = walking(causeway, 100, 10, true);
+		assertEquals(Status.FOUND, planner.step(200_000));
+		boolean mounted = false;
+		for (Step step : planner.steps()) {
+			if (step.move() == Move.MOUNT)
+				mounted = true;
+			if (step.x() >= 12 && step.x() <= 40)
+				assertFalse(step.mounted(), "on the causeway on horseback at " + step);
+		}
+		assertTrue(mounted, "and he does whistle it back once he's over");
+	}
 }

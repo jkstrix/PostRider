@@ -44,12 +44,23 @@ public final class HorseSpots {
 		return null;
 	}
 
-	/** Room for the whole horse, nothing solid or wet in the way, and ground to stand on. */
+	/** Room for the whole horse, nothing solid or wet in the way, and ground to stand on under all of it. */
 	public static boolean fits(ServerLevel level, EntityType<?> horse, Vec3 spot) {
 		AABB box = horse.getSpawnAABB(spot.x, spot.y, spot.z);
 		if (!level.noCollision(box) || level.containsAnyLiquid(box))
 			return false;
 		BlockPos ground = BlockPos.containing(spot.x, spot.y - 0.5, spot.z);
-		return level.getBlockState(ground).isFaceSturdy(level, ground, Direction.UP);
+		if (!level.getBlockState(ground).isFaceSturdy(level, ground, Direction.UP))
+			return false;
+		// And solid ground under every corner of it: a horse put down on a bank edge walks off into the river, and
+		// one on the edge of a bridge or a cliff is half over the drop
+		for (double cx : new double[] {box.minX + 0.05, box.maxX - 0.05})
+			for (double cz : new double[] {box.minZ + 0.05, box.maxZ - 0.05}) {
+				BlockPos corner = BlockPos.containing(cx, spot.y - 0.5, cz);
+				if (!level.getFluidState(corner).isEmpty() || Hazards.isDangerous(level.getBlockState(corner))
+						|| !level.getBlockState(corner).isFaceSturdy(level, corner, Direction.UP))
+					return false;
+			}
+		return true;
 	}
 }

@@ -121,9 +121,9 @@ public final class BridgeAndMazeGameTests {
 		Scene scene = chasm(helper);
 		bridge(scene, FOOT_BRIDGE, BANK_TOP, Blocks.STONE_BRICKS.defaultBlockState());
 		String fromName = Scene.address("GT Snake A"), toName = Scene.address("GT Snake B");
-		BlockPos from = scene.mailbox(6, 32, Direction.EAST, fromName);
+		BlockPos from = scene.mailbox(6, BANK_TOP + 1, 32, Direction.EAST, fromName);
 		// The far box well past the bridge, so riding the rest is worth whistling for the horse
-		BlockPos to = scene.mailbox(121, 32, Direction.WEST, toName);
+		BlockPos to = scene.mailbox(121, BANK_TOP + 1, 32, Direction.WEST, toName);
 		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
 		nobodyFallsIn(scene, watch);
 		GapCrossing crossing = watchTheGap(scene, watch);
@@ -146,8 +146,8 @@ public final class BridgeAndMazeGameTests {
 		Scene scene = chasm(helper);
 		bridge(scene, RIDING_BRIDGE, BANK_TOP, Blocks.STONE_BRICKS.defaultBlockState());
 		String fromName = Scene.address("GT Ride A"), toName = Scene.address("GT Ride B");
-		BlockPos from = scene.mailbox(6, 32, Direction.EAST, fromName);
-		BlockPos to = scene.mailbox(121, 32, Direction.WEST, toName);
+		BlockPos from = scene.mailbox(6, BANK_TOP + 1, 32, Direction.EAST, fromName);
+		BlockPos to = scene.mailbox(121, BANK_TOP + 1, 32, Direction.WEST, toName);
 		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
 		nobodyFallsIn(scene, watch);
 		GapCrossing crossing = watchTheGap(scene, watch);

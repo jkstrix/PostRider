@@ -89,22 +89,22 @@ class JourneyTest {
 	@Test
 	void standingStillForFiveSecondsCountsAsStuck() {
 		Journey.Progress progress = new Journey.Progress();
-		assertFalse(progress.isStalled(0, 0, 0));
-		assertFalse(progress.isStalled(0.5, 0.5, 60), "shuffling on the spot");
-		assertTrue(progress.isStalled(1, 0, Journey.Progress.STALL_TICKS), "wedged in a ravine");
+		assertFalse(progress.isStalled(0, 64, 0, 0));
+		assertFalse(progress.isStalled(0.5, 64, 0.5, 60), "shuffling on the spot");
+		assertTrue(progress.isStalled(1, 64, 0, Journey.Progress.STALL_TICKS), "wedged in a ravine");
 		Journey.Progress moving = new Journey.Progress();
 		for (long tick = 0; tick <= 400; tick += 20)
-			assertFalse(moving.isStalled(tick / 4.0, 0, tick), "a block a second is still going somewhere");
+			assertFalse(moving.isStalled(tick / 4.0, 64, 0, tick), "a block a second is still going somewhere");
 	}
 
 	@Test
 	void afterJumpingFreeTheStallClockStartsAgain() {
 		Journey.Progress progress = new Journey.Progress();
-		progress.isStalled(0, 0, 0);
-		assertTrue(progress.isStalled(0, 0, 200));
+		progress.isStalled(0, 64, 0, 0);
+		assertTrue(progress.isStalled(0, 64, 0, 200));
 		progress.unstuck(50, 200);
-		assertFalse(progress.isStalled(0, 0, 220));
-		assertFalse(progress.isStalled(0, 0, 220 + Journey.Progress.STALL_TICKS - 1));
+		assertFalse(progress.isStalled(0, 64, 0, 220));
+		assertFalse(progress.isStalled(0, 64, 0, 220 + Journey.Progress.STALL_TICKS - 1));
 	}
 
 	@Test
@@ -113,5 +113,24 @@ class JourneyTest {
 		assertEquals(Journey.aims(HOME, FAR), escapes.subList(0, Journey.aims(HOME, FAR).size()), "the usual aims first");
 		assertEquals(Journey.STRETCH / 2, Journey.horizontalDistance(HOME, escapes.get(Journey.aims(HOME, FAR).size())), 1e-9);
 		assertTrue(escapes.stream().anyMatch(e -> e.x < HOME.x - 1), "even back the way he came, as a last resort");
+	}
+
+	@Test
+	void heOnlyGetsDownToWalkUpWhenHesAtTheBoxsLevelToo() {
+		Vec3 box = new Vec3(10, 64, 10);
+		assertTrue(Journey.closeEnoughToWalkUp(new Vec3(14, 64, 10), box));
+		assertTrue(Journey.closeEnoughToWalkUp(new Vec3(14, 66, 10), box), "a step or two up or down is fine");
+		assertFalse(Journey.closeEnoughToWalkUp(new Vec3(14, 44, 10), box), "right under a box on a tower: ride on up the ramp");
+		assertFalse(Journey.closeEnoughToWalkUp(new Vec3(20, 64, 10), box), "too far across");
+		assertEquals(5.0, Journey.distance(new Vec3(0, 0, 0), new Vec3(3, 4, 0)), 1e-9);
+	}
+
+	@Test
+	void climbingDownALadderIsNotStanding() {
+		Journey.Progress progress = new Journey.Progress();
+		progress.isStalled(10, 64, 10, 0);
+		// Down a shaft at a ladder's pace, never moving across
+		for (int tick = 20; tick <= 400; tick += 20)
+			assertFalse(progress.isStalled(10, 64 - tick * 0.15, 10, tick), "going down at tick " + tick);
 	}
 }

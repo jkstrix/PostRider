@@ -248,6 +248,9 @@ public class DeliveryRun {
 		keepChunksLoaded(rider, level);
 		logChanges(rider);
 		navigator.logTo(message -> logRoute(rider, message));
+		navigator.onModeChange(() -> traceUntil = level.getGameTime() + 80);
+		if (TRACE && level.getGameTime() < traceUntil && level.getGameTime() % 5 == 0)
+			logRoute(rider, trace(rider));
 		stageTicks++;
 		// No address to go to (it went while a vanished rider was being brought back, say): undeliverable, right here
 		if (destination == null && stage != Stage.PICKING_UP) {
@@ -431,8 +434,13 @@ public class DeliveryRun {
 			enter(Stage.RIDING);
 			return;
 		}
-		// The barge is just ahead: he walks down to it, and calls his horse on the far side
-		if (navigator.waterWithin(rider.position(), Navigator.FOOT_TO_WATER)) {
+		// The barge is just ahead (by his route, or plainly on the straight line): he walks down to it, and calls his
+		// horse on the far side
+		Vec3 target = destinationSpot(level);
+		int nearY = rider.getBlockY();
+		if (navigator.waterWithin(rider.position(), Navigator.FOOT_TO_WATER)
+				|| target != null && Crossing.waterAhead(rider.position(), navigator.heading(rider.position(), target), Navigator.FOOT_TO_WATER,
+					(x, z) -> Crossing.surfaceIn(level, x, z, nearY))) {
 			enter(Stage.RIDING);
 			return;
 		}
@@ -452,13 +460,14 @@ public class DeliveryRun {
 			return;
 		}
 		double distance = Journey.horizontalDistance(rider.position(), target);
-		if (distance <= Journey.DISMOUNT_DISTANCE) {
+		if (Journey.closeEnoughToWalkUp(rider.position(), target)) {
 			rider.dismissHorse();
 			rider.setSprinting(false);
 			enter(Stage.WALKING_TO_BOX);
 			return;
 		}
-		if (checkStuck(rider, level, distance, target))
+		// Progress is judged with height, so a ramp or a ladder up to the box counts
+		if (checkStuck(rider, level, Journey.distance(rider.position(), target), target))
 			return;
 		// Back on the road after a restart: the route is worked out again as he rides
 		if (!routeStarted) {
@@ -603,7 +612,14 @@ public class DeliveryRun {
 
 	/** Steps ashore by the bow: his horse appears on the bank, he climbs back on, and the barge vanishes. */
 	private boolean land(PostmanEntity rider, ServerLevel level, BargeEntity barge, Vec3 target) {
-		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> CampSites.floorIn(level, x, z, barge.getBlockY()));
+		return land(rider, level, barge, target, Crossing.LANDING_REACH);
+	}
+
+	/** Stuck against a bank with nowhere to step off close by, he looks this far for somewhere before being jumped. */
+	public static final int STUCK_LANDING_REACH = 12;
+
+	private boolean land(PostmanEntity rider, ServerLevel level, BargeEntity barge, Vec3 target, int reach) {
+		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> CampSites.floorIn(level, x, z, barge.getBlockY()), reach);
 		if (spot == null)
 			return false;
 		Vec3 ground = Vec3.atBottomCenterOf(spot);
@@ -615,6 +631,7 @@ public class DeliveryRun {
 		rider.stopRiding();
 		rider.setActivity(PostmanEntity.Activity.NONE);
 		rider.moveTo(ground.x, ground.y, ground.z, yaw, 0);
+		String horseWhere = "";
 		if (horse != null) {
 			EntityType<?> type = horse.getType();
 			Vec3 room = HorseSpots.find(ground, yaw, s -> HorseSpots.fits(level, type, s));
@@ -623,10 +640,12 @@ public class DeliveryRun {
 			horse.moveTo(stand.x, stand.y, stand.z, yaw, 0);
 			PostmanEffects.puff(level, horse);
 			rider.startRiding(horse, true);
+			horseWhere = ", his horse put down at " + Navigator.spot(stand) + (room == null ? " (no room beside him)" : "");
 		}
 		barge.vanish(level);
 		aimCooldown = 0;
-		logRoute(rider, "stepped ashore at " + Navigator.spot(ground));
+		logRoute(rider, "stepped ashore at " + Navigator.spot(ground) + horseWhere);
+		traceUntil = level.getGameTime() + 80;
 		navigator.landed(ground, level.getGameTime());
 		// Crossed on foot (he walked down to the water): he calls his horse now he's over, unless the box is close
 		if (horse == null && !walksTheRest(Journey.horizontalDistance(ground, target)))
@@ -988,7 +1007,7 @@ public class DeliveryRun {
 			return false;
 		long now = level.getGameTime();
 		boolean noProgress = progress.isStuck(distance, now);
-		boolean stalled = progress.isStalled(rider.getX(), rider.getZ(), now);
+		boolean stalled = progress.isStalled(rider.getX(), rider.getY(), rider.getZ(), now);
 		if (!noProgress && !stalled)
 			return false;
 		String why = noProgress ? "no nearer in " + Journey.Progress.PATIENCE / 20 + " s" : "not moved in " + Journey.Progress.STALL_TICKS / 20 + " s";
@@ -998,7 +1017,7 @@ public class DeliveryRun {
 			return true;
 		}
 		// Stuck in the barge with land at hand: he steps ashore there rather than being jumped somewhere inland
-		if (stage == Stage.BARGING && rider.getVehicle() instanceof BargeEntity barge && land(rider, level, barge, target)) {
+		if (stage == Stage.BARGING && rider.getVehicle() instanceof BargeEntity barge && land(rider, level, barge, target, STUCK_LANDING_REACH)) {
 			progress.pause(now);
 			return true;
 		}
@@ -1012,7 +1031,7 @@ public class DeliveryRun {
 		}
 		Entity mover = rider.getVehicle() != null ? rider.getVehicle() : rider;
 		String stuck = "stuck at " + Navigator.spot(mover.position()) + " (" + stage + ", " + why + "; " + navigator.state() + "; "
-			+ (rider.getNavigation().isDone() ? "not moving" : "moving") + ")";
+			+ (rider.getNavigation().isDone() ? "no path" : "on a path") + "; " + bodyState(mover, level) + ")";
 		Vec3 free = null;
 		String found = "on the water";
 		boolean wayFromHere = false;
@@ -1023,7 +1042,11 @@ public class DeliveryRun {
 			if (wayFromHere && !triedFollowingNear(mover.position())) {
 				lastFollowSpot = mover.position();
 				waysFollowed++;
-				logRoute(rider, stuck + "; a way through the blocks existed (" + here.steps().size() + " steps): following it rather than jumping");
+				// Set square in his block first: wedged against a block's edge he'd not get going however good the way
+				mover.setPos(Math.floor(mover.getX()) + (rider.getHorse() != null ? 1.0 : 0.5), mover.getY(), Math.floor(mover.getZ()) + (rider.getHorse() != null ? 1.0 : 0.5));
+				logRoute(rider, stuck + "; a way through the blocks existed (" + here.steps().size() + " steps, starting " + Navigator.describe(here.steps(), 6)
+					+ "): following it rather than jumping");
+				traceUntil = now + 60;
 				navigator.follow(rider, here, now);
 				progress.unstuck(distance, now);
 				return true;
@@ -1056,6 +1079,33 @@ public class DeliveryRun {
 		if (stage == Stage.RIDING)
 			stopToReplan(rider, level, target, Stage.RIDING);
 		return true;
+	}
+
+	/** With -Dpostrider.trace, a stuck rider's body and path follower are traced for a few seconds afterwards. */
+	public static final boolean TRACE = Boolean.getBoolean("postrider.trace");
+	private long traceUntil;
+
+	private String trace(PostmanEntity rider) {
+		Entity body = rider.getVehicle() != null ? rider.getVehicle() : rider;
+		var navigation = rider.getNavigation();
+		var path = navigation.getPath();
+		var control = rider.getMoveControl();
+		String next = path == null || path.isDone() ? "none" : path.getNextNodePos().toShortString() + " (" + path.getNextNodeIndex() + "/" + path.getNodeCount() + ")";
+		return String.format("trace: at %.2f %.2f %.2f, delta %.3f/%.3f, %s, %s, path next %s, wanted %.1f %.1f %.1f, zza %.2f speed %.2f, %s, %s, activity %s",
+			body.getX(), body.getY(), body.getZ(), body.getDeltaMovement().horizontalDistance(), body.getDeltaMovement().y,
+			body.onGround() ? "on ground" : "in air", body.horizontalCollision ? "colliding" : "clear", next,
+			control.getWantedX(), control.getWantedY(), control.getWantedZ(), (body instanceof net.minecraft.world.entity.LivingEntity l ? l.zza : 0f),
+			(body instanceof net.minecraft.world.entity.LivingEntity l2 ? l2.getSpeed() : 0f), rider.isGesturing() ? "gesturing" : "no gesture",
+			rider.getVehicle() == null ? (rider.isHorseOnTheWay() ? "on foot, horse on the way" : "on foot") : "on " + rider.getVehicle().getType().toShortString(), rider.getActivity());
+	}
+
+	/** How the body that's stuck is doing, for the log: on the ground or not, what it's standing in and on, pushing or not. */
+	private static String bodyState(Entity mover, ServerLevel level) {
+		BlockPos feet = mover.blockPosition();
+		return (mover.onGround() ? "on the ground" : "off the ground") + ", motion " + String.format("%.2f", mover.getDeltaMovement().horizontalDistance())
+			+ ", " + (mover.horizontalCollision ? "pushing against something" : "not pushing") + ", feet in " + level.getBlockState(feet).getBlock().getName().getString()
+			+ " on " + level.getBlockState(feet.below()).getBlock().getName().getString()
+			+ (level.noCollision(mover, mover.getBoundingBox()) ? "" : ", WEDGED in a block");
 	}
 
 	/** How far out he looks for somewhere to jump to, nearest first; the long jumps below only past all of these. */

@@ -180,6 +180,13 @@ public final class Navigator {
 		this.log = log;
 	}
 
+	/** Told each time he gets off or back on his horse (the trials trace him for a while after). */
+	private Runnable onModeChange = () -> {};
+
+	public void onModeChange(Runnable hook) {
+		this.onModeChange = hook;
+	}
+
 	/** Where he was when last seen, the long-range plan being worked out was asked for afloat, and he's landed since. */
 	@Nullable
 	private Vec3 lastHere;
@@ -218,6 +225,7 @@ public final class Navigator {
 		steps = List.of();
 		stepsAreFinal = false;
 		waitingForHorse = 0;
+		columnEnd = -1;
 	}
 
 	public boolean isDetouring() {
@@ -264,8 +272,119 @@ public final class Navigator {
 			startStretch(rider, level, target, now);
 		}
 		skipPassed(rider);
+		nudgeIntoClimb(rider, level);
+		if (tickColumn(rider))
+			return Action.GOING;
 		follow(rider);
 		return Action.GOING;
+	}
+
+	// ---------------------------------------------------------------- up and down a ladder or a bubble column
+
+	/** The last step of the run of column steps he's riding (a ladder or a bubble column), or -1. */
+	private int columnEnd = -1;
+	private int columnTicks;
+	/** He's pulled this far off the column's middle: knocked out of it. */
+	public static final double COLUMN_OFF = 0.8;
+	/** Longer than this up or down one column means something's wrong. */
+	public static final int COLUMN_TICKS = 400;
+
+	/** Whether a step is one of a column: a ladder, or a bubble column, straight up or down. */
+	public static boolean isColumn(LocalPlanner.Move move) {
+		return move == LocalPlanner.Move.CLIMB || move == LocalPlanner.Move.RISE || move == LocalPlanner.Move.SINK;
+	}
+
+	/** The index of the last step, from {@code from} on, of column steps all in the same column; {@code from} itself if it isn't one. */
+	public static int columnRunEnd(List<LocalPlanner.Step> steps, int from) {
+		if (!isColumn(steps.get(from).move()))
+			return from;
+		int end = from;
+		while (end + 1 < steps.size() && isColumn(steps.get(end + 1).move()) && steps.get(end + 1).x() == steps.get(from).x()
+				&& steps.get(end + 1).z() == steps.get(from).z())
+			end++;
+		return end;
+	}
+
+	/**
+	 * A ladder or a bubble column is not for the path follower: pushed sideways on a ladder a mob climbs up, whichever
+	 * way the path goes. So from the first column step he's held square in the column with no path, the ladder (he
+	 * jumps to climb, slides to descend) or the water takes him, and the path is handed back at the other end.
+	 * True while he's being taken.
+	 */
+	private boolean tickColumn(PostmanEntity rider) {
+		if (columnEnd < 0) {
+			Path path = rider.getNavigation().getPath();
+			if (steps.isEmpty() || path == null || path.isDone() || rider.getVehicle() != null)
+				return false;
+			int next = segmentStart + path.getNextNodeIndex();
+			if (next < 0 || next > segmentEnd || next >= steps.size() || !isColumn(steps.get(next).move()))
+				return false;
+			LocalPlanner.Step step = steps.get(next);
+			if (Math.hypot(rider.getX() - (step.x() + 0.5), rider.getZ() - (step.z() + 0.5)) > SHAFT_NUDGE)
+				return false;
+			columnEnd = Math.min(segmentEnd, columnRunEnd(steps, next));
+			columnTicks = 0;
+			rider.getNavigation().stop();
+			log.accept((steps.get(columnEnd).y() < step.y() ? "down" : "up") + " a column from " + spot(rider.position()) + " to " + steps.get(columnEnd).y());
+		}
+		LocalPlanner.Step end = steps.get(columnEnd);
+		double cx = end.x() + 0.5, cz = end.z() + 0.5;
+		if (Math.hypot(rider.getX() - cx, rider.getZ() - cz) > COLUMN_OFF || ++columnTicks > COLUMN_TICKS) {
+			log.accept("knocked out of the column at " + spot(rider.position()) + ": planning again");
+			columnEnd = -1;
+			clearStretch();
+			return false;
+		}
+		rider.setPos(cx, rider.getY(), cz);
+		boolean up = end.y() > rider.getY();
+		if (up && rider.onClimbable())
+			rider.getJumpControl().jump();
+		boolean there = up ? rider.getY() >= end.y() - 0.05 : rider.getY() <= end.y() + 0.05 && (rider.onGround() || rider.onClimbable());
+		if (!there)
+			return true;
+		// At the other end: on along the rest of the way
+		int resume = columnEnd + 1;
+		columnEnd = -1;
+		if (resume > segmentEnd)
+			return false;
+		segmentStart = resume;
+		startSegment(rider);
+		return true;
+	}
+
+	/** Coming up to a ladder or a bubble column, he's set this far from square in it at most before he's put square. */
+	public static final double CLIMB_NUDGE = 1.2;
+
+	/** A step straight down his own column (a shaft) from this close to its middle: he's set square over it. */
+	public static final double SHAFT_NUDGE = 0.6;
+
+	/**
+	 * A ladder (or a bubble column) is only climbed from inside its block, and a ladder has a thin solid side he can
+	 * push against for ever; and a step straight down a shaft needs him square over it, or a sliver of his feet on
+	 * the rim holds him up while the path follower moves on to the steps at the bottom. On foot, heading for either,
+	 * he's set square into the block.
+	 */
+	private void nudgeIntoClimb(PostmanEntity rider, ServerLevel level) {
+		Path path = rider.getNavigation().getPath();
+		if (steps.isEmpty() || path == null || path.isDone() || rider.getVehicle() != null)
+			return;
+		int next = segmentStart + path.getNextNodeIndex();
+		if (next < 0 || next > segmentEnd || next >= steps.size())
+			return;
+		LocalPlanner.Step step = steps.get(next);
+		double cx = step.x() + 0.5, cz = step.z() + 0.5;
+		double off = Math.hypot(rider.getX() - cx, rider.getZ() - cz);
+		boolean climb = climbable(new LevelTerrain(level).kind(step.x(), step.y(), step.z()));
+		boolean down = step.y() < Mth.floor(rider.getY() + 1e-3);
+		if (off <= 0.05)
+			return;
+		if (climb && rider.horizontalCollision && off <= CLIMB_NUDGE && Math.abs(rider.getY() - step.y()) <= 1.5
+				|| (climb || down) && off <= SHAFT_NUDGE && rider.onGround())
+			rider.setPos(cx, rider.getY(), cz);
+	}
+
+	static boolean climbable(Terrain.Kind kind) {
+		return kind == Terrain.Kind.CLIMB || kind == Terrain.Kind.BUBBLE_UP || kind == Terrain.Kind.BUBBLE_DOWN;
 	}
 
 	/** A leap in the plan: where he takes off and where he lands (the middles of his horse at each). */
@@ -401,6 +520,19 @@ public final class Navigator {
 		return text.toString();
 	}
 
+	/** The first few steps of a way, for the log: each move and where it lands. */
+	public static String describe(List<LocalPlanner.Step> steps, int atMost) {
+		StringBuilder text = new StringBuilder();
+		for (int i = 0; i < Math.min(atMost, steps.size()); i++) {
+			LocalPlanner.Step step = steps.get(i);
+			if (i > 0)
+				text.append(", ");
+			text.append(step.move().name().toLowerCase(java.util.Locale.ROOT)).append(step.mounted() ? " (mounted) " : " ")
+				.append(step.x()).append(' ').append(step.y()).append(' ').append(step.z());
+		}
+		return text.toString();
+	}
+
 	/** A place as whole block coordinates, for the log. */
 	public static String spot(Vec3 at) {
 		return Mth.floor(at.x) + " " + Mth.floor(at.y) + " " + Mth.floor(at.z);
@@ -455,6 +587,9 @@ public final class Navigator {
 	private boolean wantsStretch(PostmanEntity rider, ServerLevel level, long now) {
 		if (steps.isEmpty())
 			return true;
+		// Being taken up or down a column: the path is stopped on purpose
+		if (columnEnd >= 0)
+			return false;
 		LocalPlanner.Step last = steps.get(steps.size() - 1);
 		Vec3 here = rider.position();
 		if (!stepsAreFinal && Journey.horizontalDistance(here, new Vec3(last.centreX(), here.y, last.centreZ())) < RENEW_DISTANCE)
@@ -625,9 +760,13 @@ public final class Navigator {
 		segmentStart = segmentEnd + 1;
 		segmentEnd = segmentEnd(steps, segmentStart);
 		if (change.move() == LocalPlanner.Move.DISMOUNT) {
+			log.accept("gets down from his horse at " + spot(rider.position()) + " for " + describe(steps.subList(segmentStart, Math.min(steps.size(), segmentStart + 4)), 4));
+			onModeChange.run();
 			rider.dismissHorse();
 			startSegment(rider);
 		} else if (change.move() == LocalPlanner.Move.MOUNT) {
+			log.accept("whistles for his horse at " + spot(rider.position()));
+			onModeChange.run();
 			rider.whistleForHorse();
 			waitingForHorse = DeliveryRun.HORSE_WAIT_TICKS;
 		} else {
@@ -704,6 +843,9 @@ public final class Navigator {
 				blocked.add(cell);
 			log.accept("the shore at " + spot(lastLanding) + " led nowhere; he won't land there again");
 		}
+		// Nor is the shore he's putting out from any use to land on again
+		for (long cell : shoreAround(from, TerrainSurvey.of(level)))
+			blocked.add(cell);
 		CoarsePlanner.Leg current = currentLeg();
 		if (current != null && current.kind() == CoarsePlanner.LegKind.LAND && leg + 1 < plan.legs().size()
 				&& plan.legs().get(leg + 1).kind() == CoarsePlanner.LegKind.WATER)

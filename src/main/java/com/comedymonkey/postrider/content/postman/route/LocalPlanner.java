@@ -66,7 +66,7 @@ public final class LocalPlanner {
 	}
 
 	/** How much dearer every step is on foot: he runs, but his horse gallops. */
-	public static final double FOOT_COST = 1.8;
+	public static final double FOOT_COST = 2.0;
 	public static final double STEP_UP_COST = 0.5;
 	public static final double DROP_COST = 0.25;
 	public static final double LEAP_COST = 2.0;
@@ -74,7 +74,7 @@ public final class LocalPlanner {
 	/** A block up or down a bubble column: quicker than a ladder, as the water does the work. */
 	public static final double COLUMN_COST = 1.0;
 	public static final double DISMOUNT_COST = 12.0;
-	public static final double MOUNT_COST = 16.0;
+	public static final double MOUNT_COST = 10.0;
 	/** Under a roof (a cave, a tunnel) every step costs this much more. */
 	public static final double COVERED_COST = 1.15;
 	/** How greedy the search is: a little, for speed, at a small cost in how short the way is. */
@@ -201,7 +201,45 @@ public final class LocalPlanner {
 				if (below == Terrain.Kind.SOLID || feet == Terrain.Kind.LOW)
 					support++;
 			}
+		// Half the horse on something is enough to land on (a leap or a drop ends with its front half on the far
+		// side, and it stands); walking along, every corner needs ground (see standsSquarely)
 		return support >= 2;
+	}
+
+	/**
+	 * As {@link #stands}, but on horseback with ground under every corner: the way he walks along, so he never hugs
+	 * the edge of a bridge or a cliff with half the horse over the drop. A corner over a one-block step down (the
+	 * tread he's stepping up from, a log he's stepping onto) still counts: that's how a horse climbs a step.
+	 */
+	public static boolean standsSquarely(Terrain terrain, boolean mounted, int x, int y, int z) {
+		if (!stands(terrain, mounted, x, y, z))
+			return false;
+		if (!mounted)
+			return true;
+		for (int dx = 0; dx <= 1; dx++)
+			for (int dz = 0; dz <= 1; dz++)
+				if (!underfoot(terrain, x + dx, y, z + dz))
+					return false;
+		return true;
+	}
+
+	/** Whether a column has ground close enough under a foot at y: a block, or a one-block step down. */
+	private static boolean underfoot(Terrain terrain, int x, int y, int z) {
+		return terrain.kind(x, y, z) == Terrain.Kind.LOW || terrain.kind(x, y - 1, z) == Terrain.Kind.SOLID
+			|| terrain.kind(x, y - 1, z).isClear() && terrain.kind(x, y - 2, z) == Terrain.Kind.SOLID;
+	}
+
+	/**
+	 * Whether a horse coming in from the direction (dx, dz) can land at a node: it stands there, and both corners at
+	 * its front have ground under them, so a leap or a drop never ends up along a one-block bridge or ledge.
+	 */
+	public static boolean landsOn(Terrain terrain, int x, int y, int z, int dx, int dz) {
+		if (!stands(terrain, true, x, y, z))
+			return false;
+		int fx = dx > 0 ? x + 1 : x, fz = dz > 0 ? z + 1 : z;
+		if (dx != 0)
+			return underfoot(terrain, fx, y, z) && underfoot(terrain, fx, y, z + 1);
+		return underfoot(terrain, x, y, fz) && underfoot(terrain, x + 1, y, fz);
 	}
 
 	/** Whether he (or his horse) would fit here, standing or passing through in the air. */
@@ -264,24 +302,36 @@ public final class LocalPlanner {
 				continue;
 			int x = from.x + d[0], z = from.z + d[1];
 			double length = diagonal ? DIAGONAL : 1.0;
-			if (stands(terrain, m, x, from.y, z)) {
+			if (standsSquarely(terrain, m, x, from.y, z)) {
 				add(from, x, from.y, z, m, Move.WALK, length);
 				continue;
 			}
-			if (!diagonal && stands(terrain, m, x, from.y + 1, z) && headroom(m, from.x, from.y, from.z)) {
+			if (!diagonal && standsSquarely(terrain, m, x, from.y + 1, z) && headroom(m, from.x, from.y, from.z)) {
 				add(from, x, from.y + 1, z, m, Move.WALK, length + STEP_UP_COST);
 				continue;
 			}
 			if (!fits(terrain, m, x, from.y, z))
 				continue;
 			int maxDrop = m ? MOUNTED_DROP : FOOT_DROP;
-			for (int drop = 1; drop <= maxDrop; drop++) {
-				int y = from.y - drop;
-				if (stands(terrain, m, x, y, z)) {
-					add(from, x, y, z, m, Move.WALK, length + DROP_COST * drop);
+			// Off an edge: on foot he lands a block on; a horse (two long) can't land with its back half in the cliff
+			// face, so straight off an edge it lands two blocks on, clear of it
+			int[] outs = m && !diagonal ? new int[] {1, 2} : new int[] {1};
+			for (int out : outs) {
+				int lx = from.x + d[0] * out, lz = from.z + d[1] * out;
+				if (out == 2 && !fits(terrain, m, lx, from.y, lz))
 					break;
+				boolean landed = false;
+				for (int drop = 1; drop <= maxDrop; drop++) {
+					int y = from.y - drop;
+					if (m ? landsOn(terrain, lx, y, lz, d[0], d[1]) : stands(terrain, m, lx, y, lz)) {
+						add(from, lx, y, lz, m, Move.WALK, length * out + DROP_COST * drop);
+						landed = true;
+						break;
+					}
+					if (!fits(terrain, m, lx, y, lz))
+						break;
 				}
-				if (!fits(terrain, m, x, y, z))
+				if (landed)
 					break;
 			}
 		}
@@ -295,19 +345,19 @@ public final class LocalPlanner {
 				int x = from.x + dx * across, z = from.z + dz * across;
 				if (across >= 2) {
 					int landing = Integer.MIN_VALUE;
-					if (stands(terrain, true, x, from.y, z))
+					if (landsOn(terrain, x, from.y, z, dx, dz))
 						landing = from.y;
-					else if (stands(terrain, true, x, from.y - 1, z))
+					else if (landsOn(terrain, x, from.y - 1, z, dx, dz))
 						landing = from.y - 1;
-					else if (stands(terrain, true, x, from.y + 1, z) && headroom(true, x, from.y, z))
+					else if (landsOn(terrain, x, from.y + 1, z, dx, dz) && headroom(true, x, from.y, z))
 						landing = from.y + 1;
 					if (landing != Integer.MIN_VALUE) {
 						add(from, x, landing, z, true, Move.LEAP, across + LEAP_COST);
 						break;
 					}
 				}
-				// Over the gap: nothing to stand on near his level (or he'd just walk), and nothing to hit
-				boolean gap = !stands(terrain, true, x, from.y, z) && !stands(terrain, true, x, from.y - 1, z)
+				// Over the gap: nothing to walk along near his level (or he'd just walk), and nothing to hit
+				boolean gap = !standsSquarely(terrain, true, x, from.y, z) && !standsSquarely(terrain, true, x, from.y - 1, z)
 					&& fits(terrain, true, x, from.y, z);
 				if (!gap)
 					break;
@@ -374,7 +424,7 @@ public final class LocalPlanner {
 	private void mount(Node from) {
 		for (int dx = -1; dx <= 0; dx++)
 			for (int dz = -1; dz <= 0; dz++)
-				if (stands(terrain, true, from.x + dx, from.y, from.z + dz)) {
+				if (standsSquarely(terrain, true, from.x + dx, from.y, from.z + dz)) {
 					add(from, from.x + dx, from.y, from.z + dz, true, Move.MOUNT, 0);
 					return;
 				}

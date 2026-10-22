@@ -450,6 +450,11 @@ public class PostmanEntity extends PathfinderMob {
 		return getVehicle() instanceof PostmanHorse horse ? horse : null;
 	}
 
+	/** Whether he has whistled and his horse hasn't come yet. */
+	public boolean isHorseOnTheWay() {
+		return horseCountdown > 0 || arrivingHorse != null;
+	}
+
 	private void tickHorse(ServerLevel level) {
 		if (horseCountdown > 0 && --horseCountdown == 0) {
 			EntityType<PostmanHorse> type = ModEntities.POSTMAN_HORSE.get();

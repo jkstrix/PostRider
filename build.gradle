@@ -39,6 +39,7 @@ neoForge {
             type = "gameTestServer"
             gameDirectory = project.file('run-gametest')
             systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            systemProperty 'postrider.trace', 'true'
         }
         configureEach {
             systemProperty 'forge.logging.markers', 'REGISTRIES'

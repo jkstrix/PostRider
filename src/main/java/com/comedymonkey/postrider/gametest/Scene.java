@@ -78,10 +78,15 @@ final class Scene {
 
 	/** A mailbox on the ground, its door facing this way, with an address no other test will use. Its world position. */
 	BlockPos mailbox(int x, int z, Direction facing, String address) {
+		return mailbox(x, 1, z, facing, address);
+	}
+
+	/** A mailbox standing at this height (its lower half at y; the ground is at y - 1). */
+	BlockPos mailbox(int x, int y, int z, Direction facing, String address) {
 		BlockState lower = ModBlocks.mailbox(DyeColor.RED).get().defaultBlockState().setValue(MailboxBlock.FACING, facing);
-		helper.setBlock(new BlockPos(x, 1, z), lower);
-		helper.setBlock(new BlockPos(x, 2, z), lower.setValue(MailboxBlock.HALF, DoubleBlockHalf.UPPER));
-		BlockPos pos = at(x, 1, z);
+		helper.setBlock(new BlockPos(x, y, z), lower);
+		helper.setBlock(new BlockPos(x, y + 1, z), lower.setValue(MailboxBlock.HALF, DoubleBlockHalf.UPPER));
+		BlockPos pos = at(x, y, z);
 		if (!(level.getBlockEntity(pos) instanceof MailboxBlockEntity mailbox))
 			throw new GameTestAssertException("No mailbox at " + pos);
 		MailboxDirectory.Result named = mailbox.rename(address, helper.makeMockPlayer(GameType.SURVIVAL));

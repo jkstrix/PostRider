@@ -88,4 +88,22 @@ class CrossingTest {
 		assertTrue(RiderHunting.huntsRiders(Guardian.class));
 		assertTrue(RiderHunting.huntsRiders(ElderGuardian.class));
 	}
+
+	@Test
+	void stuckAgainstABankHeLooksFurtherForSomewhereToStepOff() {
+		// Standable ground only 9 blocks east of the bow: out of the usual reach, within the stuck one
+		CampSites.Floor far = (x, z) -> x >= 19 ? 64 : CampSites.UNUSABLE;
+		Vec3 bow = new Vec3(10.5, 63, 0.5), target = new Vec3(60, 64, 0.5);
+		assertNull(Crossing.landingSpot(bow, target, far));
+		assertNotNull(Crossing.landingSpot(bow, target, far, DeliveryRun.STUCK_LANDING_REACH));
+		assertTrue(DeliveryRun.STUCK_LANDING_REACH > Crossing.LANDING_REACH);
+	}
+
+	@Test
+	void waterOnTheStraightLineCloseAheadIsSeenBeforeHeWhistles() {
+		Vec3 rider = new Vec3(0.5, 64, 0.5);
+		assertTrue(Crossing.waterAhead(rider, new Vec3(200, 64, 0.5), 15, LAKE_EAST), "the lake starts 10 blocks on");
+		assertFalse(Crossing.waterAhead(rider, new Vec3(200, 64, 0.5), 8, LAKE_EAST), "not within 8");
+		assertFalse(Crossing.waterAhead(rider, new Vec3(-200, 64, 0.5), 15, LAKE_EAST), "the water is behind him");
+	}
 }

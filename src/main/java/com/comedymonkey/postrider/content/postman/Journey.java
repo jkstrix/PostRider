@@ -21,11 +21,23 @@ public final class Journey {
 	}
 	/** How close to the mailbox he gets down from his horse, and how close he walks before delivering. */
 	public static final double DISMOUNT_DISTANCE = 6.0;
+	/** ...and no further above or below it than this: a box on a tower top is reached by the ramp, not from its foot. */
+	public static final double DISMOUNT_HEIGHT = 3.0;
 	public static final double DELIVER_DISTANCE = 1.8;
 	/** Turns tried, in degrees, when the way straight ahead is water: small swerves first, either side. */
 	private static final float[] SWERVES = {0, 25, -25, 50, -50, 80, -80};
 
 	private Journey() {}
+
+	/** Whether he's close enough to the mailbox, across and up or down, to get off his horse and walk the rest. */
+	public static boolean closeEnoughToWalkUp(Vec3 from, Vec3 mailbox) {
+		return horizontalDistance(from, mailbox) <= DISMOUNT_DISTANCE && Math.abs(mailbox.y - from.y) <= DISMOUNT_HEIGHT;
+	}
+
+	/** The straight-line distance, height included: climbing counts as progress. */
+	public static double distance(Vec3 from, Vec3 to) {
+		return from.distanceTo(to);
+	}
 
 	public static double horizontalDistance(Vec3 from, Vec3 to) {
 		double dx = to.x - from.x, dz = to.z - from.z;
@@ -92,7 +104,7 @@ public final class Journey {
 		private double bestDistance = Double.MAX_VALUE;
 		private long bestSince;
 		private int triesInARow;
-		private double stallX = Double.NaN, stallZ;
+		private double stallX = Double.NaN, stallY, stallZ;
 		private long stallSince;
 
 		/** Records how far he is from the destination now; true if he's been stuck too long. */
@@ -107,10 +119,11 @@ public final class Journey {
 			return tick - bestSince >= PATIENCE;
 		}
 
-		/** Records where he is now; true if he's hardly moved for {@link #STALL_TICKS}. */
-		public boolean isStalled(double x, double z, long tick) {
-			if (Double.isNaN(stallX) || Math.hypot(x - stallX, z - stallZ) > STALL_DISTANCE) {
+		/** Records where he is now; true if he's hardly moved, up or down included, for {@link #STALL_TICKS}. */
+		public boolean isStalled(double x, double y, double z, long tick) {
+			if (Double.isNaN(stallX) || Math.sqrt((x - stallX) * (x - stallX) + (y - stallY) * (y - stallY) + (z - stallZ) * (z - stallZ)) > STALL_DISTANCE) {
 				stallX = x;
+				stallY = y;
 				stallZ = z;
 				stallSince = tick;
 				return false;
