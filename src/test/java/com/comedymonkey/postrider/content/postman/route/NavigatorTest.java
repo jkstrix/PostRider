@@ -94,4 +94,16 @@ class NavigatorTest {
 		// Not where he lands (just a stretch of a long crossing): on along the way
 		assertTrue(Navigator.steerFor(across, false, bank, new Vec3(8.5, 62, 0.5)).x <= 10.5);
 	}
+
+	@Test
+	void waterHeCantPlanPastMeansTheBargeEvenIfTheLongRangePlanCalledItLand() {
+		// A river narrower than the long-range plan's cells: no way through the blocks, open water ahead
+		assertEquals(Navigator.Failed.BARGE, Navigator.whenStretchFails(false, true, true, 0));
+		assertEquals(Navigator.Failed.BARGE, Navigator.whenStretchFails(true, true, true, 0), "even with the mailbox over the water");
+		// No water: the plan is redone round whatever's in the way
+		assertEquals(Navigator.Failed.REPLAN, Navigator.whenStretchFails(false, false, true, 0));
+		assertEquals(Navigator.Failed.DROP_PLAN, Navigator.whenStretchFails(false, false, true, Navigator.MAX_BLOCKED));
+		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(true, false, true, 0), "can't reach the mailbox itself: getting unstuck sorts it");
+		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(false, false, false, 0));
+	}
 }

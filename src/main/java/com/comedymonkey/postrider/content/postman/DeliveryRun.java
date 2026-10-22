@@ -957,6 +957,14 @@ public class DeliveryRun {
 			progress.pause(now);
 			return true;
 		}
+		// Stuck at the water's edge: he rows across rather than being jumped over it
+		if (stage == Stage.RIDING) {
+			Vec3 water = navigator.waterToCross(level, rider, target);
+			if (water != null && launchBarge(rider, level, water)) {
+				progress.pause(now);
+				return true;
+			}
+		}
 		Vec3 free = freeSpot(level, rider.position(), target, rider.level().canSeeSky(rider.blockPosition()));
 		// Nowhere safe to jump to this time (lava all round, say); it still counts as a try
 		if (free == null) {

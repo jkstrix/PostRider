@@ -300,23 +300,58 @@ public final class Navigator {
 	 * again; without one, if it's water in the way, it's the barge.
 	 */
 	private Action stretchFailed(PostmanEntity rider, ServerLevel level, Vec3 target) {
-		// Can't get to the mailbox itself: that's for getting unstuck to sort out
-		if (localIsFinal)
-			return Action.GOING;
-		if (plan != null && localGoal != null) {
-			int cx = CoarsePlanner.cellOf(localGoal.x), cz = CoarsePlanner.cellOf(localGoal.z);
-			blocked.add(CoarsePlanner.key(cx, cz));
-			if (blocked.size() > MAX_BLOCKED) {
-				plan = null;
-				return Action.GOING;
+		Vec3 water = waterToCross(level, rider, target);
+		boolean hasPlan = plan != null && localGoal != null;
+		Failed what = whenStretchFails(localIsFinal, water != null, hasPlan, blocked.size());
+		switch (what) {
+			case BARGE -> {
+				launchAim = water;
+				return Action.LAUNCH;
 			}
-			return Action.REPLAN;
-		}
-		if (launchable(level, rider, target)) {
-			launchAim = target;
-			return Action.LAUNCH;
+			case REPLAN -> {
+				blocked.add(CoarsePlanner.key(CoarsePlanner.cellOf(localGoal.x), CoarsePlanner.cellOf(localGoal.z)));
+				return Action.REPLAN;
+			}
+			case DROP_PLAN -> plan = null;
+			default -> {}
 		}
 		return Action.GOING;
+	}
+
+	/** What he does when there's no way through the blocks ahead. */
+	public enum Failed {
+		/** Carries on as he is (getting unstuck sorts it out if it comes to that). */
+		CARRY_ON,
+		/** Water's in the way, open enough to launch on: he takes the barge. */
+		BARGE,
+		/** Marks that part of the long-range plan impassable and works it out again. */
+		REPLAN,
+		/** Too much of the plan has proved impassable: he goes without one. */
+		DROP_PLAN
+	}
+
+	/**
+	 * When the stretch ahead won't plan: water he can launch onto means the barge, whatever the long-range plan
+	 * thought (a river narrower than its cells can slip through it as land); otherwise the plan is redone round the
+	 * blockage, unless it was the mailbox he couldn't reach.
+	 */
+	public static Failed whenStretchFails(boolean toMailbox, boolean waterToLaunchOn, boolean hasPlan, int blockedSoFar) {
+		if (waterToLaunchOn)
+			return Failed.BARGE;
+		if (toMailbox || !hasPlan)
+			return Failed.CARRY_ON;
+		return blockedSoFar + 1 > MAX_BLOCKED ? Failed.DROP_PLAN : Failed.REPLAN;
+	}
+
+	/**
+	 * Open water close ahead, room enough to launch the barge on, towards where this stretch was going or else the
+	 * mailbox: the way to row; null if there's none.
+	 */
+	@Nullable
+	public Vec3 waterToCross(ServerLevel level, PostmanEntity rider, Vec3 target) {
+		if (localGoal != null && launchable(level, rider, localGoal))
+			return localGoal;
+		return launchable(level, rider, target) ? target : null;
 	}
 
 	private static boolean launchable(ServerLevel level, PostmanEntity rider, Vec3 toward) {
