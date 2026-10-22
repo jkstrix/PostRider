@@ -56,6 +56,10 @@ public final class Navigator {
 	public static final double WATER_LOOKAHEAD = 5;
 	/** How close to the landing place the barge's way across has to come. */
 	public static final double LANDING_RADIUS = 6;
+	/** On foot with the barge this close ahead, he stays on foot rather than calling his horse for a few blocks. */
+	public static final double FOOT_TO_WATER = 15;
+	/** Within this far of the end of his way across the water, he's there: he runs the bow up onto the bank. */
+	public static final double END_OF_WATER = 3;
 	/** Rowing past drowned, or near an ocean monument, costs this much more a block. */
 	public static final double DROWNED_EXTRA = 4, MONUMENT_EXTRA = 30;
 
@@ -367,7 +371,9 @@ public final class Navigator {
 		int z = mounted ? Mth.floor(body.getZ() - 0.5) : Mth.floor(body.getZ());
 		int y = Mth.floor(body.getY() + 1e-3);
 		LocalPlanner.Goal goal = goalFrom(rider.position(), target);
-		local = new LocalPlanner(new LevelTerrain(level), x, y, z, mounted, goal, now >= footOnlyUntil);
+		// On foot with the barge just ahead, he walks down to it rather than calling his horse for the last few blocks
+		boolean mayMount = now >= footOnlyUntil && (mounted || !waterWithin(rider.position(), FOOT_TO_WATER));
+		local = new LocalPlanner(new LevelTerrain(level), x, y, z, mounted, goal, mayMount);
 	}
 
 	/** Where the next stretch aims: about one stretch on along the plan (or straight on without one), or the mailbox. */
@@ -567,8 +573,39 @@ public final class Navigator {
 		}
 		if (waterPath.isEmpty())
 			return null;
-		Vec3 point = along(waterPath, here, WATER_LOOKAHEAD);
+		Vec3 point = steerFor(waterPath, waterPathFinal, goal, here);
 		return new Vec3(point.x, here.y, point.z);
+	}
+
+	/**
+	 * Where to steer along a way across the water: a few blocks on along it; at the end of the last of it, on at the
+	 * landing place itself, so the bow runs up onto the bank rather than the barge drifting to a stop short of it.
+	 */
+	public static Vec3 steerFor(List<Vec3> path, boolean landing, Vec3 goal, Vec3 here) {
+		if (landing && Journey.horizontalDistance(here, path.get(path.size() - 1)) <= WATER_LOOKAHEAD)
+			return goal;
+		return along(path, here, WATER_LOOKAHEAD);
+	}
+
+	/** Whether the barge has come to the end of its way across the water to where he lands. */
+	public boolean atEndOfWater(Vec3 here) {
+		return waterPathFinal && !waterPath.isEmpty() && Journey.horizontalDistance(here, waterPath.get(waterPath.size() - 1)) <= END_OF_WATER;
+	}
+
+	/** Whether his route takes to the water within this far of here (or he's on a water leg already). */
+	public boolean waterWithin(Vec3 here, double within) {
+		return plan != null && launchWithin(plan.legs(), leg, here, within);
+	}
+
+	/** Whether, on this leg of these, the route takes to the water within {@code within} of here. */
+	public static boolean launchWithin(List<CoarsePlanner.Leg> legs, int leg, Vec3 here, double within) {
+		if (leg >= legs.size())
+			return false;
+		CoarsePlanner.Leg current = legs.get(leg);
+		if (current.kind() == CoarsePlanner.LegKind.WATER)
+			return true;
+		return leg + 1 < legs.size() && legs.get(leg + 1).kind() == CoarsePlanner.LegKind.WATER
+			&& Journey.horizontalDistance(here, current.last()) <= within;
 	}
 
 	private boolean waterPathStale(Vec3 here, long now) {

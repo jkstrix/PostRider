@@ -69,4 +69,29 @@ class NavigatorTest {
 		assertEquals(20, round.z, 1e-6, "round the corner");
 		assertEquals(new Vec3(100, 64, 100), Navigator.along(leg, new Vec3(100, 64, 90), 40), "no further than the end");
 	}
+
+	private static final List<CoarsePlanner.Leg> TO_THE_RIVER = List.of(
+		new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(0, 64, 0), new Vec3(40, 64, 0))),
+		new CoarsePlanner.Leg(CoarsePlanner.LegKind.WATER, List.of(new Vec3(44, 62, 0), new Vec3(60, 62, 0))),
+		new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(64, 64, 0), new Vec3(120, 64, 0))));
+
+	@Test
+	void onFootWithTheRiverJustAheadHeWalksDownToIt() {
+		assertTrue(Navigator.launchWithin(TO_THE_RIVER, 0, new Vec3(30, 64, 0), Navigator.FOOT_TO_WATER), "10 blocks from the water");
+		assertFalse(Navigator.launchWithin(TO_THE_RIVER, 0, new Vec3(5, 64, 0), Navigator.FOOT_TO_WATER), "a long way off: he calls his horse");
+		assertTrue(Navigator.launchWithin(TO_THE_RIVER, 1, new Vec3(50, 62, 0), Navigator.FOOT_TO_WATER), "on the water already");
+		assertFalse(Navigator.launchWithin(TO_THE_RIVER, 2, new Vec3(70, 64, 0), Navigator.FOOT_TO_WATER), "over it, no more water ahead");
+	}
+
+	@Test
+	void atTheEndOfTheWaterHeRunsTheBowUpOntoTheBank() {
+		List<Vec3> across = List.of(new Vec3(0.5, 0, 0.5), new Vec3(5.5, 0, 0.5), new Vec3(10.5, 0, 0.5));
+		Vec3 bank = new Vec3(14.5, 64, 0.5);
+		// Mid-way he steers a few blocks along the way
+		assertEquals(0.5 + Navigator.WATER_LOOKAHEAD, Navigator.steerFor(across, true, bank, new Vec3(0.5, 62, 0.5)).x, 1e-6);
+		// Near its end he steers for the bank itself, rather than drifting to a stop short of it
+		assertEquals(bank, Navigator.steerFor(across, true, bank, new Vec3(8.5, 62, 0.5)));
+		// Not where he lands (just a stretch of a long crossing): on along the way
+		assertTrue(Navigator.steerFor(across, false, bank, new Vec3(8.5, 62, 0.5)).x <= 10.5);
+	}
 }

@@ -1,6 +1,7 @@
 package com.comedymonkey.postrider.content.postman;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -136,5 +137,14 @@ class BargeTest {
 		// A solid block at the waterline (a beach, a sandbar) stands above the bottom of the hull, so it bumps into it
 		double surface = 62 + 8 / 9.0;
 		assertTrue(BargeEntity.floatHeight(surface) < 63, "it can't slide over the top of a bank at water level");
+	}
+
+	@Test
+	void heStepsAshoreWhenTheBowIsAgainstLandWhereHeMeansToLand() {
+		assertTrue(DeliveryRun.landsHere(true, true, false, 0), "where his plan lands");
+		assertTrue(DeliveryRun.landsHere(true, false, true, 0), "at the end of his way across the water");
+		assertTrue(DeliveryRun.landsHere(true, false, false, DeliveryRun.AGROUND_TICKS), "run hard aground");
+		assertFalse(DeliveryRun.landsHere(true, false, false, 0), "brushing a bank on the way: rows on");
+		assertFalse(DeliveryRun.landsHere(false, true, true, 0), "no land at the bow yet");
 	}
 }

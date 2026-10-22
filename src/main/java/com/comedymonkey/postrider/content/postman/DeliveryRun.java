@@ -399,6 +399,11 @@ public class DeliveryRun {
 			enter(Stage.RIDING);
 			return;
 		}
+		// The barge is just ahead: he walks down to it, and calls his horse on the far side
+		if (navigator.waterWithin(rider.position(), Navigator.FOOT_TO_WATER)) {
+			enter(Stage.RIDING);
+			return;
+		}
 		if (stageTicks == 1)
 			rider.whistleForHorse();
 		// No room for a horse here: he sets off on foot and tries again later
@@ -544,7 +549,15 @@ public class DeliveryRun {
 		aground = barge.horizontalCollision ? aground + 1 : 0;
 		Vec3 bow = barge.bow();
 		boolean land = barge.horizontalCollision || Double.isNaN(Crossing.surfaceIn(level, Mth.floor(bow.x), Mth.floor(bow.z), barge.getBlockY()));
-		return land && (navigator.nearLanding(barge.position()) || aground >= AGROUND_TICKS);
+		return landsHere(land, navigator.nearLanding(barge.position()), navigator.atEndOfWater(barge.position()), aground);
+	}
+
+	/**
+	 * Whether he steps ashore: with land at the bow, once he's near where his plan lands, or at the end of his way
+	 * across the water, or after running hard aground for a while.
+	 */
+	public static boolean landsHere(boolean landAtBow, boolean nearLanding, boolean endOfWater, int aground) {
+		return landAtBow && (nearLanding || endOfWater || aground >= AGROUND_TICKS);
 	}
 
 	/** Steps ashore by the bow: his horse appears on the bank, he climbs back on, and the barge vanishes. */
@@ -573,6 +586,9 @@ public class DeliveryRun {
 		barge.vanish(level);
 		aimCooldown = 0;
 		navigator.landed();
+		// Crossed on foot (he walked down to the water): he calls his horse now he's over
+		if (horse == null)
+			rider.whistleForHorse();
 		enter(Stage.RIDING);
 		return true;
 	}
@@ -934,6 +950,11 @@ public class DeliveryRun {
 		if (progress.outOfTries()) {
 			fail(rider, level, LostCause.STUCK, rider.getName().getString()
 				+ " lost " + rider.possessive() + " way in the wilds and had to turn back.", null, rider.blockPosition());
+			return true;
+		}
+		// Stuck in the barge with land at hand: he steps ashore there rather than being jumped somewhere inland
+		if (stage == Stage.BARGING && rider.getVehicle() instanceof BargeEntity barge && land(rider, level, barge, target)) {
+			progress.pause(now);
 			return true;
 		}
 		Vec3 free = freeSpot(level, rider.position(), target, rider.level().canSeeSky(rider.blockPosition()));
