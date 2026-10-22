@@ -12,7 +12,9 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 /**
  * The way through the blocks round a rider, worked out a few thousand steps at a time (A*, slightly greedy). He can
  * be on horseback or on foot, and the plan can have him get down where only someone on foot can go (a ladder, a
- * narrow or low gap) and whistle the horse back once there's room. Water and hazards are never entered.
+ * narrow or low gap) and whistle the horse back once there's room. Water and hazards are never entered, except
+ * that on foot he rides bubble columns: up one over soul sand, down a whirlpool over magma (out at the ledge
+ * beside its foot).
  * <p>
  * On horseback a step is the corner of the 2x2 blocks the horse stands over (as vanilla paths have it for anything
  * wider than a block), with the horse's middle at the shared corner; on foot it's the block he stands in.
@@ -34,6 +36,10 @@ public final class LocalPlanner {
 		LEAP,
 		/** Up or down a ladder or vines, on foot. */
 		CLIMB,
+		/** Into and up a bubble column over soul sand, on foot (he's in the water at this step). */
+		RISE,
+		/** Into and down a whirlpool over magma, on foot (he's in the water at this step). */
+		SINK,
 		/** He gets down and the horse goes. */
 		DISMOUNT,
 		/** He whistles the horse back and climbs on. */
@@ -65,6 +71,8 @@ public final class LocalPlanner {
 	public static final double DROP_COST = 0.25;
 	public static final double LEAP_COST = 2.0;
 	public static final double CLIMB_COST = 1.5;
+	/** A block up or down a bubble column: quicker than a ladder, as the water does the work. */
+	public static final double COLUMN_COST = 1.0;
 	public static final double DISMOUNT_COST = 12.0;
 	public static final double MOUNT_COST = 16.0;
 	/** Under a roof (a cave, a tunnel) every step costs this much more. */
@@ -131,12 +139,14 @@ public final class LocalPlanner {
 				continue;
 			node.closed = true;
 			expanded++;
-			if (reaches(node)) {
+			// A way never ends in a bubble column: he'd be left in the water
+			boolean afloat = inColumn(node);
+			if (!afloat && reaches(node)) {
 				reached = node;
 				status = Status.FOUND;
 				break;
 			}
-			if (node.h < best.h || node.h == best.h && node.g < best.g)
+			if (!afloat && (node.h < best.h || node.h == best.h && node.g < best.g))
 				best = node;
 			expand(node);
 			if (nodes.size() > MAX_NODES)
@@ -220,13 +230,26 @@ public final class LocalPlanner {
 
 	// ---------------------------------------------------------------- the ways on from a place
 
+	/** Whether, at this step, he's in the water of a bubble column. */
+	private boolean inColumn(Node node) {
+		if (node.mounted)
+			return false;
+		Terrain.Kind in = terrain.kind(node.x, node.y, node.z);
+		return in == Terrain.Kind.BUBBLE_UP || in == Terrain.Kind.BUBBLE_DOWN;
+	}
+
 	private void expand(Node node) {
+		if (inColumn(node)) {
+			rideColumn(node, terrain.kind(node.x, node.y, node.z));
+			return;
+		}
 		walks(node);
 		if (node.mounted) {
 			leaps(node);
 			dismount(node);
 		} else {
 			climbs(node);
+			columns(node);
 			if (mayMount)
 				mount(node);
 		}
@@ -298,6 +321,45 @@ public final class LocalPlanner {
 			add(from, from.x, from.y + 1, from.z, false, Move.CLIMB, CLIMB_COST);
 		if (terrain.kind(from.x, from.y - 1, from.z) == Terrain.Kind.CLIMB)
 			add(from, from.x, from.y - 1, from.z, false, Move.CLIMB, CLIMB_COST);
+	}
+
+	/**
+	 * Bubble columns beside him, on foot (his horse can't be in one): into one rising from soul sand at any height
+	 * of it, or into a whirlpool at the top of it, stepping down into the water from a ledge level with its top.
+	 */
+	private void columns(Node from) {
+		for (int i = 0; i < 4; i++) {
+			int x = from.x + DIRECTIONS[i][0], z = from.z + DIRECTIONS[i][1];
+			Terrain.Kind beside = terrain.kind(x, from.y, z), above = terrain.kind(x, from.y + 1, z);
+			if (beside == Terrain.Kind.BUBBLE_UP && (above == Terrain.Kind.BUBBLE_UP || above.isClear()))
+				add(from, x, from.y, z, false, Move.RISE, COLUMN_COST);
+			else if (beside == Terrain.Kind.BUBBLE_DOWN)
+				add(from, x, from.y, z, false, Move.SINK, COLUMN_COST);
+			else if (beside.isClear() && terrain.kind(x, from.y - 1, z) == Terrain.Kind.BUBBLE_DOWN)
+				add(from, x, from.y - 1, z, false, Move.SINK, COLUMN_COST + DROP_COST);
+		}
+	}
+
+	/**
+	 * In a bubble column: carried on up (or down) it a block at a time, and out onto a ledge beside the end of it.
+	 * A rising column throws him up out of the water, so there he can also step up onto a ledge a block higher; at
+	 * the foot of a whirlpool he steps straight off the magma onto the ledge beside it, never up.
+	 */
+	private void rideColumn(Node from, Terrain.Kind column) {
+		int dy = column == Terrain.Kind.BUBBLE_UP ? 1 : -1;
+		if (terrain.kind(from.x, from.y + dy, from.z) == column) {
+			add(from, from.x, from.y + dy, from.z, false, dy > 0 ? Move.RISE : Move.SINK, COLUMN_COST);
+			return;
+		}
+		boolean thrownOut = column == Terrain.Kind.BUBBLE_UP && terrain.kind(from.x, from.y + 1, from.z).isClear()
+			&& terrain.kind(from.x, from.y + 2, from.z).isClear();
+		for (int i = 0; i < 4; i++) {
+			int x = from.x + DIRECTIONS[i][0], z = from.z + DIRECTIONS[i][1];
+			if (stands(terrain, false, x, from.y, z))
+				add(from, x, from.y, z, false, Move.WALK, 1.0);
+			else if (thrownOut && stands(terrain, false, x, from.y + 1, z))
+				add(from, x, from.y + 1, z, false, Move.WALK, 1.0 + STEP_UP_COST);
+		}
 	}
 
 	private void dismount(Node from) {

@@ -15,6 +15,7 @@ import com.comedymonkey.postrider.post.PendingDelivery;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 /** Keeps an eye on the rider carrying one delivery, every tick, and remembers what he got up to. Test-only. */
@@ -151,8 +152,10 @@ final class Watch {
 			+ "],\"waded\":" + (waded != null) + "}";
 	}
 
+	/** Whether his feet are in water: a bubble column is the one water he's allowed in (on foot, see Route). */
 	private boolean feetWet(Entity entity) {
-		return Crossing.isWater(scene.level.getFluidState(BlockPos.containing(entity.getX(), entity.getY() + 0.1, entity.getZ())));
+		BlockPos feet = BlockPos.containing(entity.getX(), entity.getY() + 0.1, entity.getZ());
+		return Crossing.isWater(scene.level.getFluidState(feet)) && !scene.level.getBlockState(feet).is(Blocks.BUBBLE_COLUMN);
 	}
 
 		int jumpsFree() {

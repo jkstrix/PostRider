@@ -495,7 +495,9 @@ public final class Navigator {
 		LevelTerrain terrain = new LevelTerrain(level);
 		for (int i = segmentStart + next; i <= Math.min(segmentEnd, segmentStart + next + CHECK_AHEAD); i++) {
 			LocalPlanner.Step step = steps.get(i);
+			// (a step in a bubble column is in the water, not standing)
 			if (step.move() != LocalPlanner.Move.LEAP && step.move() != LocalPlanner.Move.START
+					&& step.move() != LocalPlanner.Move.RISE && step.move() != LocalPlanner.Move.SINK
 					&& !LocalPlanner.stands(terrain, step.mounted(), step.x(), step.y(), step.z()))
 				return true;
 		}
