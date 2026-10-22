@@ -93,6 +93,14 @@ public class BargeEntity extends Entity {
 		return middle.add(Vec3.directionFromRotation(0, yaw).scale(forward)).add(0, up, 0);
 	}
 
+	/**
+	 * How much of its top speed it keeps while turning: full ahead when it's facing the way it wants to go, easing
+	 * off as the turn gets sharper (down to 30% for a right angle or more), so it can take a bend.
+	 */
+	public static double turningSpeed(float turnLeft) {
+		return Mth.clamp(1 - Math.abs(turnLeft) / 90.0, 0.3, 1.0);
+	}
+
 	/** The way to turn this tick to face a heading, at most {@link #TURN_PER_TICK} degrees. */
 	public static float turnToward(float yaw, float wanted) {
 		return yaw + Mth.clamp(Mth.wrapDegrees(wanted - yaw), -TURN_PER_TICK, TURN_PER_TICK);
@@ -118,8 +126,10 @@ public class BargeEntity extends Entity {
 	private void row(ServerLevel level) {
 		Vec3 motion = getDeltaMovement();
 		if (heading != null && Journey.horizontalDistance(position(), heading) > 1.0) {
-			setYRot(turnToward(getYRot(), DeliveryRun.yawToward(position(), heading)));
-			speed = Math.min(speed(), speed + ACCELERATION);
+			float wanted = DeliveryRun.yawToward(position(), heading);
+			setYRot(turnToward(getYRot(), wanted));
+			double top = speed() * turningSpeed(Mth.wrapDegrees(wanted - getYRot()));
+			speed = speed > top ? Math.max(top, speed - 2 * ACCELERATION) : Math.min(top, speed + ACCELERATION);
 		} else {
 			speed *= 0.8;
 		}

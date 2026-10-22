@@ -19,14 +19,20 @@ import net.minecraft.world.phys.Vec3;
 /**
  * The long way: a plan for the whole trip over a grid of 8x8-block cells, worked out a few thousand cells at a time
  * (A*). He plans twice, once with the barge allowed on water and once over land only, and rides round unless that's
- * more than twice as long as rowing (or there's no way round at all). The plan comes out as legs, on land and on
- * the water, each a short list of points to head for.
+ * more than twice as long as rowing (or there's no way round at all). With the barge, he rows as little as he can:
+ * across to the nearest land that takes him on, rather than along the water. The plan comes out as legs, on land
+ * and on the water, each a short list of points to head for.
  */
 public final class CoarsePlanner {
 	/** The side of a cell, in blocks. */
 	public static final int CELL = 8;
 	/** Rowing costs this much per block, on top of what launching and landing cost. */
 	public static final double WATER_COST = 1.1;
+	/**
+	 * How much dearer rowing is made while choosing the way with the barge, so he lands as soon as the land will take
+	 * him on (whether the barge is worth it at all is judged on {@link #WATER_COST}).
+	 */
+	public static final double ROWING_RELUCTANCE = 4.0;
 	public static final double LAUNCH_COST = 24;
 	public static final double LANDING_COST = 16;
 	/** Half-water ground (a marsh, a river bank) is slow going. */
@@ -111,6 +117,8 @@ public final class CoarsePlanner {
 	private final Cells cells;
 	private final int startX, startZ, goalX, goalZ;
 	private final Set<Long> blocked;
+	/** He starts on the barge: the water he's on costs nothing to launch onto. */
+	private final boolean afloat;
 	private Search search;
 	@Nullable
 	private Plan bargePlan;
@@ -120,7 +128,13 @@ public final class CoarsePlanner {
 
 	/** A plan between two cells, never through any of the blocked ones (cell keys, as {@link #key}). */
 	public CoarsePlanner(Cells cells, int startX, int startZ, int goalX, int goalZ, Set<Long> blocked) {
+		this(cells, startX, startZ, goalX, goalZ, blocked, false);
+	}
+
+	/** As above, starting {@code afloat} on the barge: the way to the nearest land that takes him on to the goal. */
+	public CoarsePlanner(Cells cells, int startX, int startZ, int goalX, int goalZ, Set<Long> blocked, boolean afloat) {
 		this.cells = cells;
+		this.afloat = afloat;
 		this.startX = startX;
 		this.startZ = startZ;
 		this.goalX = goalX;
@@ -195,18 +209,22 @@ public final class CoarsePlanner {
 
 	// ---------------------------------------------------------------- what moving costs
 
-	/** What it costs to go from one cell to a neighbour {@code length} blocks away; negative if he can't. */
-	private double cost(Cell from, Cell to, double length, boolean barge, boolean toGoal, boolean fromStart) {
+	/**
+	 * What it costs to go from one cell to a neighbour {@code length} blocks away, rowing at {@code rowing} a block;
+	 * negative if he can't.
+	 */
+	private double cost(Cell from, Cell to, double length, boolean barge, double rowing, boolean toGoal, boolean fromStart) {
 		if (to.isVoid())
 			return -1;
-		boolean fromWater = from.water() && !fromStart, toWater = to.water() && !toGoal;
+		// Standing at the start on a wet cell is still standing on land, unless he's afloat there
+		boolean fromWater = from.water() && (!fromStart || afloat), toWater = to.water() && !toGoal;
 		if (toWater) {
 			if (!barge)
 				return -1;
-			return length * WATER_COST + (fromWater ? 0 : LAUNCH_COST);
+			return length * rowing + (fromWater ? 0 : LAUNCH_COST);
 		}
 		if (fromWater)
-			return length * WATER_COST + LANDING_COST;
+			return length * rowing + LANDING_COST;
 		double slope = Math.abs(to.height() - from.height()) / length;
 		double steep = slope <= 0.25 ? slope : 0.25 + (slope - 0.25) * 6;
 		double rough = Math.min(to.rough(), 16) / 32.0;
@@ -230,7 +248,7 @@ public final class CoarsePlanner {
 		LegKind kind = null;
 		for (int i = 0; i < path.size(); i++) {
 			Node node = path.get(i);
-			boolean ends = i == 0 || i == path.size() - 1;
+			boolean ends = i == 0 && !afloat || i == path.size() - 1;
 			LegKind here = node.cell.water() && !ends ? LegKind.WATER : LegKind.LAND;
 			if (kind != null && here != kind) {
 				legs.add(new Leg(kind, pull(run, kind)));
@@ -241,7 +259,18 @@ public final class CoarsePlanner {
 		}
 		if (!run.isEmpty())
 			legs.add(new Leg(kind, pull(run, kind)));
-		return new Plan(legs, last.g);
+		return new Plan(legs, effort(path));
+	}
+
+	/** What the way really costs, with rowing at its true price (the search made it dearer so he'd row less). */
+	private double effort(List<Node> path) {
+		double total = 0;
+		for (int i = 1; i < path.size(); i++) {
+			Node a = path.get(i - 1), b = path.get(i);
+			boolean diagonal = a.x != b.x && a.z != b.z;
+			total += cost(a.cell, b.cell, diagonal ? CELL * DIAGONAL : CELL, true, WATER_COST, i == path.size() - 1, i == 1);
+		}
+		return total;
 	}
 
 	/** The points of a leg with the corners smoothed off: straight on wherever the way between is the same going. */
@@ -367,7 +396,7 @@ public final class CoarsePlanner {
 				if (diagonal && (impassable(from.x + d[0], from.z) || impassable(from.x, from.z + d[1])))
 					continue;
 				Cell cell = cells.cell(x, z);
-				double step = cost(from.cell, cell, diagonal ? CELL * DIAGONAL : CELL, barge, x == goalX && z == goalZ, from == start);
+				double step = cost(from.cell, cell, diagonal ? CELL * DIAGONAL : CELL, barge, ROWING_RELUCTANCE, x == goalX && z == goalZ, from == start);
 				if (step < 0)
 					continue;
 				double g = from.g + step;

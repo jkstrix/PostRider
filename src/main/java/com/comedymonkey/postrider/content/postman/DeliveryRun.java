@@ -83,6 +83,8 @@ public class DeliveryRun {
 	/** How long he tries to walk up to the mailbox before stepping up to it. */
 	public static final int WALK_UP_TICKS = 200;
 	private static final int AIM_INTERVAL = 40;
+	/** The barge's steering is brought up to date this often: it steers for a point only a few blocks ahead. */
+	private static final int BARGE_AIM_INTERVAL = 4;
 	/** He looks at his map for at least 5 seconds, and sets off with the best route so far after 20. */
 	public static final int MAP_MIN_TICKS = 100;
 	public static final int MAP_MAX_TICKS = 400;
@@ -489,7 +491,8 @@ public class DeliveryRun {
 		crossedWater = true;
 		aimCooldown = 0;
 		aground = 0;
-		navigator.launched();
+		Vec3 destination = destinationSpot(level);
+		navigator.launched(level, spot, destination != null ? destination : target);
 		enter(Stage.BARGING);
 		return true;
 	}
@@ -511,17 +514,18 @@ public class DeliveryRun {
 		if (ashore(level, barge, distance) && land(rider, level, barge, target))
 			return;
 		if (--aimCooldown <= 0) {
-			aimCooldown = AIM_INTERVAL / 2;
+			aimCooldown = BARGE_AIM_INTERVAL;
 			int nearY = barge.getBlockY();
 			List<Vec3> drowned = level.getEntitiesOfClass(Drowned.class, barge.getBoundingBox().inflate(Journey.stretch() + Crossing.DROWNED_BERTH))
 				.stream().map(Entity::position).toList();
-			Vec3 planned = navigator.bargeAim(barge.position());
-			Vec3 toward = planned != null ? planned : target;
-			Vec3 aim = Crossing.waterAim(barge.position(), toward,
-				a -> !Hazards.isDangerous(level, BlockPos.containing(surface(level, a))),
-				a -> !Double.isNaN(Crossing.surfaceIn(level, Mth.floor(a.x), Mth.floor(a.z), nearY)),
-				a -> Crossing.nearAny(a, drowned, Crossing.DROWNED_BERTH) || Crossing.nearMonument(level, a));
-			barge.steer(aim != null ? aim : Journey.nextAim(barge.position(), toward));
+			// Along its way across the water, round the bends; with none to be found, the old straight swerves
+			Vec3 aim = navigator.bargeAim(level, barge.position(), nearY, target, drowned, level.getGameTime());
+			if (aim == null)
+				aim = Crossing.waterAim(barge.position(), target,
+					a -> !Hazards.isDangerous(level, BlockPos.containing(surface(level, a))),
+					a -> !Double.isNaN(Crossing.surfaceIn(level, Mth.floor(a.x), Mth.floor(a.z), nearY)),
+					a -> Crossing.nearAny(a, drowned, Crossing.DROWNED_BERTH) || Crossing.nearMonument(level, a));
+			barge.steer(aim != null ? aim : Journey.nextAim(barge.position(), target));
 		}
 	}
 

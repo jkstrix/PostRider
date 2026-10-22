@@ -95,6 +95,33 @@ class CoarsePlannerTest {
 	}
 
 	@Test
+	void afloatHeRowsToTheNearestLandThatTakesHimOn() {
+		// A long channel: he's on the water at its west end, and the mailbox is just past its far end, straight down
+		// the water from him. Rowing all the way is about as far as riding, but he'd rather ride
+		String land = ".".repeat(40), water = "~".repeat(38) + "..";
+		Map channel = new Map(land, land, water, water, water, land, land);
+		CoarsePlanner planner = new CoarsePlanner(channel, 2, 3, 39, 3, Set.of(), true);
+		assertEquals(Status.DONE, planner.finishNow());
+		Plan plan = planner.plan();
+		assertEquals(LegKind.WATER, plan.legs().get(0).kind(), "he starts on the water");
+		Vec3 ashore = plan.legs().get(1).points().get(0);
+		assertTrue(CoarsePlanner.cellOf(ashore.x) <= 4, "ashore at the near bank, not rowing to the far end: " + ashore);
+	}
+
+	@Test
+	void aRiverIsRowedStraightAcrossNotAlong() {
+		// A river right across the map, with the mailbox on the far bank well downstream
+		String row = ".".repeat(10) + "~~~~" + ".".repeat(10);
+		String[] rows = new String[30];
+		java.util.Arrays.fill(rows, row);
+		Plan plan = plan(new Map(rows), 2, 2, 20, 27);
+		assertTrue(plan.usesBarge());
+		CoarsePlanner.Leg water = plan.legs().stream().filter(leg -> leg.kind() == LegKind.WATER).findFirst().orElseThrow();
+		int upstream = CoarsePlanner.cellOf(water.points().get(0).z), downstream = CoarsePlanner.cellOf(water.last().z);
+		assertTrue(Math.abs(downstream - upstream) <= 1, "straight over, from " + upstream + " to " + downstream);
+	}
+
+	@Test
 	void anIslandCanOnlyBeReachedByBarge() {
 		Map island = new Map(
 			"..............",

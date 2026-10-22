@@ -13,9 +13,12 @@ import com.comedymonkey.postrider.content.postman.Journey;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.PostmanHorse;
 
+import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.level.pathfinder.Node;
@@ -48,6 +51,13 @@ public final class Navigator {
 	public static final int MAX_BLOCKED = 256;
 	/** After a stretch fails to plan, he waits this long before trying again. */
 	public static final int RETRY_TICKS = 40;
+	/** On the water, the way across is planned again this often (drowned move), and he steers for this far along it. */
+	public static final int WATER_REPLAN_TICKS = 40;
+	public static final double WATER_LOOKAHEAD = 5;
+	/** How close to the landing place the barge's way across has to come. */
+	public static final double LANDING_RADIUS = 6;
+	/** Rowing past drowned, or near an ocean monument, costs this much more a block. */
+	public static final double DROWNED_EXTRA = 4, MONUMENT_EXTRA = 30;
 
 	public enum Action {
 		/** Carrying on. */
@@ -82,13 +92,22 @@ public final class Navigator {
 	private boolean detouring;
 	@Nullable
 	private Vec3 launchAim;
+	// The way across the water
+	private List<Vec3> waterPath = List.of();
+	private boolean waterPathFinal;
+	private long waterPlannedAt;
 
 	/** Starts the long-range plan again from here (keeping what it learnt about stretches that couldn't be passed). */
 	public void replan(ServerLevel level, Vec3 from, Vec3 target) {
+		replan(level, from, target, false);
+	}
+
+	/** As above; {@code afloat} on the barge, the plan heads for the nearest land that takes him on. */
+	public void replan(ServerLevel level, Vec3 from, Vec3 target, boolean afloat) {
 		clearStretch();
 		coarse = level.dimensionType().hasCeiling() ? null
 			: new CoarsePlanner(TerrainSurvey.of(level), CoarsePlanner.cellOf(from.x), CoarsePlanner.cellOf(from.z),
-				CoarsePlanner.cellOf(target.x), CoarsePlanner.cellOf(target.z), blocked);
+				CoarsePlanner.cellOf(target.x), CoarsePlanner.cellOf(target.z), blocked, afloat);
 		if (coarse == null)
 			plan = null;
 	}
@@ -435,13 +454,17 @@ public final class Navigator {
 		}
 	}
 
-	/** The barge has been launched: he's on the water leg now. */
-	public void launched() {
+	/**
+	 * The barge has been launched: he's on the water leg now, and from out on the water he works out afresh where the
+	 * nearest land is that takes him on to the mailbox (going by the old plan until he has).
+	 */
+	public void launched(ServerLevel level, Vec3 from, Vec3 target) {
 		CoarsePlanner.Leg current = currentLeg();
 		if (current != null && current.kind() == CoarsePlanner.LegKind.LAND && leg + 1 < plan.legs().size()
 				&& plan.legs().get(leg + 1).kind() == CoarsePlanner.LegKind.WATER)
 			leg++;
-		clearStretch();
+		replan(level, from, target, true);
+		waterPath = List.of();
 	}
 
 	/** Ashore again: on to the leg after the water. */
@@ -450,16 +473,94 @@ public final class Navigator {
 		if (current != null && current.kind() == CoarsePlanner.LegKind.WATER)
 			leg++;
 		clearStretch();
+		waterPath = List.of();
 	}
 
-	/** Where to row for, about a stretch on along the water leg; null without a water leg to follow. */
+	/**
+	 * Where to steer the barge now: a few blocks on along its way across the water, round the bends and clear of
+	 * the banks, to the landing place of the water leg (or towards the mailbox without one). Null if no way across
+	 * the water ahead can be found.
+	 */
 	@Nullable
-	public Vec3 bargeAim(Vec3 here) {
+	public Vec3 bargeAim(ServerLevel level, Vec3 here, int nearY, Vec3 target, List<Vec3> drowned, long now) {
+		tickPlanning();
 		CoarsePlanner.Leg current = currentLeg();
-		if (current == null || current.kind() != CoarsePlanner.LegKind.WATER)
+		// Launched from a cell that counts as land: the water leg starts here
+		if (current != null && current.kind() == CoarsePlanner.LegKind.LAND && leg + 1 < plan.legs().size()
+				&& plan.legs().get(leg + 1).kind() == CoarsePlanner.LegKind.WATER && Journey.horizontalDistance(here, current.last()) <= LANDING_NEAR) {
+			leg++;
+			current = currentLeg();
+		}
+		Vec3 goal;
+		double radius;
+		boolean landing;
+		double stretch = Journey.stretch();
+		if (current != null && current.kind() == CoarsePlanner.LegKind.WATER) {
+			Vec3 ashore = leg + 1 < plan.legs().size() ? plan.legs().get(leg + 1).points().get(0) : current.last();
+			landing = Journey.horizontalDistance(here, ashore) <= stretch;
+			if (landing) {
+				goal = ashore;
+				radius = LANDING_RADIUS;
+			} else {
+				List<Vec3> line = new ArrayList<>(current.points());
+				line.add(ashore);
+				goal = along(line, here, stretch);
+				radius = WAYPOINT_RADIUS + 2;
+			}
+		} else {
+			landing = Journey.horizontalDistance(here, target) <= stretch;
+			goal = landing ? target : here.add(new Vec3(target.x - here.x, 0, target.z - here.z).normalize().scale(stretch));
+			radius = landing ? LANDING_RADIUS : WAYPOINT_RADIUS + 2;
+		}
+		if (waterPathStale(here, now)) {
+			waterPath = WaterPlanner.plan(water(level, nearY), danger(level, drowned), Mth.floor(here.x), Mth.floor(here.z), goal.x, goal.z, radius);
+			waterPathFinal = landing;
+			waterPlannedAt = now;
+		}
+		if (waterPath.isEmpty())
 			return null;
-		Vec3 point = along(current.points(), here, Journey.stretch() + 16);
+		Vec3 point = along(waterPath, here, WATER_LOOKAHEAD);
 		return new Vec3(point.x, here.y, point.z);
+	}
+
+	private boolean waterPathStale(Vec3 here, long now) {
+		if (waterPath.isEmpty() || now - waterPlannedAt >= WATER_REPLAN_TICKS)
+			return true;
+		Vec3 end = waterPath.get(waterPath.size() - 1);
+		if (!waterPathFinal && Journey.horizontalDistance(here, end) < RENEW_DISTANCE)
+			return true;
+		Vec3 nearest = along(waterPath, here, 0);
+		return Journey.horizontalDistance(here, nearest) > OFF_PATH + 1;
+	}
+
+	/** Open water in loaded chunks, each column looked at once per plan. */
+	private static WaterPlanner.Water water(ServerLevel level, int nearY) {
+		Long2ByteOpenHashMap known = new Long2ByteOpenHashMap();
+		return (x, z) -> {
+			long key = ChunkPos.asLong(x, z);
+			byte open = known.getOrDefault(key, (byte) -1);
+			if (open < 0) {
+				open = (byte) (level.isLoaded(new BlockPos(x, nearY, z)) && !Double.isNaN(Crossing.surfaceIn(level, x, z, nearY)) ? 1 : 0);
+				known.put(key, open);
+			}
+			return open == 1;
+		};
+	}
+
+	/** Rowing near drowned costs more, and near an ocean monument (checked a chunk at a time) a lot more. */
+	private static WaterPlanner.Danger danger(ServerLevel level, List<Vec3> drowned) {
+		Long2ByteOpenHashMap monuments = new Long2ByteOpenHashMap();
+		return (x, z) -> {
+			Vec3 spot = new Vec3(x + 0.5, 0, z + 0.5);
+			double extra = Crossing.nearAny(spot, drowned, Crossing.DROWNED_BERTH) ? DROWNED_EXTRA : 0;
+			long chunk = ChunkPos.asLong(x >> 4, z >> 4);
+			byte near = monuments.getOrDefault(chunk, (byte) -1);
+			if (near < 0) {
+				near = (byte) (Crossing.nearMonument(level, new Vec3((x & ~15) + 8, 0, (z & ~15) + 8)) ? 1 : 0);
+				monuments.put(chunk, near);
+			}
+			return near == 1 ? extra + MONUMENT_EXTRA : extra;
+		};
 	}
 
 	/** Whether the barge is near enough the end of its water leg to land (always, without one). */

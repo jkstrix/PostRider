@@ -111,4 +111,12 @@ class BargeTest {
 		tag.putString("stage", DeliveryRun.Stage.BARGING.name());
 		assertEquals(DeliveryRun.Stage.BARGING, DeliveryRun.load(tag, registries).stage());
 	}
+
+	@Test
+	void itSlowsDownToTakeABend() {
+		assertEquals(1.0, BargeEntity.turningSpeed(0), 1e-9, "full ahead on its heading");
+		assertEquals(0.5, BargeEntity.turningSpeed(45), 1e-9);
+		assertEquals(0.5, BargeEntity.turningSpeed(-45), 1e-9, "either way");
+		assertEquals(0.3, BargeEntity.turningSpeed(170), 1e-9, "never quite stops");
+	}
 }
