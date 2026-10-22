@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -140,7 +141,15 @@ public final class Navigator {
 			adopt(coarse.bestSoFar());
 	}
 
+	/** Where his routing decisions are noted (the server log), so a strange route can be worked out afterwards. */
+	private Consumer<String> log = message -> {};
+
+	public void logTo(Consumer<String> log) {
+		this.log = log;
+	}
+
 	private void adopt(@Nullable CoarsePlanner.Plan found) {
+		log.accept(found == null ? "no long-range route; heading straight there" : "route planned: " + describe(found));
 		plan = found;
 		leg = 0;
 		// What he's following now was planned for the old route: the next stretch follows the new one
@@ -303,6 +312,8 @@ public final class Navigator {
 		Vec3 water = waterToCross(level, rider, target);
 		boolean hasPlan = plan != null && localGoal != null;
 		Failed what = whenStretchFails(localIsFinal, water != null, hasPlan, blocked.size());
+		log.accept("no way through the blocks from " + spot(rider.position()) + " towards " + (localGoal != null ? spot(localGoal) : "the mailbox")
+			+ ": " + what.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '));
 		switch (what) {
 			case BARGE -> {
 				launchAim = water;
@@ -316,6 +327,25 @@ public final class Navigator {
 			default -> {}
 		}
 		return Action.GOING;
+	}
+
+	/** A plan in a few words: each leg, land or barge, and how long it is. */
+	public static String describe(CoarsePlanner.Plan plan) {
+		StringBuilder text = new StringBuilder();
+		for (CoarsePlanner.Leg leg : plan.legs()) {
+			double length = 0;
+			for (int i = 1; i < leg.points().size(); i++)
+				length += Journey.horizontalDistance(leg.points().get(i - 1), leg.points().get(i));
+			if (!text.isEmpty())
+				text.append(", then ");
+			text.append(leg.kind() == CoarsePlanner.LegKind.WATER ? "barge " : "land ").append(Math.round(length)).append(" blocks");
+		}
+		return text.toString();
+	}
+
+	/** A place as whole block coordinates, for the log. */
+	public static String spot(Vec3 at) {
+		return Mth.floor(at.x) + " " + Mth.floor(at.y) + " " + Mth.floor(at.z);
 	}
 
 	/** What he does when there's no way through the blocks ahead. */

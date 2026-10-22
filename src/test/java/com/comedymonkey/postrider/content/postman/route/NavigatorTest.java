@@ -106,4 +106,10 @@ class NavigatorTest {
 		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(true, false, true, 0), "can't reach the mailbox itself: getting unstuck sorts it");
 		assertEquals(Navigator.Failed.CARRY_ON, Navigator.whenStretchFails(false, false, false, 0));
 	}
+
+	@Test
+	void theLogSaysWhatRouteHePlannedInAFewWords() {
+		assertEquals("land 40 blocks, then barge 16 blocks, then land 56 blocks", Navigator.describe(new CoarsePlanner.Plan(TO_THE_RIVER, 0)));
+		assertEquals("12 64 -3", Navigator.spot(new Vec3(12.7, 64.2, -2.5)));
+	}
 }

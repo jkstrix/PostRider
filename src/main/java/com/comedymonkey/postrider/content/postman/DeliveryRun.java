@@ -220,6 +220,7 @@ public class DeliveryRun {
 			return;
 		keepChunksLoaded(rider, level);
 		logChanges(rider);
+		navigator.logTo(message -> logRoute(rider, message));
 		stageTicks++;
 		// No address to go to (it went while a vanished rider was being brought back, say): undeliverable, right here
 		if (destination == null && stage != Stage.PICKING_UP) {
@@ -254,6 +255,11 @@ public class DeliveryRun {
 			loggedStage = stage;
 			loggedStep = step;
 		}
+	}
+
+	/** Notes a routing decision in the log (rare: a new route, a way that wouldn't plan, a barge, a jump free). */
+	private void logRoute(PostmanEntity rider, String message) {
+		PostRider.LOGGER.info("Rider {} with mail for {}: {}", rider.getName().getString(), delivery.toName(), message);
 	}
 
 	/** What he's up to, for /postrider status. */
@@ -497,6 +503,7 @@ public class DeliveryRun {
 		aimCooldown = 0;
 		aground = 0;
 		Vec3 destination = destinationSpot(level);
+		logRoute(rider, "launching the barge at " + Navigator.spot(spot) + " towards " + Navigator.spot(target));
 		navigator.launched(level, spot, destination != null ? destination : target);
 		enter(Stage.BARGING);
 		return true;
@@ -585,6 +592,7 @@ public class DeliveryRun {
 		}
 		barge.vanish(level);
 		aimCooldown = 0;
+		logRoute(rider, "stepped ashore at " + Navigator.spot(ground));
 		navigator.landed();
 		// Crossed on foot (he walked down to the water): he calls his horse now he's over
 		if (horse == null)
@@ -972,6 +980,7 @@ public class DeliveryRun {
 			return true;
 		}
 		Entity mover = rider.getVehicle() != null ? rider.getVehicle() : rider;
+		logRoute(rider, "stuck at " + Navigator.spot(mover.position()) + " (" + stage + "), jumped free to " + Navigator.spot(free));
 		PostmanEffects.puff(level, mover);
 		mover.teleportTo(free.x, free.y, free.z);
 		PostmanEffects.puff(level, mover);
