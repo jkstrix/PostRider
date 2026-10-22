@@ -132,12 +132,19 @@ public final class PostOfficeStyle {
 		plaque(graphics, font, panelX, panelY, PANEL_WIDTH, text);
 	}
 
-	/** The brass name plaque, in the middle of the top of a panel this wide. */
+	/** The brass name plaque, in the middle of the top of a panel this wide, stretched to fit the name. */
 	public static void plaque(GuiGraphics graphics, Font font, int panelX, int panelY, int panelWidth, Component text) {
-		int x = panelX + (panelWidth - PLAQUE_WIDTH) / 2;
-		blit(graphics, x, panelY + 3, 100, 210, PLAQUE_WIDTH, PLAQUE_HEIGHT);
-		String shown = font.plainSubstrByWidth(text.getString(), PLAQUE_WIDTH - 12);
-		graphics.drawString(font, shown, x + (PLAQUE_WIDTH - font.width(shown)) / 2, panelY + 6, ENGRAVED, false);
+		int width = plaqueWidth(font.width(text.getString()), panelWidth);
+		int x = panelX + (panelWidth - width) / 2;
+		stretch(graphics, x, panelY + 3, width, 100, 210, PLAQUE_WIDTH, PLAQUE_HEIGHT, 6);
+		List<String> shown = clamp(text.getString(), width - 12, 1, font::width);
+		String line = shown.isEmpty() ? "" : shown.get(0);
+		graphics.drawString(font, line, x + (width - font.width(line)) / 2, panelY + 6, ENGRAVED, false);
+	}
+
+	/** How wide the plaque is for a name this wide: its own width at least, and no wider than leaves wood either side. */
+	public static int plaqueWidth(int textWidth, int panelWidth) {
+		return Math.max(PLAQUE_WIDTH, Math.min(textWidth + 16, panelWidth - 64));
 	}
 
 	public static void textField(GuiGraphics graphics, int x, int y) {

@@ -63,4 +63,32 @@ class PostOfficeStyleTest {
 			assertTrue(lines.size() <= MailboxScreen.SEND_NOTICE_LINES, key + " runs to " + lines);
 		}
 	}
+
+	@Test
+	void theSettingsTextFitsAboveTheWood() {
+		JsonObject lang = ModResourceFiles.readJson(ModResourceFiles.find("assets", "postrider", "lang", "en_us.json")).getAsJsonObject();
+		String rules = lang.get("gui.postrider.mailbox.name_rules").getAsString().replaceFirst("%s", "3").replace("%s", "24");
+		assertEquals(1, PostOfficeStyle.wrap(rules, MailboxScreen.RULES_WIDTH, PostOfficeStyleTest::fontWidth).size(), "the rules take one line");
+		assertTrue(MailboxScreen.RULES_Y + MailboxScreen.STATUS_LINES * 9 <= MailboxScreen.PARCHMENT_BOTTOM, "what's wrong takes their place, on the parchment");
+		// Every message about an address fits whole, even with the longest address
+		String address = "Steve's Ranch and Stable";
+		// On the Settings tab
+		for (String key : new String[] {"name_taken", "name_bad_character", "name_too_short", "name_too_long", "named"}) {
+			String message = lang.get("message.postrider.mailbox." + key).getAsString().replace("%s", address);
+			assertTrue(PostOfficeStyle.wrap(message, MailboxScreen.RULES_WIDTH, PostOfficeStyleTest::fontWidth).size() <= MailboxScreen.STATUS_LINES, key);
+		}
+		// On the Send tab
+		for (String key : new String[] {"other_dimension", "unknown_address", "unnamed", "empty_parcel"}) {
+			String message = lang.get("message.postrider.mailbox." + key).getAsString().replace("%s", address);
+			assertTrue(PostOfficeStyle.wrap(message, MailboxScreen.SEND_NOTICE_WIDTH, PostOfficeStyleTest::fontWidth).size() <= MailboxScreen.SEND_NOTICE_LINES, key);
+		}
+	}
+
+	@Test
+	void theNamePlaqueStretchesToFitTheName() {
+		assertEquals(PostOfficeStyle.PLAQUE_WIDTH, PostOfficeStyle.plaqueWidth(30, MailboxMenu.WIDTH), "a short name: as drawn");
+		int longest = fontWidth("WWWWWWWWWWWWWWWWWWWWWWWW");
+		assertTrue(PostOfficeStyle.plaqueWidth(fontWidth("Steve's Ranch and Stable"), MailboxMenu.WIDTH) >= fontWidth("Steve's Ranch and Stable") + 12);
+		assertTrue(PostOfficeStyle.plaqueWidth(longest, MailboxMenu.WIDTH) <= MailboxMenu.WIDTH - 64, "never over the tabs' corners");
+	}
 }

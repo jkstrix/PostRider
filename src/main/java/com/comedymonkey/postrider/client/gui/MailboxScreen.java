@@ -22,10 +22,13 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	private static final int[] TAB_ICONS = {PostOfficeStyle.ICON_INBOX, PostOfficeStyle.ICON_SEND, PostOfficeStyle.ICON_SETTINGS};
 	private static final String[] TAB_KEYS = {"inbox", "send", "settings"};
-	/** On the Settings tab, the address rules and then a line for what's wrong (or that it's saved), clear of the inventory. */
-	private static final int RULES_Y = 66;
-	private static final int RULES_WIDTH = MailboxMenu.WIDTH - 16;
-	private static final int STATUS_Y = 86;
+	/**
+	 * On the Settings tab, under the Save button: the address rules, or in their place, two lines for what's wrong
+	 * (or that it's saved).
+	 */
+	public static final int RULES_Y = 66;
+	public static final int STATUS_LINES = 2;
+	public static final int RULES_WIDTH = MailboxMenu.WIDTH - 16;
 	/**
 	 * On the Send tab, two lines under the ledger for how sending went (in place of the "To:" line, as the address
 	 * is highlighted in the ledger), ending on the parchment.
@@ -261,14 +264,15 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 			PostOfficeStyle.write(graphics, font, Component.translatable("gui.postrider.mailbox.address"), 8, 20, PostOfficeStyle.INK);
 			if (!ownerName.isEmpty())
 				writeLines(graphics, Component.translatable("gui.postrider.mailbox.owner", ownerName), OWNER_X, 52, OWNER_WIDTH, 1, PostOfficeStyle.PENCIL);
-			graphics.drawWordWrap(font, Component.translatable("gui.postrider.mailbox.name_rules", MailboxNames.MIN_LENGTH, MailboxNames.MAX_LENGTH),
-				8, RULES_Y, RULES_WIDTH, PostOfficeStyle.PENCIL);
 			Component problem = nameProblem();
 			MailboxInfoCache.Notice notice = MailboxInfoCache.notice();
 			if (problem != null)
-				writeLines(graphics, problem, 8, STATUS_Y, RULES_WIDTH, 1, PostOfficeStyle.INK_ERROR);
+				writeLines(graphics, problem, 8, RULES_Y, RULES_WIDTH, STATUS_LINES, PostOfficeStyle.INK_ERROR);
 			else if (notice != null)
-				writeLines(graphics, notice.message(), 8, STATUS_Y, RULES_WIDTH, 1, notice.good() ? PostOfficeStyle.INK : PostOfficeStyle.INK_ERROR);
+				writeLines(graphics, notice.message(), 8, RULES_Y, RULES_WIDTH, STATUS_LINES, notice.good() ? PostOfficeStyle.INK : PostOfficeStyle.INK_ERROR);
+			else
+				writeLines(graphics, Component.translatable("gui.postrider.mailbox.name_rules", MailboxNames.MIN_LENGTH, MailboxNames.MAX_LENGTH),
+					8, RULES_Y, RULES_WIDTH, 1, PostOfficeStyle.PENCIL);
 		}
 		PostOfficeStyle.write(graphics, font, playerInventoryTitle, MailboxMenu.INVENTORY_X, MailboxMenu.INVENTORY_LABEL_Y, PostOfficeStyle.CREAM);
 	}
@@ -343,6 +347,14 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 			}
 		}
 		return super.mouseClicked(mouseX, mouseY, button);
+	}
+
+	/** Picks an address from the ledger, as clicking it would (for the screenshot run). */
+	public void pickAddress(String address) {
+		if (addresses.contains(address)) {
+			selected = address;
+			updateWidgets();
+		}
 	}
 
 	@Override

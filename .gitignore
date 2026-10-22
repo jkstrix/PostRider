@@ -18,6 +18,7 @@ bin/
 # dev runs
 run/
 runs/
+run-screenshots/
 repo/
 
 # built jars copied out for release

@@ -43,6 +43,11 @@ public final class MailboxInfoCache {
 		notice = new Notice(message, good, System.currentTimeMillis());
 	}
 
+	/** Takes down any notice showing. */
+	public static void clearNotice() {
+		notice = null;
+	}
+
 	/** The latest notice, if it's recent enough to still show. */
 	@Nullable
 	public static Notice notice() {
