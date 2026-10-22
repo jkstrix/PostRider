@@ -10,11 +10,13 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -120,18 +122,23 @@ public final class Crossing {
 			|| state.is(Blocks.LILY_PAD);
 	}
 
+	/** Water, by its tag (modded water too) or, before tags are loaded, by being vanilla water. */
+	public static boolean isWater(FluidState fluid) {
+		return fluid.is(FluidTags.WATER) || fluid.getType().isSame(Fluids.WATER);
+	}
+
 	private static boolean clear(BlockState state) {
 		return state.isAir() || isWaterPlant(state);
 	}
 
 	/** The water's surface in a column near a height, if it's open to the sky above; NaN otherwise. */
-	public static double surfaceIn(ServerLevel level, int x, int z, int nearY) {
+	public static double surfaceIn(BlockGetter level, int x, int z, int nearY) {
 		for (int y = nearY + 2; y >= nearY - 4; y--) {
 			BlockPos pos = new BlockPos(x, y, z);
 			FluidState fluid = level.getFluidState(pos);
-			if (fluid.is(FluidTags.WATER) && level.getFluidState(pos.above()).isEmpty() && clear(level.getBlockState(pos.above())))
+			if (isWater(fluid) && level.getFluidState(pos.above()).isEmpty() && clear(level.getBlockState(pos.above())))
 				return y + fluid.getHeight(level, pos);
-			if (!clear(level.getBlockState(pos)) && !fluid.is(FluidTags.WATER))
+			if (!clear(level.getBlockState(pos)) && !isWater(fluid))
 				return Double.NaN;
 		}
 		return Double.NaN;
