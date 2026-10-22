@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.2
+
+- Fixed: a rider could row back and forth to the same stretch of shore, or turn back to the water chunks after
+  landing. A shore that leads nowhere is now remembered and not landed on again, and a route worked out on the water
+  is picked up where he is, not back at the water.
+- Fixed: a rider could stand still with a good route ahead when his horse snagged on a corner, until he was
+  teleported. He now works that stretch out again from where he is.
+- More detail in the server log when a rider gets stuck.
+
 ## 1.1.1
 
 - Fixed: a rider could be teleported over a river instead of rowing it, and circle round a bay. When there's no way
