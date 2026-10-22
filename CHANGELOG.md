@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- Fixed: opening a parcel could lose its contents. Opening one now throws everything inside on the ground in front of
+  you, the way emptying a bundle does.
+
 ## 1.0.0
 
 First release, for Minecraft 1.21.1 with NeoForge 21.1.

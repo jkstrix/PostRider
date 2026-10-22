@@ -42,7 +42,7 @@
   "item.postrider.parcel.from": "From: %s (%s)",
   "item.postrider.parcel.to": "To: %s",
   "item.postrider.parcel.day": "Posted on day %s",
-  "item.postrider.parcel.hint": "Use to unwrap.",
+  "item.postrider.parcel.hint": "Use to tear it open.",
   "time.postrider.took": "Took %s",
   "time.postrider.took_moments": "Took under a minute",
   "time.postrider.pair": "%s, %s",

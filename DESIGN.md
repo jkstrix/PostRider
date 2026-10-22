@@ -18,7 +18,7 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 - Sending: the mailbox screen has a 9-slot parcel area, an address picked from a list of all mailboxes, and a Send button. Postage is free.
 
 ## Parcel and letters
-- Parcel item: sealed, holds up to 9 stacks. Right-click to unpack into your inventory (overflow drops at your feet).
+- Parcel item: sealed, holds up to 9 stacks, and its tooltip doesn't show what's inside. Right-click to tear it open: like emptying a bundle, everything inside is thrown on the ground in front of you, and the parcel is used up.
 - Letters: craft a blank Letter, use it to open its own writing screen, and finish it to get a Written Letter. Using a Written Letter opens it to read. It stays a readable item you can keep.
 - Put a Written Letter in the parcel slots to send it. If the parcel holds nothing but one letter, it travels and arrives as just the letter. If there's anything else in it, everything (letter included) arrives inside a Parcel.
 - Every screen shares the old-time post office look: walnut panelling, a parchment work surface, brass fittings, postage-stamp tabs, red wax for the main action, and ledger pages for lists (`client/gui/PostOfficeStyle`, `textures/gui/post_office.png`).

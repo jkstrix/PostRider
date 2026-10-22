@@ -11,6 +11,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
@@ -20,23 +21,35 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.Level;
 
-/** A sealed parcel. Use it to unwrap it: everything inside goes into your inventory, and what doesn't fit drops. */
+/**
+ * A sealed parcel. Use it to tear it open: like emptying a bundle, everything inside is tossed out on the ground in
+ * front of you, and the wrapping is gone. What's inside stays a surprise until then.
+ */
 public class ParcelItem extends Item {
 	public ParcelItem(Properties properties) {
 		super(properties);
 	}
 
+	/** What's inside, as copies, in the order it was packed. */
+	public static List<ItemStack> contents(ItemStack parcel) {
+		return parcel.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).nonEmptyStream().map(ItemStack::copy).toList();
+	}
+
 	@Override
 	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
 		ItemStack parcel = player.getItemInHand(hand);
+		// Thrown out rather than put in the inventory: the game puts the result back in the hand after use, which
+		// would wipe anything slipped into that slot meanwhile
+		List<ItemStack> contents = contents(parcel);
+		parcel.shrink(1);
 		if (!level.isClientSide) {
-			ItemContainerContents contents = parcel.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY);
-			player.setItemInHand(hand, ItemStack.EMPTY);
-			for (ItemStack item : contents.nonEmptyItemsCopy())
-				player.getInventory().placeItemBackInInventory(item);
-			level.playSound(null, player.blockPosition(), SoundEvents.BOOK_PAGE_TURN, SoundSource.PLAYERS, 1, 0.8F);
+			for (ItemStack item : contents)
+				player.drop(item, true);
+			level.playSound(null, player.blockPosition(), SoundEvents.BUNDLE_DROP_CONTENTS, SoundSource.PLAYERS, 0.8F,
+				0.8F + level.random.nextFloat() * 0.4F);
+			player.awardStat(Stats.ITEM_USED.get(this));
 		}
-		return InteractionResultHolder.sidedSuccess(ItemStack.EMPTY, level.isClientSide);
+		return InteractionResultHolder.sidedSuccess(parcel, level.isClientSide);
 	}
 
 	@Override

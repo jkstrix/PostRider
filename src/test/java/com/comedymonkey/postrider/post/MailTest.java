@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import com.comedymonkey.postrider.client.gui.PostOfficeStyle;
 import com.comedymonkey.postrider.content.letter.LetterContent;
 import com.comedymonkey.postrider.content.letter.LetterText;
+import com.comedymonkey.postrider.content.parcel.ParcelItem;
 import com.comedymonkey.postrider.content.parcel.ParcelLabel;
 import com.comedymonkey.postrider.registry.ModDataComponents;
 import com.comedymonkey.postrider.registry.ModItems;
@@ -153,5 +154,18 @@ class MailTest {
 			}
 			assertTrue(content.pages().get(0).contains("-29999984"), "where to find it is on the first page");
 		}
+	}
+
+	@Test
+	void openingAParcelThrowsOutEverythingThatWasPacked() {
+		// Several stacks of the same thing too: these all went missing when parcels unpacked into the hand's slot
+		ItemStack parcel = Mail.wrap(delivery(new ItemStack(Items.BREAD, 64), new ItemStack(Items.BREAD, 64), letter("Lunch"),
+			new ItemStack(Items.IRON_INGOT, 20)), 3);
+		List<ItemStack> contents = ParcelItem.contents(parcel);
+		assertEquals(4, contents.size());
+		assertEquals(128, contents.stream().filter(item -> item.is(Items.BREAD)).mapToInt(ItemStack::getCount).sum());
+		assertEquals(20, contents.get(3).getCount());
+		assertTrue(contents.get(2).is(ModItems.WRITTEN_LETTER.get()));
+		assertTrue(ParcelItem.contents(new ItemStack(ModItems.PARCEL.get())).isEmpty(), "an empty parcel throws out nothing");
 	}
 }
