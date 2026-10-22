@@ -116,6 +116,9 @@ public final class Navigator {
 	/** As above; {@code afloat} on the barge, the plan heads for the nearest land that takes him on. */
 	public void replan(ServerLevel level, Vec3 from, Vec3 target, boolean afloat) {
 		clearStretch();
+		plannedAfloat = afloat;
+		landedSincePlanned = false;
+		lastHere = from;
 		coarse = level.dimensionType().hasCeiling() ? null
 			: new CoarsePlanner(TerrainSurvey.of(level), CoarsePlanner.cellOf(from.x), CoarsePlanner.cellOf(from.z),
 				CoarsePlanner.cellOf(target.x), CoarsePlanner.cellOf(target.z), blocked, afloat);
@@ -154,10 +157,16 @@ public final class Navigator {
 		this.log = log;
 	}
 
+	/** Where he was when last seen, the long-range plan being worked out was asked for afloat, and he's landed since. */
+	@Nullable
+	private Vec3 lastHere;
+	private boolean plannedAfloat, landedSincePlanned;
+
 	private void adopt(@Nullable CoarsePlanner.Plan found) {
 		log.accept(found == null ? "no long-range route; heading straight there" : "route planned: " + describe(found));
 		plan = found;
-		leg = 0;
+		// A plan takes a while to work out: he picks it up where he is now, not where he was when he asked for it
+		leg = found == null ? 0 : startingLeg(found.legs(), lastHere, plannedAfloat && landedSincePlanned);
 		// What he's following now was planned for the old route: the next stretch follows the new one
 		stepsAreFinal = false;
 	}
@@ -198,6 +207,7 @@ public final class Navigator {
 	// ---------------------------------------------------------------- each tick on land
 
 	public Action tick(PostmanEntity rider, ServerLevel level, Vec3 target) {
+		lastHere = rider.position();
 		tickPlanning();
 		long now = level.getGameTime();
 		Vec3 here = rider.position();
@@ -321,6 +331,10 @@ public final class Navigator {
 			+ ": " + what.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '));
 		switch (what) {
 			case BARGE -> {
+				// Where he couldn't get to still goes down as impassable, so the route worked out afloat doesn't
+				// bring him straight back to the same dead end
+				if (hasPlan && !localIsFinal)
+					blocked.add(CoarsePlanner.key(CoarsePlanner.cellOf(localGoal.x), CoarsePlanner.cellOf(localGoal.z)));
 				launchAim = water;
 				return Action.LAUNCH;
 			}
@@ -332,6 +346,16 @@ public final class Navigator {
 			default -> {}
 		}
 		return Action.GOING;
+	}
+
+	/** Where he's got to with his route, for the log when something goes wrong. */
+	public String state() {
+		CoarsePlanner.Leg current = currentLeg();
+		return "leg " + (plan == null ? "-" : (leg + 1) + "/" + plan.legs().size() + " " + (current == null ? "" : current.kind()))
+			+ (coarse != null ? ", re-planning the route" : "")
+			+ ", stretch " + (local != null ? "being planned" : steps.size() + " steps" + (stepsAreFinal ? " to the mailbox" : ""))
+			+ (localGoal != null ? " towards " + spot(localGoal) : "")
+			+ (waitingForHorse > 0 ? ", waiting for his horse" : "");
 	}
 
 	/** A plan in a few words: each leg, land or barge, and how long it is. */
@@ -407,11 +431,22 @@ public final class Navigator {
 		if (++checkTimer % 20 != 0)
 			return false;
 		PathNavigation navigation = rider.getNavigation();
-		if (navigation.isDone() && segmentEnd >= steps.size() - 1 && !stepsAreFinal)
+		// His horse (or his legs) gave up following the way before the end of it, a snag on a corner, say: plan it
+		// again from here, the last stretch to the mailbox too, rather than standing there
+		if (navigation.isDone() && segmentEnd >= steps.size() - 1
+				&& stalledShort(stepsAreFinal, Journey.horizontalDistance(here, new Vec3(last.centreX(), here.y, last.centreZ()))))
 			return true;
 		if (offPath(here))
 			return true;
 		return blockedAhead(level, navigation);
+	}
+
+	/**
+	 * Whether, his path follower having stopped, he's short of where this stretch ends: any stretch on the way, or
+	 * the last one if he's still well off the mailbox.
+	 */
+	public static boolean stalledShort(boolean toMailbox, double fromEnd) {
+		return !toMailbox || fromEnd > MAILBOX_RADIUS + 1;
 	}
 
 	private boolean offPath(Vec3 here) {
@@ -587,6 +622,13 @@ public final class Navigator {
 	 * nearest land is that takes him on to the mailbox (going by the old plan until he has).
 	 */
 	public void launched(ServerLevel level, Vec3 from, Vec3 target) {
+		// Putting out again soon after landing, close by: that shore led nowhere, so he doesn't land there again
+		long now = level.getGameTime();
+		if (lastLanding != null && landedBackSoon(lastLanding, landedAt, from, now)) {
+			for (long cell : cellsAround(lastLanding))
+				blocked.add(cell);
+			log.accept("the shore at " + spot(lastLanding) + " led nowhere; he won't land there again");
+		}
 		CoarsePlanner.Leg current = currentLeg();
 		if (current != null && current.kind() == CoarsePlanner.LegKind.LAND && leg + 1 < plan.legs().size()
 				&& plan.legs().get(leg + 1).kind() == CoarsePlanner.LegKind.WATER)
@@ -596,7 +638,33 @@ public final class Navigator {
 	}
 
 	/** Ashore again: on to the leg after the water. */
-	public void landed() {
+	/** Where and when he last stepped ashore. */
+	@Nullable
+	private Vec3 lastLanding;
+	private long landedAt;
+	/** Putting out again this soon after landing, this close by, means the shore led nowhere. */
+	public static final int LANDED_BACK_TICKS = 1200;
+	public static final double LANDED_BACK_DISTANCE = 32;
+
+	/** Whether he's putting out again so soon after landing, so near where he landed, that the shore led nowhere. */
+	public static boolean landedBackSoon(Vec3 landing, long landedAt, Vec3 launch, long now) {
+		return now - landedAt <= LANDED_BACK_TICKS && Journey.horizontalDistance(landing, launch) <= LANDED_BACK_DISTANCE;
+	}
+
+	/** The long-range plan's cells round a place: the one it's in and those next to it. */
+	public static List<Long> cellsAround(Vec3 at) {
+		int cx = CoarsePlanner.cellOf(at.x), cz = CoarsePlanner.cellOf(at.z);
+		List<Long> cells = new ArrayList<>();
+		for (int dx = -1; dx <= 1; dx++)
+			for (int dz = -1; dz <= 1; dz++)
+				cells.add(CoarsePlanner.key(cx + dx, cz + dz));
+		return cells;
+	}
+
+	public void landed(Vec3 at, long now) {
+		lastLanding = at;
+		landedAt = now;
+		landedSincePlanned = true;
 		CoarsePlanner.Leg current = currentLeg();
 		if (current != null && current.kind() == CoarsePlanner.LegKind.WATER)
 			leg++;
@@ -611,6 +679,7 @@ public final class Navigator {
 	 */
 	@Nullable
 	public Vec3 bargeAim(ServerLevel level, Vec3 here, int nearY, Vec3 target, List<Vec3> drowned, long now) {
+		lastHere = here;
 		tickPlanning();
 		CoarsePlanner.Leg current = currentLeg();
 		// Launched from a cell that counts as land: the water leg starts here
@@ -694,6 +763,26 @@ public final class Navigator {
 	/** Whether his route takes to the water within this far of here (or he's on a water leg already). */
 	public boolean waterWithin(Vec3 here, double within) {
 		return plan != null && launchWithin(plan.legs(), leg, here, within);
+	}
+
+	/**
+	 * The leg of a newly made plan to pick it up at: the one he's nearest now (the later one if it's a tie, as where
+	 * two meet he's done with the first), and never the water a plan made afloat starts with once he's landed.
+	 */
+	public static int startingLeg(List<CoarsePlanner.Leg> legs, @Nullable Vec3 here, boolean ashoreSince) {
+		int start = ashoreSince && legs.size() > 1 && legs.get(0).kind() == CoarsePlanner.LegKind.WATER ? 1 : 0;
+		if (here == null)
+			return start;
+		int best = start;
+		double bestDistance = Double.MAX_VALUE;
+		for (int i = start; i < legs.size(); i++) {
+			double distance = Journey.horizontalDistance(here, along(legs.get(i).points(), here, 0));
+			if (distance <= bestDistance + 1e-6) {
+				best = i;
+				bestDistance = distance;
+			}
+		}
+		return best;
 	}
 
 	/** Whether, on this leg of these, the route takes to the water within {@code within} of here. */

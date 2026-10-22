@@ -606,7 +606,7 @@ public class DeliveryRun {
 		barge.vanish(level);
 		aimCooldown = 0;
 		logRoute(rider, "stepped ashore at " + Navigator.spot(ground));
-		navigator.landed();
+		navigator.landed(ground, level.getGameTime());
 		// Crossed on foot (he walked down to the water): he calls his horse now he's over, unless the box is close
 		if (horse == null && !walksTheRest(Journey.horizontalDistance(ground, target)))
 			rider.whistleForHorse();
@@ -993,7 +993,8 @@ public class DeliveryRun {
 			return true;
 		}
 		Entity mover = rider.getVehicle() != null ? rider.getVehicle() : rider;
-		logRoute(rider, "stuck at " + Navigator.spot(mover.position()) + " (" + stage + "), jumped free to " + Navigator.spot(free));
+		logRoute(rider, "stuck at " + Navigator.spot(mover.position()) + " (" + stage + "; " + navigator.state() + "; "
+			+ (rider.getNavigation().isDone() ? "not moving" : "moving") + "), jumped free to " + Navigator.spot(free));
 		PostmanEffects.puff(level, mover);
 		mover.teleportTo(free.x, free.y, free.z);
 		jumpsFree++;

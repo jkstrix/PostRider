@@ -22,6 +22,9 @@ final class Watch {
 	DeliveryRun run;
 	boolean studiedMap;
 	boolean rowed;
+	/** How many times he's put out in the barge. */
+	int launches;
+	private boolean wasOnBarge;
 	boolean horseAboard;
 	boolean landed;
 	/** He (or his horse) stood or swam in water off the barge, and where. */
@@ -46,6 +49,9 @@ final class Watch {
 		if (now.getActivity() == PostmanEntity.Activity.STUDY_MAP)
 			studiedMap = true;
 		boolean onBarge = now.getVehicle() instanceof BargeEntity;
+		if (onBarge && !wasOnBarge)
+			launches++;
+		wasOnBarge = onBarge;
 		if (onBarge) {
 			rowed = true;
 			for (Entity passenger : now.getVehicle().getPassengers())

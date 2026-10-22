@@ -123,4 +123,36 @@ class NavigatorTest {
 		assertEquals(32.5, bank.z, 1e-9);
 		assertEquals(new Vec3(38, 62, 32), Navigator.shore(new Vec3(7.5, 64, 32.5), new Vec3(38, 62, 32), (x, z) -> false), "all dry: on to the point");
 	}
+
+	@Test
+	void aNewPlanIsPickedUpWhereHeIsNotWhereHeWas() {
+		// TO_THE_RIVER: land from x 0 to 40, barge 44 to 60, land 64 to 120
+		assertEquals(0, Navigator.startingLeg(TO_THE_RIVER, new Vec3(10, 64, 0), false), "still riding down to the river");
+		assertEquals(1, Navigator.startingLeg(TO_THE_RIVER, new Vec3(50, 62, 0), false), "out on the water");
+		assertEquals(2, Navigator.startingLeg(TO_THE_RIVER, new Vec3(90, 64, 0), false), "chunks past the landing: on, not back to the water");
+		// Planned afloat, finished after he landed: he never turns back to row the water it starts with
+		List<CoarsePlanner.Leg> fromTheWater = List.of(
+			new CoarsePlanner.Leg(CoarsePlanner.LegKind.WATER, List.of(new Vec3(0, 62, 0), new Vec3(8, 62, 0))),
+			new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(12, 64, 0), new Vec3(80, 64, 0))));
+		assertEquals(1, Navigator.startingLeg(fromTheWater, new Vec3(9, 64, 0), true));
+		assertEquals(0, Navigator.startingLeg(fromTheWater, new Vec3(2, 62, 0), false), "still afloat: the water first");
+	}
+
+	@Test
+	void ifHisHorseGivesUpFollowingTheWayHePlansItAgainRatherThanStandThere() {
+		assertTrue(Navigator.stalledShort(false, 20), "a stretch on the way");
+		assertTrue(Navigator.stalledShort(true, 20), "the last stretch, still well off the mailbox");
+		assertFalse(Navigator.stalledShort(true, 2), "at the mailbox: nothing to plan");
+	}
+
+	@Test
+	void aShoreHeHasToPutOutFromAgainSoonAfterLandingIsNotLandedOnAgain() {
+		Vec3 landing = new Vec3(100, 64, 100);
+		assertTrue(Navigator.landedBackSoon(landing, 1000, new Vec3(110, 64, 95), 1400), "back on the water within a minute, close by");
+		assertFalse(Navigator.landedBackSoon(landing, 1000, new Vec3(110, 64, 95), 1000 + Navigator.LANDED_BACK_TICKS + 1), "a while later");
+		assertFalse(Navigator.landedBackSoon(landing, 1000, new Vec3(200, 64, 100), 1400), "somewhere else altogether");
+		List<Long> cells = Navigator.cellsAround(landing);
+		assertEquals(9, cells.size());
+		assertTrue(cells.contains(CoarsePlanner.key(CoarsePlanner.cellOf(100), CoarsePlanner.cellOf(100))));
+	}
 }

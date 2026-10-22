@@ -224,6 +224,31 @@ public final class RiderGameTests {
 		});
 	}
 
+	@GameTest(skyAccess = true, template = "gametest/arena_80x64", batch = "deliver_cut_off_shore", timeoutTicks = DELIVERY_TICKS)
+	public static void aShoreThatLeadsNowhereIsntLandedOnOverAndOver(GameTestHelper helper) {
+		Scene scene = new Scene(helper);
+		scene.ground(0, 0, 79, 63);
+		// A lake between the boxes, and beyond it a strip of shore cut off from the far box by a dry ravine too wide to
+		// leap and too deep to climb, which from afar looks like no more than steep ground; the ravine stops short of
+		// the north side, where there's a way round
+		scene.water(18, 0, 44, 63, 2);
+		scene.fill(52, -6, 0, 56, 0, 47, Blocks.AIR.defaultBlockState());
+		// A stone wall round the edge, so neither the lake nor the barge leads out of the scene
+		BlockState wall = Blocks.STONE.defaultBlockState();
+		scene.fill(0, -2, 0, 79, 4, 0, wall);
+		scene.fill(0, -2, 63, 79, 4, 63, wall);
+		scene.fill(0, -2, 0, 0, 4, 63, wall);
+		scene.fill(79, -2, 0, 79, 4, 63, wall);
+		String fromName = Scene.address("GT Shore A"), toName = Scene.address("GT Shore B");
+		BlockPos from = scene.mailbox(6, 24, Direction.EAST, fromName);
+		BlockPos to = scene.mailbox(72, 24, Direction.WEST, toName);
+		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
+		deliver(scene, to, watch, () -> {
+			if (watch.launches > 2)
+				throw new GameTestAssertException("He put out in the barge " + watch.launches + " times");
+		});
+	}
+
 	@GameTest(skyAccess = true, template = "gametest/arena_48x32", batch = "deliver_ditch", timeoutTicks = DELIVERY_TICKS)
 	public static void heLeapsADitchOnceAndRidesOn(GameTestHelper helper) {
 		Scene scene = new Scene(helper);
