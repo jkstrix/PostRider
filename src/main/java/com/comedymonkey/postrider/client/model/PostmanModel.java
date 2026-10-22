@@ -164,6 +164,8 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		animate(entity.activityAnimations.get(PostmanEntity.Activity.ROW), PostmanAnimations.ROW, ageInTicks);
 		animate(entity.activityAnimations.get(PostmanEntity.Activity.HARMONICA), PostmanAnimations.HARMONICA, ageInTicks);
 		animate(entity.activityAnimations.get(PostmanEntity.Activity.SLEEP), PostmanAnimations.SLEEP, ageInTicks);
+		animate(entity.activityAnimations.get(PostmanEntity.Activity.CLIMB), PostmanAnimations.CLIMB, ageInTicks);
+		animate(entity.activityAnimations.get(PostmanEntity.Activity.DRIFT), PostmanAnimations.DRIFT, ageInTicks);
 		for (PostmanEntity.Gesture gesture : PostmanEntity.Gesture.values())
 			if (!overridesUpperBody(gesture))
 				animate(entity.gestureAnimations.get(gesture), gestureAnimation(gesture), ageInTicks);

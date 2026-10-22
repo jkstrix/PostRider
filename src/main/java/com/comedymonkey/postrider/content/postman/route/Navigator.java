@@ -273,7 +273,7 @@ public final class Navigator {
 		}
 		skipPassed(rider);
 		nudgeIntoClimb(rider, level);
-		if (tickColumn(rider))
+		if (tickColumn(rider, level))
 			return Action.GOING;
 		follow(rider);
 		return Action.GOING;
@@ -283,6 +283,15 @@ public final class Navigator {
 
 	/** The last step of the run of column steps he's riding (a ladder or a bubble column), or -1. */
 	private int columnEnd = -1;
+	/** What he's doing while he rides it: climbing a ladder, or drifting in a bubble column. */
+	@Nullable
+	private PostmanEntity.Activity columnKind;
+
+	/** How he's moving while in a column (climbing, or drifting), or null when he isn't in one. */
+	@Nullable
+	public PostmanEntity.Activity columnActivity() {
+		return columnEnd >= 0 ? columnKind : null;
+	}
 	private int columnTicks;
 	/** He's pulled this far off the column's middle: knocked out of it. */
 	public static final double COLUMN_OFF = 0.8;
@@ -311,7 +320,7 @@ public final class Navigator {
 	 * jumps to climb, slides to descend) or the water takes him, and the path is handed back at the other end.
 	 * True while he's being taken.
 	 */
-	private boolean tickColumn(PostmanEntity rider) {
+	private boolean tickColumn(PostmanEntity rider, ServerLevel level) {
 		if (columnEnd < 0) {
 			Path path = rider.getNavigation().getPath();
 			if (steps.isEmpty() || path == null || path.isDone() || rider.getVehicle() != null)
@@ -325,6 +334,8 @@ public final class Navigator {
 			columnEnd = Math.min(segmentEnd, columnRunEnd(steps, next));
 			columnTicks = 0;
 			rider.getNavigation().stop();
+			columnKind = new LevelTerrain(level).kind(step.x(), step.y(), step.z()) == Terrain.Kind.CLIMB ? PostmanEntity.Activity.CLIMB
+				: PostmanEntity.Activity.DRIFT;
 			log.accept((steps.get(columnEnd).y() < step.y() ? "down" : "up") + " a column from " + spot(rider.position()) + " to " + steps.get(columnEnd).y());
 		}
 		LocalPlanner.Step end = steps.get(columnEnd);

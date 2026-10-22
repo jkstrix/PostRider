@@ -402,6 +402,17 @@ public class DeliveryRun {
 		}
 	}
 
+	/** Up a ladder hand over hand, or drifting in a bubble column, while he's in one; back to himself after. */
+	static void showColumn(PostmanEntity rider, @Nullable PostmanEntity.Activity inColumn) {
+		PostmanEntity.Activity now = rider.getActivity();
+		if (inColumn != null) {
+			if (now != inColumn)
+				rider.setActivity(inColumn);
+		} else if (now == PostmanEntity.Activity.CLIMB || now == PostmanEntity.Activity.DRIFT) {
+			rider.setActivity(PostmanEntity.Activity.NONE);
+		}
+	}
+
 	/** Out comes his map (held open in both hands, the study_map animation), or away it goes. */
 	private static void showMap(PostmanEntity rider, boolean out) {
 		if (out)
@@ -476,7 +487,9 @@ public class DeliveryRun {
 		}
 		if (rider.getHorse() != null)
 			jumpGaps(rider, rider.getHorse());
-		switch (navigator.tick(rider, level, target)) {
+		Navigator.Action action = navigator.tick(rider, level, target);
+		showColumn(rider, navigator.columnActivity());
+		switch (action) {
 			case LAUNCH -> {
 				Vec3 toward = navigator.launchAim();
 				if (toward != null && launchBarge(rider, level, toward))

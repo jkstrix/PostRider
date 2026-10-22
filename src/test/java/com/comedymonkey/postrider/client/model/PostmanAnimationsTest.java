@@ -35,6 +35,8 @@ class PostmanAnimationsTest {
 		Map.entry("drink", PostmanAnimations.DRINK),
 		Map.entry("light_fire", PostmanAnimations.LIGHT_FIRE),
 		Map.entry("study_map", PostmanAnimations.STUDY_MAP),
+		Map.entry("climb", PostmanAnimations.CLIMB),
+		Map.entry("drift", PostmanAnimations.DRIFT),
 		Map.entry("wipe_brow", PostmanAnimations.WIPE_BROW),
 		Map.entry("tip_hat", PostmanAnimations.TIP_HAT),
 		Map.entry("pat_horse", PostmanAnimations.PAT_HORSE),
@@ -72,8 +74,8 @@ class PostmanAnimationsTest {
 	}
 
 	@Test
-	void allThirtySixApprovedAnimationsAreThere() {
-		assertEquals(36, ALL.size());
+	void allThirtyEightApprovedAnimationsAreThere() {
+		assertEquals(38, ALL.size());
 	}
 
 	@Test
@@ -93,7 +95,7 @@ class PostmanAnimationsTest {
 
 	@Test
 	void continuousAnimationsLoopAndGesturesPlayOnce() {
-		for (String looping : new String[] {"walk", "idle", "ride", "ride_idle", "camp_hammer", "camp_rest", "row", "harmonica", "sleep"})
+		for (String looping : new String[] {"walk", "idle", "ride", "ride_idle", "camp_hammer", "camp_rest", "row", "harmonica", "sleep", "climb", "drift"})
 			assertTrue(ALL.get(looping).looping(), looping);
 		for (String once : new String[] {"pickup", "deliver", "whistle", "hurt", "wave", "drink", "light_fire", "study_map", "wipe_brow", "tip_hat", "pat_horse", "check_satchel", "stretch", "yawn", "look_back", "scratch_head", "swat_fly", "adjust_hat", "pull_hat_down", "shade_eyes", "shiver", "swig", "pocket_watch", "read_letter", "hum", "neck_roll", "crack_knuckles"})
 			assertFalse(ALL.get(once).looping(), once);
@@ -254,6 +256,16 @@ class PostmanAnimationsTest {
 				for (int y = 35; y < 43; y++)
 					assertEquals(255, image.getRGB(x, y) >>> 24, skin.getFileName() + " map pixel " + x + "," + y);
 		}
+	}
+
+	@Test
+	void heClimbsHandOverHandAndDriftsGently() {
+		assertTrue(PostmanAnimations.CLIMB.looping());
+		assertEquals(1.0F, PostmanAnimations.CLIMB.lengthInSeconds(), 1e-4);
+		for (String limb : new String[] {"right_arm", "left_arm", "right_leg", "left_leg"})
+			assertTrue(PostmanAnimations.CLIMB.boneAnimations().containsKey(limb), limb + " moves on a ladder");
+		assertTrue(PostmanAnimations.DRIFT.looping());
+		assertTrue(PostmanAnimations.DRIFT.boneAnimations().containsKey("root"), "he bobs in the water");
 	}
 
 	@Test

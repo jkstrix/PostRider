@@ -182,4 +182,10 @@ class DeliveryRunTest {
 		assertEquals(24, DeliveryRun.JUMP_RADII[DeliveryRun.JUMP_RADII.length - 1], "and no further than this before the old long jumps");
 		assertTrue(offsets.size() >= 8 * DeliveryRun.JUMP_RADII.length);
 	}
+
+	@Test
+	void inAColumnHeClimbsOrDriftsAndIsHimselfAgainAfter() {
+		assertEquals(PostmanEntity.Activity.CLIMB.ordinal() + 1, PostmanEntity.Activity.DRIFT.ordinal(), "the two column activities, after the map");
+		assertTrue(PostmanEntity.Activity.CLIMB.ordinal() > PostmanEntity.Activity.STUDY_MAP.ordinal(), "added at the end, so saved activities still read");
+	}
 }
