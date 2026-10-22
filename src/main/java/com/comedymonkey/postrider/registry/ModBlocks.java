@@ -9,6 +9,7 @@ import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.lost.LostParcelBlock;
 import com.comedymonkey.postrider.content.lost.LostParcelWreckBlock;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
+import com.comedymonkey.postrider.content.postman.CampfireBlock;
 
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.SoundType;
@@ -50,6 +51,17 @@ public final class ModBlocks {
 			.sound(SoundType.WET_GRASS)
 			.noOcclusion()
 			.noLootTable()
+			.pushReaction(PushReaction.BLOCK)));
+
+	public static final DeferredBlock<CampfireBlock> CAMPFIRE = BLOCKS.register("campfire", () -> new CampfireBlock(
+		BlockBehaviour.Properties.of()
+			.mapColor(MapColor.PODZOL)
+			.strength(-1.0F, 3600000.0F)
+			.sound(SoundType.WOOD)
+			.lightLevel(state -> state.getValue(CampfireBlock.LIGHT))
+			.noOcclusion()
+			.noLootTable()
+			.isValidSpawn((state, level, pos, type) -> false)
 			.pushReaction(PushReaction.BLOCK)));
 
 	private ModBlocks() {}

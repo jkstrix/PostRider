@@ -37,9 +37,10 @@ On the road a rider:
 - **Avoids hazards:** he keeps off lava, fire, cactus and powder snow.
 - **Crosses water** by ferry barge when riding around it isn't worth it. The barge appears at the water's edge, he
   rows it across with his horse aboard, and it steers clear of ocean monuments and drowned.
-- **Camps** at dusk. He finds a flat pitch, hammers in the pegs and plays the harmonica until monsters come out,
-  then sleeps in his tent with his boots out of the door. Mobs only notice him there from close by. If he's attacked
-  in camp, he runs for it until morning.
+- **Camps** at dusk. He finds a flat pitch, hammers in the pegs and lights a campfire with his flint and steel, and plays the harmonica until monsters come out,
+  then sleeps in his tent with his boots out of the door. Mobs only notice him there from close by. The fire burns bright
+  through the evening and dies down to embers by 3am. It's harmless, nobody can put it out, and it goes when he does.
+  If he's attacked in camp, he runs for it until morning.
 - **Fights back for his life:** every hostile mob that hunts players hunts riders too. He carries two healing
   potions a day and drinks one when he's hurt.
 - **Has mannerisms:** he waves at players he passes, tips his hat to villagers, wipes his brow in the desert, yawns

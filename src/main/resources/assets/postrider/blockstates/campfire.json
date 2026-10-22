@@ -1,0 +1,43 @@
+{
+  "variants": {
+    "light=3": {
+      "model": "postrider:block/campfire_embers"
+    },
+    "light=4": {
+      "model": "postrider:block/campfire_lit"
+    },
+    "light=5": {
+      "model": "postrider:block/campfire_lit"
+    },
+    "light=6": {
+      "model": "postrider:block/campfire_lit"
+    },
+    "light=7": {
+      "model": "postrider:block/campfire_lit"
+    },
+    "light=8": {
+      "model": "postrider:block/campfire_lit"
+    },
+    "light=9": {
+      "model": "postrider:block/campfire_lit"
+    },
+    "light=10": {
+      "model": "postrider:block/campfire_lit"
+    },
+    "light=11": {
+      "model": "postrider:block/campfire_lit"
+    },
+    "light=12": {
+      "model": "postrider:block/campfire_lit"
+    },
+    "light=13": {
+      "model": "postrider:block/campfire_lit"
+    },
+    "light=14": {
+      "model": "postrider:block/campfire_lit"
+    },
+    "light=15": {
+      "model": "postrider:block/campfire_lit"
+    }
+  }
+}

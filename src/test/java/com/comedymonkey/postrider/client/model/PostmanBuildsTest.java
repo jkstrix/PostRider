@@ -22,7 +22,7 @@ class PostmanBuildsTest {
 
 	private static void collect(ModelPart part, Set<String> names) {
 		for (String child : new String[] {"root", "body", "head", "hat", "harmonica", "right_arm", "left_arm", "hammer", "potion", "canteen",
-			"pocket_watch", "letter", "satchel", "satchel_flat", "satchel_full", "right_leg", "left_leg", "hair_back", "hair_bun",
+			"pocket_watch", "letter", "striker", "flint", "satchel", "satchel_flat", "satchel_full", "right_leg", "left_leg", "hair_back", "hair_bun",
 			"hair_braid", "hair_pigtails"})
 			if (part.hasChild(child)) {
 				names.add(child);

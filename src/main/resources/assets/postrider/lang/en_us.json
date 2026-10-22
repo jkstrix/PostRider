@@ -129,5 +129,6 @@
   "stat.postrider.letters_sent": "Letters Sent",
   "item.postrider.journey.barge": "Crossed water by barge",
   "item.postrider.journey.night": "Spent a night on the trail",
-  "item.postrider.journey.nights": "Spent %s nights on the trail"
+  "item.postrider.journey.nights": "Spent %s nights on the trail",
+  "block.postrider.campfire": "Rider's Campfire"
 }

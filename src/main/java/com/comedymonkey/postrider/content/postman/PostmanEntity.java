@@ -58,6 +58,7 @@ public class PostmanEntity extends PathfinderMob {
 		WHISTLE(102, 1.6F),
 		WAVE(103, 1.6F),
 		DRINK(104, 1.6F),
+		LIGHT_FIRE(124, 3.0F),
 		// Mannerisms on the road
 		WIPE_BROW(105, 2.0F),
 		TIP_HAT(106, 1.4F),

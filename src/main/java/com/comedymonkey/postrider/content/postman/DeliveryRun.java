@@ -19,6 +19,7 @@ import com.comedymonkey.postrider.post.Notices;
 import com.comedymonkey.postrider.post.PendingDelivery;
 import com.comedymonkey.postrider.post.PostOffice;
 import com.comedymonkey.postrider.post.PostOfficeHours;
+import com.comedymonkey.postrider.registry.ModBlocks;
 import com.comedymonkey.postrider.registry.ModEntities;
 
 import net.minecraft.core.BlockPos;
@@ -29,6 +30,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -41,6 +44,7 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.pathfinder.Path;
@@ -113,6 +117,12 @@ public class DeliveryRun {
 		DeliveryRun run = plan(level, delivery);
 		run.stage = Stage.CALLING_HORSE;
 		return run;
+	}
+
+	/** Where his campfire is, if he has one going. */
+	@Nullable
+	public BlockPos campfire() {
+		return campfire;
 	}
 
 	/** What the mail has been through so far. */
@@ -538,6 +548,7 @@ public class DeliveryRun {
 		FINDING,
 		WALKING,
 		HAMMERING,
+		LIGHTING,
 		PLAYING,
 		SLEEPING
 	}
@@ -561,6 +572,8 @@ public class DeliveryRun {
 	 */
 	private void camp(PostmanEntity rider, ServerLevel level) {
 		progress.pause(level.getGameTime());
+		if (stepTicks % 20 == 0)
+			tendFire(level);
 		if (PostOfficeHours.isOpen(level.getDayTime())) {
 			breakCamp(rider, level);
 			enter(Stage.CALLING_HORSE);
@@ -597,8 +610,20 @@ public class DeliveryRun {
 				if (stepTicks >= HAMMER_TICKS) {
 					pitchTent(rider, level);
 					face(rider, campSite.yaw());
-					startEvening(rider, level);
+					step(CampStep.LIGHTING);
 				}
+			}
+			case LIGHTING -> {
+				// He kneels in front of his seat and strikes the flint and steel; the third strike catches
+				face(rider, campSite.yaw());
+				if (stepTicks == 1)
+					rider.playGesture(PostmanEntity.Gesture.LIGHT_FIRE);
+				if (stepTicks == STRIKES[0] || stepTicks == STRIKES[1] || stepTicks == STRIKES[2])
+					level.playSound(null, rider, SoundEvents.FLINTANDSTEEL_USE, SoundSource.NEUTRAL, 1.0F, 0.9F + level.random.nextFloat() * 0.2F);
+				if (stepTicks == STRIKES[2])
+					lightFire(level);
+				if (stepTicks >= LIGHTING_TICKS)
+					startEvening(rider, level);
 			}
 			case PLAYING -> {
 				if (PostOfficeHours.isBedtime(level.getDayTime()))
@@ -658,7 +683,48 @@ public class DeliveryRun {
 		return tent.add(Vec3.directionFromRotation(0, tentYaw).scale(TENT_HALF_LENGTH + BOOTS_OUT));
 	}
 
+	/** Ticks into lighting the fire when each strike of the flint lands (the light_fire animation), and when he's done. */
+	public static final int[] STRIKES = {16, 28, 40};
+	public static final int LIGHTING_TICKS = 60;
+
+	/** The campfire, if he got one going, and the time of day it was lit. */
+	@Nullable
+	private BlockPos campfire;
+	private long fireLitAt;
+
+	private void lightFire(ServerLevel level) {
+		BlockPos spot = campSite == null ? null : CampfireBlock.spotFor(campSite);
+		if (spot == null || !CampfireBlock.canLightAt(level, spot))
+			return;
+		campfire = spot;
+		fireLitAt = PostOfficeHours.timeOfDay(level.getDayTime());
+		level.setBlock(spot, ModBlocks.CAMPFIRE.get().defaultBlockState(), Block.UPDATE_ALL);
+		level.playSound(null, spot, SoundEvents.FIRECHARGE_USE, SoundSource.BLOCKS, 0.6F, 1.2F);
+	}
+
+	/** Lets the fire die down as the night goes on. */
+	private void tendFire(ServerLevel level) {
+		if (campfire == null || !level.isLoaded(campfire))
+			return;
+		BlockState state = level.getBlockState(campfire);
+		if (!(state.getBlock() instanceof CampfireBlock)) {
+			campfire = null;
+			return;
+		}
+		int light = CampfireBlock.lightAt(PostOfficeHours.timeOfDay(level.getDayTime()), fireLitAt);
+		if (state.getValue(CampfireBlock.LIGHT) != light)
+			level.setBlock(campfire, state.setValue(CampfireBlock.LIGHT, light), Block.UPDATE_ALL);
+	}
+
+	/** Puts the fire out as he leaves (in the morning, or running for his life). */
+	private void putOutFire(ServerLevel level) {
+		if (campfire != null && level.getBlockState(campfire).getBlock() instanceof CampfireBlock)
+			level.removeBlock(campfire, false);
+		campfire = null;
+	}
+
 	private void breakCamp(PostmanEntity rider, ServerLevel level) {
+		putOutFire(level);
 		if (rider.isInTent() && campSite != null) {
 			Vec3 seat = campSite.seatPos();
 			rider.moveTo(seat.x, seat.y, seat.z, rider.getYRot(), 0);
@@ -848,6 +914,7 @@ public class DeliveryRun {
 			String killerName, BlockPos near) {
 		MailboxDirectory.Entry entry = MailboxDirectory.get(level.getServer()).find(delivery.toName());
 		UUID recipient = entry != null ? entry.owner() : null;
+		putOutFire(level);
 		BlockPos at = LostParcels.place(level, near, delivery, cause, recipient, killer, killerName);
 		Notices.failed(level.getServer(), delivery, reason, at != null ? at : near, at != null, Mail.day(level.getDayTime()));
 		rider.setCarrying(false);
@@ -858,6 +925,7 @@ public class DeliveryRun {
 
 	/** His mail has gone with another rider: he lets go of his chunks and packs up any camp, without a word. */
 	public void withdraw(PostmanEntity rider, ServerLevel level) {
+		putOutFire(level);
 		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent)
 			tent.packAway(level);
 		enter(Stage.DONE);
@@ -896,6 +964,10 @@ public class DeliveryRun {
 		}
 		if (tentId != null)
 			tag.putUUID("tent", tentId);
+		if (campfire != null) {
+			tag.putLong("campfire", campfire.asLong());
+			tag.putLong("fire_lit_at", fireLitAt);
+		}
 		if (attacker != null)
 			tag.putUUID("attacker", attacker);
 		return tag;
@@ -934,6 +1006,10 @@ public class DeliveryRun {
 			run.campStep = CampStep.FINDING;
 		if (tag.hasUUID("tent"))
 			run.tentId = tag.getUUID("tent");
+		if (tag.contains("campfire")) {
+			run.campfire = BlockPos.of(tag.getLong("campfire"));
+			run.fireLitAt = tag.getLong("fire_lit_at");
+		}
 		if (tag.hasUUID("attacker"))
 			run.attacker = tag.getUUID("attacker");
 		return run;

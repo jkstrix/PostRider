@@ -40,6 +40,8 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 	private final ModelPart canteen;
 	private final ModelPart pocketWatch;
 	private final ModelPart letter;
+	private final ModelPart striker;
+	private final ModelPart flint;
 	private final ModelPart satchelFlat;
 	private final ModelPart satchelFull;
 	private final Map<String, ModelPart> hair = new HashMap<>();
@@ -58,6 +60,8 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		ModelPart leftArm = body.getChild("left_arm");
 		this.pocketWatch = leftArm.getChild("pocket_watch");
 		this.letter = leftArm.getChild("letter");
+		this.striker = rightArm.getChild("striker");
+		this.flint = leftArm.getChild("flint");
 		ModelPart satchel = body.getChild("satchel");
 		this.satchelFlat = satchel.getChild("satchel_flat");
 		this.satchelFull = satchel.getChild("satchel_full");
@@ -111,8 +115,12 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 			.texOffs(50, 8).addBox(-0.5F, -0.5F, -8.0F, 1.0F, 1.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(handOffset, 9.5F, 0.0F));
 		rightArm.addOrReplaceChild("canteen", CubeListBuilder.create().texOffs(56, 0).addBox(-0.5F, -1.5F, -5.0F, 1.0F, 3.0F, 3.0F, new CubeDeformation(0.0F))
 			.texOffs(48, 5).addBox(-0.5F, -0.5F, -6.0F, 1.0F, 1.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(handOffset, 9.5F, 0.0F));
+		rightArm.addOrReplaceChild("striker", CubeListBuilder.create().texOffs(48, 36).addBox(-0.5F, 0.0F, -5.0F, 1.0F, 1.0F, 3.0F, new CubeDeformation(0.0F)),
+			PartPose.offset(handOffset, 9.5F, 0.0F));
 		PartDefinition leftArm = body.addOrReplaceChild("left_arm", CubeListBuilder.create().texOffs(32, 48).addBox(slim ? -2.0F : -3.0F, -2.0F, -2.0F, armWidth, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(-5.0F, -10.0F, 0.0F));
 		leftArm.addOrReplaceChild("pocket_watch", CubeListBuilder.create().texOffs(58, 11).addBox(-1.0F, -1.0F, -3.0F, 2.0F, 2.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(-handOffset, 9.5F, 0.0F));
+		leftArm.addOrReplaceChild("flint", CubeListBuilder.create().texOffs(56, 36).addBox(-1.0F, -1.0F, -4.0F, 2.0F, 2.0F, 1.0F, new CubeDeformation(0.0F)),
+			PartPose.offset(-handOffset, 9.5F, 0.0F));
 		leftArm.addOrReplaceChild("letter", CubeListBuilder.create().texOffs(44, 11).addBox(-1.5F, 1.0F, -6.0F, 4.0F, 0.0F, 3.0F, new CubeDeformation(0.0F)), PartPose.offset(-handOffset, 9.5F, 0.0F));
 
 		PartDefinition satchel = body.addOrReplaceChild("satchel", CubeListBuilder.create(), PartPose.offset(-2.5F, -3.0F, 2.0F));
@@ -174,6 +182,9 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		canteen.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.SWIG).isStarted();
 		pocketWatch.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.POCKET_WATCH).isStarted();
 		letter.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.READ_LETTER).isStarted();
+		boolean lighting = entity.gestureAnimations.get(PostmanEntity.Gesture.LIGHT_FIRE).isStarted();
+		striker.visible = lighting;
+		flint.visible = lighting;
 		satchelFlat.visible = !entity.isCarrying();
 		satchelFull.visible = entity.isCarrying();
 	}
@@ -185,11 +196,11 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 
 	/**
 	 * Gestures that take over the parts they move rather than adding to what those parts are doing, so they look
-	 * right on horseback or on the move. Only the work at the mailbox and the whistle use his whole body.
+	 * right on horseback or on the move. Only the work at the mailbox, the whistle and lighting the fire use his whole body.
 	 */
 	public static boolean overridesUpperBody(PostmanEntity.Gesture gesture) {
 		return switch (gesture) {
-			case PICKUP, DELIVER, WHISTLE -> false;
+			case PICKUP, DELIVER, WHISTLE, LIGHT_FIRE -> false;
 			default -> true;
 		};
 	}
@@ -201,6 +212,7 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 			case WHISTLE -> PostmanAnimations.WHISTLE;
 			case WAVE -> PostmanAnimations.WAVE;
 			case DRINK -> PostmanAnimations.DRINK;
+			case LIGHT_FIRE -> PostmanAnimations.LIGHT_FIRE;
 			case WIPE_BROW -> PostmanAnimations.WIPE_BROW;
 			case TIP_HAT -> PostmanAnimations.TIP_HAT;
 			case PAT_HORSE -> PostmanAnimations.PAT_HORSE;
