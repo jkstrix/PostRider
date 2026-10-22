@@ -46,9 +46,10 @@ telling them what happened and where.
 
 - Mailboxes in all 16 colours, with a 27-delivery inbox, a raising flag and an old-time post office screen.
 - Letters you write and sign, with postmarks, and parcels of up to 9 stacks.
-- 20 unique riders, each with their own horse, plus 35 animations: riding, camping, rowing, drinking, lighting the
-  campfire and 20 little mannerisms.
-- Real routes, gap-jumping horses, ferry barges, camping and fleeing.
+- 20 unique riders, each with their own horse, plus 36 animations: riding, camping, rowing, drinking, lighting the
+  campfire, studying the map and 20 little mannerisms.
+- Real routes: riders plan the whole trip on a paper map, ride round bays and ravines, use tunnels, climb ladders on
+  foot, leap gaps and only take the ferry barge when the way round is too far.
 - Campfires that light up the camp through the evening and burn down to embers by 3am.
 - Lost Parcels and failure letters when things go wrong.
 - Fifteen advancements on their own tab, one of them secret.

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0
+
+- Riders find their own way. After the pickup the rider steps away from the mailbox and studies a big paper map
+  while he plans the whole trip, then plans the blocks ahead as he rides: round bays, ravines and cliffs, through
+  caves and tunnels when they're shorter, leaping gaps, and on foot up ladders and through gaps too tight for the
+  horse. He gets the map out again if his way is blocked.
+- He never wades or swims. The barge is only for when riding round is more than twice as far, and then he rows as
+  little as he can, straight across to the nearest bank that takes him on.
+- The barge follows the bends of a river, slows for tight turns, cuts through kelp, seagrass and lily pads, floats
+  in water a block deep, and lands at the bank instead of drifting short of it.
+- On foot with the water close ahead, he walks down to it and whistles for his horse on the far side.
+- Horses gallop at full speed the whole way, and only leap where the route crosses a gap (no more jumping back and
+  forth over a hole).
+- The mailbox screen is wider, and its messages, names and addresses always fit.
+
 ## 1.0.1
 
 - Fixed: opening a parcel could lose its contents. Opening one now throws everything inside on the ground in front of

@@ -33,10 +33,15 @@ slowest), and sixteen more. Only one of each is out at a time.
 On the road a rider:
 
 - **Collects** between 6am and dusk. Mail posted later waits for the next collection.
-- **Plans** a route 48 blocks ahead, so he goes around ravines and cliffs, and leaps small gaps.
+- **Plans his route** with his own map: after the pickup he steps away from the mailbox, opens a big paper map and
+  works out the whole trip, then plans the blocks ahead as he rides. He goes round ravines, cliffs and bays, uses
+  caves and tunnels when they're shorter, leaps small gaps, and gets down and climbs ladders on foot where his horse
+  can't go. He never wades or swims, and never digs or opens doors.
 - **Avoids hazards:** he keeps off lava, fire, cactus and powder snow.
-- **Crosses water** by ferry barge when riding around it isn't worth it. The barge appears at the water's edge, he
-  rows it across with his horse aboard, and it steers clear of ocean monuments and drowned.
+- **Crosses water** by ferry barge when riding around would be more than twice as far. The barge appears at the
+  water's edge, he rows it across with his horse aboard to the nearest bank that takes him on by land, following the
+  bends of a river and cutting through kelp and lily pads, and it steers clear of ocean monuments and drowned. It
+  floats in water a single block deep.
 - **Camps** at dusk. He finds a flat pitch, hammers in the pegs and lights a campfire with his flint and steel, and plays the harmonica until monsters come out,
   then sleeps in his tent with his boots out of the door. Mobs only notice him there from close by. The fire burns bright
   through the evening and dies down to embers by 3am. It's harmless, nobody can put it out, and it goes when he does.
@@ -74,7 +79,7 @@ crossed water by barge or spent nights on the trail.
 | Setting | Default | |
 |---|---|---|
 | `maxRiders` | 20 | Riders out at once (1-20). |
-| `lookahead` | 48 | How far ahead riders plan, in blocks (16-64). Each rider keeps enough chunks loaded to see this far (7x7 at 48, only the middle 3x3 ticking). |
+| `lookahead` | 48 | How far ahead riders plan block by block, in blocks (16-64). Each rider keeps enough chunks loaded to see this far (7x7 at 48, only the middle 3x3 ticking). The plan for the whole trip reads further, generating chunks where it has to. |
 | `potionsPerDay` | 2 | Healing potions per rider per day (0-10). |
 | `bargeSpeed` | 8.0 | Barge speed in blocks per second (2-16). |
 | `firstCollection`, `lastCollection` | 6, 18 | The hours riders set out. Riders on the road still camp from dusk to 6am. |
