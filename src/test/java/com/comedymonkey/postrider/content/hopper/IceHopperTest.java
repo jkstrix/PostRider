@@ -85,6 +85,10 @@ class IceHopperTest {
 		String json = java.nio.file.Files.readString(item);
 		assertTrue(json.contains("\"elements\"") && json.contains("postrider:entity/ice_hopper"), "a 3D model skinned with the boat's own texture");
 		assertTrue(json.contains("\"gui\"") && json.contains("firstperson_righthand"), "placed in the hotbar and the hand");
+		// Item models draw from the block atlas, which stitches only the block and item folders: the boat's skin is added to it
+		java.nio.file.Path atlas = ModResourceFiles.find("assets", "minecraft", "atlases", "blocks.json");
+		assertNotNull(atlas, "the block atlas additions");
+		assertTrue(java.nio.file.Files.readString(atlas).contains("postrider:entity/ice_hopper"), "or the item shows as the missing texture");
 		assertNotNull(ModResourceFiles.find("data", "postrider", "recipe", "ice_hopper.json"), "any boat and two packed ice");
 	}
 

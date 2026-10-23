@@ -1,0 +1,8 @@
+{
+  "sources": [
+    {
+      "type": "minecraft:single",
+      "resource": "postrider:entity/ice_hopper"
+    }
+  ]
+}
