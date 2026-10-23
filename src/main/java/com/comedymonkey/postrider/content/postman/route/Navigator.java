@@ -1552,10 +1552,18 @@ public final class Navigator {
 		for (int dx = -1; dx <= 1; dx++)
 			for (int dz = -1; dz <= 1; dz++) {
 				CoarsePlanner.Cell cell = cells.cell(cx + dx, cz + dz);
-				if (cell != null && !cell.water())
+				if (cell != null && isShoreTo(cell, at.y))
 					shore.add(CoarsePlanner.key(cx + dx, cz + dz));
 			}
 		return shore;
+	}
+
+	/**
+	 * Whether a cell is shore to a barge at this height: land, or an ice field standing more than a block above it
+	 * (water to the map, but a step the barge can't slide up onto, so a wall to it like any bank).
+	 */
+	public static boolean isShoreTo(CoarsePlanner.Cell cell, double bargeY) {
+		return !cell.water() || cell.ice() && cell.height() > Math.floor(bargeY) + 1;
 	}
 
 	/** Ashore again: on to the leg after the water. */

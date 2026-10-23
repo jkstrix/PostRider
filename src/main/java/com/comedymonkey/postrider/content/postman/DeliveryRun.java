@@ -701,12 +701,21 @@ public class DeliveryRun {
 		}
 	}
 
-	/** The height he'd stand at in a column to step ashore there, or unusable: ice isn't stepped onto (the barge slides over it) unless any shore will do. */
+	/**
+	 * The height he'd stand at in a column to step ashore there, or unusable: ice at the barge's level isn't stepped
+	 * onto (the barge slides over it), unless any shore will do; ice standing higher than the barge can slide onto
+	 * is a bank like any other, and he steps onto it.
+	 */
 	static int floorAshore(ServerLevel level, int x, int z, int nearY, boolean anyShore) {
 		int floor = CampSites.floorIn(level, x, z, nearY);
 		if (floor == CampSites.UNUSABLE || anyShore)
 			return floor;
-		return Crossing.isIce(level.getBlockState(new BlockPos(x, floor - 1, z))) ? CampSites.UNUSABLE : floor;
+		return Crossing.isIce(level.getBlockState(new BlockPos(x, floor - 1, z))) && isSlidableIce(floor, nearY) ? CampSites.UNUSABLE : floor;
+	}
+
+	/** Whether ice he'd stand on at {@code floor} is at the barge's level (its top no more than a block over the water's block), so the barge slides onto it instead. */
+	public static boolean isSlidableIce(int floor, int nearY) {
+		return floor <= nearY + 1;
 	}
 
 	/** How long after launching before the bank behind it counts as reaching shore. */

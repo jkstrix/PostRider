@@ -457,4 +457,17 @@ class NavigatorTest {
 		CoarsePlanner.Leg across = new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(-20, 64, 4), new Vec3(60, 64, 4)));
 		assertNotNull(Navigator.misfit(List.of(across), 0, iceHere, null, Double.MAX_VALUE), "but a land leg over water further on still is");
 	}
+
+	@Test
+	void anIceFieldStandingAboveTheBargeIsShoreToItAndStruckOffLikeABank() {
+		CoarsePlanner.Cell seaIce = new CoarsePlanner.Cell(63, 0, 0, false, 4), iceStep = new CoarsePlanner.Cell(65, 0, 0, false, 4);
+		CoarsePlanner.Cell water = new CoarsePlanner.Cell(62, 4, 0, false), land = new CoarsePlanner.Cell(64, 0, 0, false);
+		double barge = 62.9;
+		assertFalse(Navigator.isShoreTo(seaIce, barge), "sea ice at its level: slid over");
+		assertTrue(Navigator.isShoreTo(iceStep, barge), "ice two up: a wall to the barge");
+		assertFalse(Navigator.isShoreTo(water, barge));
+		assertTrue(Navigator.isShoreTo(land, barge));
+		List<Long> struck = Navigator.shoreAround(new Vec3(4, barge, 4), (cx, cz) -> cx > 0 ? iceStep : seaIce);
+		assertEquals(3, struck.size(), "the three cells of the ice step beside him, none of the sea ice");
+	}
 }
