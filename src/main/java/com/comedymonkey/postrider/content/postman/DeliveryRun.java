@@ -750,6 +750,14 @@ public class DeliveryRun {
 		return !wayFound && blocksReached <= TINY_SHORE;
 	}
 
+	/**
+	 * Whether he's cut off where he stands: the search from him ran out of ground (not of budget) without finding
+	 * the way, and the map has already been redone round the way ahead at least once without that helping.
+	 */
+	public static boolean isCutOff(boolean wayFound, LocalPlanner.Status status, int strikesOff) {
+		return !wayFound && status != LocalPlanner.Status.RUNNING && strikesOff > 0;
+	}
+
 	private boolean land(PostmanEntity rider, ServerLevel level, BargeEntity barge, Vec3 target, int reach) {
 		return land(rider, level, barge, target, reach, false);
 	}
@@ -1253,13 +1261,16 @@ public class DeliveryRun {
 			wayFromHere = here.found();
 			// On a scrap of shore with no way on at all (a ledge under a cliff, an islet): back into the barge, whichever
 			// way the water lies, and on to the next bit of coast; this shore is noted as leading nowhere. (Looked at
-			// towards the mailbox too: the stretch's goal may be out on the water, with nothing to stand on at it)
-			if (!wayFromHere && here.expanded() <= TINY_SHORE
-					&& navigator.probeShore(level, Mth.floor(mover.getX()), Mth.floor(mover.getY() + 1e-3), Mth.floor(mover.getZ()), target, JUMP_PROBE_BUDGET).expanded() <= TINY_SHORE) {
+			// towards the mailbox too: the stretch's goal may be out on the water, with nothing to stand on at it.)
+			// Cut off on a bigger piece of ground (an ice floe, an island) the same, once the map has been redone
+			// round the way ahead and he's still stuck: all of it searched and no way on, the water is the way
+			boolean scrap = !wayFromHere && here.expanded() <= TINY_SHORE
+				&& navigator.probeShore(level, Mth.floor(mover.getX()), Mth.floor(mover.getY() + 1e-3), Mth.floor(mover.getZ()), target, JUMP_PROBE_BUDGET).expanded() <= TINY_SHORE;
+			if (scrap || isCutOff(wayFromHere, here.status(), strikesOff)) {
 				int nearY = rider.getBlockY();
 				Vec3 water = Crossing.launchSpotAround(rider.position(), (x, z) -> Crossing.surfaceIn(level, x, z, nearY, Crossing.LAUNCH_DROP));
 				if (water != null) {
-					logRoute(rider, stuck + "; no way on from this scrap of shore (" + here.expanded() + " blocks to it): back into the barge");
+					logRoute(rider, stuck + (scrap ? "; no way on from this scrap of shore (" : "; cut off here, all of it searched (") + here.expanded() + " blocks to it): back into the barge");
 					if (launchBargeAt(rider, level, water, target, true)) {
 						progress.pause(now);
 						return true;

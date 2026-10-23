@@ -103,10 +103,9 @@ dependencies {
     // against. (Alpha builds only exist for NeoForge 1.21.1.)
     runtimeOnly 'maven.modrinth:c2me-neoforge:0.4.0-alpha.0.123+1.21.1'
     // And Distant Horizons, for the same reason: far terrain drawn as low-detail chunks, which loads chunks of its own.
-    // Not in the in-world tests' run, where it crashes at startup (it takes any server that isn't a client for a
-    // dedicated one, and the game-test server is neither)
-    for (run in ['client', 'server', 'watch', 'headless', 'screenshots'])
-        add("${run}AdditionalRuntimeClasspath", 'maven.modrinth:distanthorizons:3.3.3-1.21.1')
+    // (A mod has to be on the ordinary runtime classpath to be found: a run's additionalRuntimeClasspath is taken
+    // for libraries, and a mod put there never loads.) Kept out of the in-world tests' run below
+    runtimeOnly 'maven.modrinth:distanthorizons:3.3.3-1.21.1'
     testImplementation(platform('org.junit:junit-bom:5.10.2'))
     testImplementation('org.junit.jupiter:junit-jupiter')
     testRuntimeOnly('org.junit.platform:junit-platform-launcher')
@@ -135,15 +134,23 @@ tasks.matching { it.name == 'runWatch' }.configureEach {
     }
 }
 
-// The worlds the runs make are deleted once the run is over, whether it passed or not: they're hundreds of megabytes
-// each, and nothing is ever started on an old one (a watched or headless trip makes its world afresh)
+// Distant Horizons crashes the game-test server at startup (it takes any server that isn't a client for a dedicated
+// one, and the game-test server is neither), so its jar is taken off that run's classpath, and it never loads there
+// (The run task launches from its classpathProvider, not the JavaExec classpath, and that is final by the time the
+// task runs, so it's refiltered once the plugin has set it up: the same sources, less this jar.)
+afterEvaluate {
+    tasks.named('runGameTestServer') {
+        def sources = new ArrayList(classpathProvider.from)
+        classpathProvider.setFrom(files(sources).filter { !it.name.startsWith('distanthorizons') })
+    }
+}
+
+// The world a run made is deleted when the next run of that kind starts: they're hundreds of megabytes each, and
+// nothing is ever started on an old one (a watched or headless trip makes its world afresh), but the last one is kept
+// until then so a trip that went wrong can be looked at (copy it into run/saves to keep it longer)
 def runWorlds = ['runWatch': 'run-watch/saves', 'runHeadless': 'run-headless/world', 'runGameTestServer': 'run-gametest/world']
 runWorlds.each { task, worlds ->
-    def cleanup = tasks.register("deleteWorldsAfter${task.capitalize()}", Delete) {
-        delete file(worlds)
-    }
     tasks.matching { it.name == task }.configureEach {
-        finalizedBy cleanup
         doFirst { delete file(worlds) }
     }
 }

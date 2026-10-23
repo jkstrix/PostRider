@@ -11,6 +11,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 /** Finds room beside the rider for his horse to appear, so it never turns up inside a wall. */
@@ -23,7 +24,11 @@ public final class HorseSpots {
 
 	private HorseSpots() {}
 
-	/** Places to try, best first: his right, his left, behind, in front, then where he stands; each level, up, down. */
+	/**
+	 * Places to try, best first: his right, his left, behind, in front, then where he stands, then the four footings
+	 * of two blocks by two that take in his block (the ones the route planner mounts on: on a strip of ice two wide,
+	 * only a footing square on it has ground under every corner); each level, up, down.
+	 */
 	public static List<Vec3> candidates(Vec3 rider, float yaw) {
 		List<Vec3> sides = new ArrayList<>();
 		for (float turn : new float[] {90, -90, 180, 0}) {
@@ -31,11 +36,24 @@ public final class HorseSpots {
 			sides.add(new Vec3(offset.x, 0, offset.z));
 		}
 		sides.add(Vec3.ZERO);
+		for (Vec3 footing : footings(rider))
+			sides.add(footing.subtract(rider.x, 0, rider.z));
 		List<Vec3> spots = new ArrayList<>();
 		for (Vec3 side : sides)
 			for (double dy : HEIGHTS)
 				spots.add(rider.add(side.x, dy, side.z));
 		return spots;
+	}
+
+	/** The middles of the four footings of two blocks by two that take in the block he stands on, nearest first. */
+	public static List<Vec3> footings(Vec3 rider) {
+		int bx = Mth.floor(rider.x), bz = Mth.floor(rider.z);
+		List<Vec3> footings = new ArrayList<>();
+		for (int dx = 0; dx >= -1; dx--)
+			for (int dz = 0; dz >= -1; dz--)
+				footings.add(new Vec3(bx + dx + 1, rider.y, bz + dz + 1));
+		footings.sort(java.util.Comparator.comparingDouble(f -> f.distanceToSqr(rider)));
+		return footings;
 	}
 
 	@Nullable

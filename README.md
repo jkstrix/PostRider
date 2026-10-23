@@ -123,8 +123,9 @@ twenty rider skins with `python tools/stamp_prop.py X Y WIDTH HEIGHT`.
   block deep and cutting through water plants. The task fails if any test does. The empty structure templates the
   tests are placed in are written by `tools/gen_test_structures.py`.
 - **Results:** each delivery trial writes what the trip took (ticks on the road, barge launches, teleports, loops,
-  stalls, and how much route planning it needed) to `run-gametest/trials.jsonl`. Every run's world is deleted once
-  it's over (watched, headless and game-test alike): they're hundreds of megabytes each, and no run starts on an old one. `python tools/trials.py` prints
+  stalls, and how much route planning it needed) to `run-gametest/trials.jsonl`. A run's world is deleted when the
+  next run of its kind starts (watched, headless and game-test alike): they're hundreds of megabytes each, no run starts
+  on an old one, and the last is kept until then so a trip that went wrong can be looked at. `python tools/trials.py` prints
   them against the saved baseline in `docs/trials/baseline.jsonl` and points out anything notably worse;
   `--save-baseline` keeps the latest run as the new baseline.
 - **A real world, headless:** `./gradlew runHeadless -Pworld="New World (1)" -Pfrom=Testing -Pto=Smelly` copies that

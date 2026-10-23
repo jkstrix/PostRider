@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.comedymonkey.postrider.content.postman.route.LocalPlanner;
 import com.comedymonkey.postrider.post.PendingDelivery;
 import com.comedymonkey.postrider.post.PostDispatcher;
 
@@ -230,5 +231,14 @@ class DeliveryRunTest {
 	@Test
 	void theBargeHasMorePatienceThanAWalkerBeforeItCountsAsStuck() {
 		assertTrue(DeliveryRun.BARGE_STALL_TICKS >= 3 * Journey.Progress.STALL_TICKS, "pressed against a bank it takes a while to back off and turn");
+	}
+
+	@Test
+	void cutOffOnAFloeHeTakesToTheWaterOnceStrikingTheMapOffHasNotHelped() {
+		assertFalse(DeliveryRun.isCutOff(true, LocalPlanner.Status.FOUND, 3), "a way exists");
+		assertFalse(DeliveryRun.isCutOff(false, LocalPlanner.Status.RUNNING, 3), "the search ran out of budget, not of ground");
+		assertFalse(DeliveryRun.isCutOff(false, LocalPlanner.Status.FAILED, 0), "the map is redone round the way ahead first");
+		assertTrue(DeliveryRun.isCutOff(false, LocalPlanner.Status.FAILED, 1), "all the ground searched, the map already redone: cut off");
+		assertTrue(DeliveryRun.isCutOff(false, LocalPlanner.Status.PARTIAL, 2), "nearer but never there is cut off too");
 	}
 }
