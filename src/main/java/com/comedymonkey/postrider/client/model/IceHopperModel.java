@@ -68,14 +68,24 @@ public class IceHopperModel extends HierarchicalModel<IceHopperEntity> {
 	/** {@code limbSwing} carries the partial tick: the oars follow the boat's rowing time. */
 	@Override
 	public void setupAnim(IceHopperEntity hopper, float partialTick, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
-		swing(oarLeft, hopper.getRowingTime(Boat.PADDLE_LEFT, partialTick), 1);
-		swing(oarRight, hopper.getRowingTime(Boat.PADDLE_RIGHT, partialTick), -1);
+		swing(oarLeft, hopper.getRowingTime(Boat.PADDLE_LEFT, partialTick), 1, hopper.getPaddleState(Boat.PADDLE_LEFT));
+		swing(oarRight, hopper.getRowingTime(Boat.PADDLE_RIGHT, partialTick), -1, hopper.getPaddleState(Boat.PADDLE_RIGHT));
 	}
 
-	/** An oar's dip and sweep at a point in the stroke, as a vanilla paddle's. */
-	public static void swing(ModelPart oar, float time, int side) {
-		oar.xRot = Mth.clampedLerp(-(float) Math.PI / 3, -(float) Math.PI / 12, (Mth.sin(-time) + 1) / 2) + (float) Math.PI / 3;
-		// (Swept the other way from a vanilla paddle: these oars lie along the hull, blades aft)
-		oar.yRot = -side * Mth.clampedLerp(-(float) Math.PI / 4, (float) Math.PI / 4, (Mth.sin(-time + 1) + 1) / 2);
+	/** How far the blade dips and sweeps in a stroke. */
+	public static final float DIP = (float) Math.PI / 10, SWEEP = (float) Math.PI / 8;
+
+	/**
+	 * An oar's dip and sweep at a point in the stroke: at rest it lies along the gunwale; rowing, the blade (aft)
+	 * dips and sweeps, the other way from a vanilla paddle as these oars lie along the hull.
+	 */
+	public static void swing(ModelPart oar, float time, int side, boolean rowing) {
+		if (!rowing) {
+			oar.xRot = 0;
+			oar.yRot = 0;
+			return;
+		}
+		oar.xRot = -DIP * (Mth.sin(-time) + 1) / 2;
+		oar.yRot = -side * SWEEP * Mth.sin(-time + 1);
 	}
 }

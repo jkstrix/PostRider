@@ -95,10 +95,12 @@ class IceHopperTest {
 	@Test
 	void theOarsDipAndSweepWithTheStroke() {
 		ModelPart oar = IceHopperModel.createBodyLayer().bakeRoot().getChild("boat").getChild("oar_left");
-		IceHopperModel.swing(oar, 0, 1);
-		float restX = oar.xRot, restY = oar.yRot;
-		IceHopperModel.swing(oar, (float) Math.PI / 2, 1);
-		assertTrue(oar.xRot != restX || oar.yRot != restY, "an oar mid-stroke isn't where it was at rest");
+		IceHopperModel.swing(oar, (float) Math.PI / 2, 1, false);
+		assertEquals(0.0F, oar.xRot, 1e-6, "at rest an oar lies along the gunwale, whatever the time");
+		assertEquals(0.0F, oar.yRot, 1e-6);
+		IceHopperModel.swing(oar, (float) Math.PI / 2, 1, true);
+		assertTrue(oar.xRot != 0 || oar.yRot != 0, "an oar mid-stroke has moved");
+		assertTrue(Math.abs(oar.xRot) <= IceHopperModel.DIP + 1e-6 && Math.abs(oar.yRot) <= IceHopperModel.SWEEP + 1e-6, "and never flies up in the air");
 	}
 
 	@Test
