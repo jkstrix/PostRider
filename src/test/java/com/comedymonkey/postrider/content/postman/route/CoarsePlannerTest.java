@@ -233,13 +233,14 @@ class CoarsePlannerTest {
 
 	@Test
 	void aCliffIsNoSlopeAndIsntCrossedAtAll() {
-		// A wall of cells seven blocks higher than the ground right across the way (no pass): no way through, and a chasm
-		// seven deep likewise; a rise of five across a cell is just steep
-		CoarsePlanner.Cells cliff = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(71, 0, 0, false) : LAND;
-		assertEquals(Status.FAILED, new CoarsePlanner(cliff, 2, 2, 18, 2, Set.of()).finishNow(), "a cliff of seven");
-		CoarsePlanner.Cells chasm = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(57, 0, 0, false) : LAND;
-		assertEquals(Status.FAILED, new CoarsePlanner(chasm, 2, 2, 18, 2, Set.of()).finishNow(), "a chasm seven deep");
-		CoarsePlanner.Cells steep = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(69, 0, 0, false) : LAND;
-		assertEquals(Status.DONE, new CoarsePlanner(steep, 2, 2, 18, 2, Set.of()).finishNow(), "five up across a cell is a steep slope, taken");
+		// A wall of cells thirteen blocks higher than the ground right across the way (no pass): no way through, and a
+		// chasm thirteen deep likewise; a rise of nine across a cell is just steep (a bridge over a chasm, say, that the
+		// cells can't see, is for the local plan to find)
+		CoarsePlanner.Cells cliff = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(77, 0, 0, false) : LAND;
+		assertEquals(Status.FAILED, new CoarsePlanner(cliff, 2, 2, 18, 2, Set.of()).finishNow(), "a cliff of thirteen");
+		CoarsePlanner.Cells chasm = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(51, 0, 0, false) : LAND;
+		assertEquals(Status.FAILED, new CoarsePlanner(chasm, 2, 2, 18, 2, Set.of()).finishNow(), "a chasm thirteen deep");
+		CoarsePlanner.Cells steep = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(73, 0, 0, false) : LAND;
+		assertEquals(Status.DONE, new CoarsePlanner(steep, 2, 2, 18, 2, Set.of()).finishNow(), "nine up across a cell is a steep slope, taken");
 	}
 }

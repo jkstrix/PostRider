@@ -162,4 +162,16 @@ class CrossingTest {
 		assertEquals(63.0, Crossing.surfaceIn(column(java.util.Map.of(62, water, 61, stone, 66, stone)), 0, 0, 62), 0.2, "four over it is room enough");
 		assertEquals(3, Crossing.HEADROOM, "the barge, the horse on its deck and the rider on it");
 	}
+
+	@Test
+	void heStepsAshoreWhereTheresRoomForHisHorseIfItsAsNear() {
+		// Dry ground from x 20 on; at z 0 (straight for the destination) a niche with no room, at z 1 room enough
+		CampSites.Floor bank = (x, z) -> x >= 20 ? 64 : CampSites.UNUSABLE;
+		Crossing.Roomy roomy = (x, y, z) -> z == 1;
+		Vec3 bow = new Vec3(18.5, 63, 0.5), target = new Vec3(300, 64, 0.5);
+		assertEquals(new BlockPos(20, 64, 1), Crossing.landingSpot(bow, target, bank, Crossing.LANDING_REACH, Crossing.Way.OPEN, roomy),
+			"as near the bow as the niche, with room beside it");
+		assertEquals(new BlockPos(20, 64, 0), Crossing.landingSpot(bow, target, bank, Crossing.LANDING_REACH, Crossing.Way.OPEN, (x, y, z) -> false),
+			"with room nowhere, the nearest ground will do");
+	}
 }

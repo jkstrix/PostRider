@@ -120,16 +120,33 @@ public final class Crossing {
 		return landingSpot(bow, target, floor, reach, Way.OPEN);
 	}
 
+	/** Whether there's room for his horse to be put down at a spot (with him on its back). */
+	public interface Roomy {
+		boolean test(int x, int y, int z);
+
+		/** Room everywhere (for made-up ground in tests, and when there's no horse aboard). */
+		Roomy EVERYWHERE = (x, y, z) -> true;
+	}
+
 	/**
 	 * As above, and only ground he can get to from the bow: nothing in the way between (a wall along the shore, a
 	 * bank too high) at the height he'd walk it.
 	 */
 	@Nullable
 	public static BlockPos landingSpot(Vec3 bow, Vec3 target, CampSites.Floor floor, int reach, Way way) {
+		return landingSpot(bow, target, floor, reach, way, Roomy.EVERYWHERE);
+	}
+
+	/**
+	 * As above, preferring ground with room for the horse: as near the bow as any usable ground, but among the
+	 * ground as near as that, a spot with room before one without (put down in a niche the horse is wedged).
+	 */
+	@Nullable
+	public static BlockPos landingSpot(Vec3 bow, Vec3 target, CampSites.Floor floor, int reach, Way way, Roomy roomy) {
 		int bx = Mth.floor(bow.x), bz = Mth.floor(bow.z);
 		for (int radius = 0; radius <= reach; radius++) {
-			BlockPos best = null;
-			double bestDistance = Double.MAX_VALUE;
+			BlockPos best = null, bestRoomy = null;
+			double bestDistance = Double.MAX_VALUE, bestRoomyDistance = Double.MAX_VALUE;
 			for (int dx = -radius; dx <= radius; dx++)
 				for (int dz = -radius; dz <= radius; dz++) {
 					if (Math.max(Math.abs(dx), Math.abs(dz)) != radius)
@@ -142,7 +159,13 @@ public final class Crossing {
 						bestDistance = distance;
 						best = new BlockPos(bx + dx, y, bz + dz);
 					}
+					if (distance < bestRoomyDistance && roomy.test(bx + dx, y, bz + dz)) {
+						bestRoomyDistance = distance;
+						bestRoomy = new BlockPos(bx + dx, y, bz + dz);
+					}
 				}
+			if (bestRoomy != null)
+				return bestRoomy;
 			if (best != null)
 				return best;
 		}

@@ -37,9 +37,10 @@ public final class CoarsePlanner {
 	public static final double LANDING_COST = 16;
 	/**
 	 * More than this many blocks up or down from one cell to the next (straight or corner to corner) is a cliff, or a
-	 * chasm's wall, not a slope anyone rides or walks. Not crossed at all.
+	 * chasm's wall, not a slope anyone rides or walks: not crossed at all. Anything less is left to the local plan,
+	 * which sees what the cells can't: a bridge a block wide over a chasm, a ramp cut into a cliff.
 	 */
-	public static final int MAX_RISE = 6;
+	public static final int MAX_RISE = 12;
 	/** Half-water ground (a marsh, a river bank) is slow going. */
 	public static final double SHORE_COST = 1.25;
 	public static final int MAX_NODES = 60_000;

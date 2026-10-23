@@ -660,29 +660,38 @@ public class DeliveryRun {
 	public static final int STUCK_LANDING_REACH = 12;
 
 	private boolean land(PostmanEntity rider, ServerLevel level, BargeEntity barge, Vec3 target, int reach) {
-		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> CampSites.floorIn(level, x, z, barge.getBlockY()), reach,
-			(x, z, y) -> passable(level, new BlockPos(x, y, z)) && passable(level, new BlockPos(x, y + 1, z)));
-		if (spot == null)
-			return false;
-		Vec3 ground = Vec3.atBottomCenterOf(spot);
-		float yaw = yawToward(ground, target);
 		PostmanHorse horse = null;
 		for (Entity passenger : barge.getPassengers())
 			if (passenger instanceof PostmanHorse aboard)
 				horse = aboard;
+		EntityType<?> type = horse != null ? horse.getType() : null;
+		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> CampSites.floorIn(level, x, z, barge.getBlockY()), reach,
+			(x, z, y) -> passable(level, new BlockPos(x, y, z)) && passable(level, new BlockPos(x, y + 1, z)),
+			type == null ? Crossing.Roomy.EVERYWHERE : (x, y, z) -> HorseSpots.find(new Vec3(x + 0.5, y, z + 0.5), yawToward(new Vec3(x + 0.5, y, z + 0.5), target),
+				s -> HorseSpots.fits(level, type, s)) != null);
+		if (spot == null)
+			return false;
+		Vec3 ground = Vec3.atBottomCenterOf(spot);
+		float yaw = yawToward(ground, target);
 		rider.stopRiding();
 		rider.setActivity(PostmanEntity.Activity.NONE);
 		rider.moveTo(ground.x, ground.y, ground.z, yaw, 0);
 		String horseWhere = "";
 		if (horse != null) {
-			EntityType<?> type = horse.getType();
 			Vec3 room = HorseSpots.find(ground, yaw, s -> HorseSpots.fits(level, type, s));
-			Vec3 stand = room != null ? room : ground;
 			horse.stopRiding();
-			horse.moveTo(stand.x, stand.y, stand.z, yaw, 0);
-			PostmanEffects.puff(level, horse);
-			rider.startRiding(horse, true);
-			horseWhere = ", his horse put down at " + Navigator.spot(stand) + (room == null ? " (no room beside him)" : "");
+			if (room != null) {
+				horse.moveTo(room.x, room.y, room.z, yaw, 0);
+				PostmanEffects.puff(level, horse);
+				rider.startRiding(horse, true);
+				horseWhere = ", his horse put down at " + Navigator.spot(room);
+			} else {
+				// No room for it ashore here (a ledge, a niche under a cliff): put down it would be wedged in the rock. It
+				// goes, and he whistles for it at the first place along the way with room
+				PostmanEffects.puff(level, horse);
+				horse.discard();
+				horseWhere = ", no room ashore for his horse: it goes, and comes back where there's room";
+			}
 		}
 		barge.vanish(level);
 		aimCooldown = 0;
