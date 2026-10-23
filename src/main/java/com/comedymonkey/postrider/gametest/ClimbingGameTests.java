@@ -1,6 +1,8 @@
 package com.comedymonkey.postrider.gametest;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
@@ -25,6 +27,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.BubbleColumnBlock;
 import net.minecraft.world.level.block.LadderBlock;
+import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.Vec3;
@@ -45,6 +48,12 @@ public final class ClimbingGameTests {
 	private static final int DELIVERY_TICKS = 6000;
 	private static final BlockState STONE = Blocks.STONE.defaultBlockState();
 	private static final BlockState AIR = Blocks.AIR.defaultBlockState();
+	private static final BlockState STAIRS = Blocks.STONE_BRICK_STAIRS.defaultBlockState();
+	private static final BlockState SLAB = Blocks.STONE_BRICK_SLAB.defaultBlockState();
+	/** The spire is a long climb on foot: five hundred blocks of stair. */
+	private static final int SPIRE_TICKS = 9000;
+	/** How high the spire's stair climbs: as near the top of the test world as its template allows. */
+	static final int SPIRE_HEIGHT = 250;
 
 	private ClimbingGameTests() {}
 
@@ -127,6 +136,33 @@ public final class ClimbingGameTests {
 		int topBlock = last / stepLength + 1;
 		scene.fill(c0x, 1, c0z, c1x, topBlock, c1z, STONE);
 		return topBlock + 1;
+	}
+
+	// ---------------------------------------------------------------- the spire
+
+	@GameTest(skyAccess = true, template = "gametest/spire_64x64", batch = "climb_spire", timeoutTicks = SPIRE_TICKS)
+	public static void heClimbsTheStairWindingUpTheSpire(GameTestHelper helper) {
+		Scene scene = new Scene(helper);
+		quiet(scene);
+		scene.ground(0, 0, 63, 63);
+		// A round tower as tall as the world allows, with a stair one block wide winding up round it to the box on
+		// top: a block up every two blocks, by a stair block or a bottom slab (stretches of each), seven turns
+		int top = spire(scene, 31, 31, 9, SPIRE_HEIGHT);
+		String fromName = Scene.address("GT Spire A"), toName = Scene.address("GT Spire B");
+		BlockPos from = scene.mailbox(6, 31, Direction.EAST, fromName);
+		BlockPos to = mailbox(scene, 33, top, 31, Direction.WEST, toName);
+		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
+		Lookout lookout = new Lookout("Spire", scene, watch, top);
+		// From a few blocks up: a horse can step onto the first block or two of the stair from the ground beside it
+		lookout.place("the stair", 20, 4, 20, 42, top - 1, 42);
+		Trials.deliver("Spire", scene, to, watch, () -> {
+			if (!lookout.been("the stair"))
+				throw new GameTestAssertException("He never went up the stair");
+			if (lookout.rodeAt("the stair"))
+				throw new GameTestAssertException("He rode a stair one block wide");
+			if (!lookout.gotDown)
+				throw new GameTestAssertException("He never got down from his horse");
+		});
 	}
 
 	// ---------------------------------------------------------------- under the hill
@@ -309,6 +345,72 @@ public final class ClimbingGameTests {
 	}
 
 	// ---------------------------------------------------------------- building
+
+	/**
+	 * The cells of a path going round (cx, cz) at radius {@code r}, anticlockwise from the east, a block at a time
+	 * (never corner to corner), {@code length} cells long. Each cell is {x, z}.
+	 */
+	static List<int[]> helix(int cx, int cz, double r, int length) {
+		List<int[]> cells = new ArrayList<>();
+		int[] last = null;
+		for (double angle = 0; cells.size() < length; angle += 0.005) {
+			int x = (int) Math.floor(cx + 0.5 + r * Math.cos(angle)), z = (int) Math.floor(cz + 0.5 + r * Math.sin(angle));
+			if (last != null && last[0] == x && last[1] == z)
+				continue;
+			if (last != null && last[0] != x && last[1] != z) {
+				// Corner to corner: round by the cell further out, so the stair never leans into the core
+				int[] a = {x, last[1]}, b = {last[0], z};
+				last = Math.hypot(a[0] - cx, a[1] - cz) >= Math.hypot(b[0] - cx, b[1] - cz) ? a : b;
+				cells.add(last);
+				if (cells.size() >= length)
+					break;
+			}
+			last = new int[] {x, z};
+			cells.add(last);
+		}
+		return cells;
+	}
+
+	/**
+	 * A round tower (a solid core of radius {@code r} - 1) with a stair one block wide winding up round it,
+	 * {@code height} blocks, a block up every two blocks along: a full block, then a stair block (in one stretch
+	 * of every two) or a bottom slab (in the other), a block higher. The stair starts on the ground at the tower's
+	 * east side and comes out on the flat top. Returns the height a rider stands at on top.
+	 */
+	private static int spire(Scene scene, int cx, int cz, double r, int height) {
+		int length = height * 2;
+		List<int[]> path = helix(cx, cz, r, length + 1);
+		int reach = (int) Math.ceil(r) + 1;
+		for (int x = cx - reach; x <= cx + reach; x++)
+			for (int z = cz - reach; z <= cz + reach; z++) {
+				double distance = Math.hypot(x - cx, z - cz);
+				if (distance <= r - 1)
+					scene.fill(x, 1, z, x, height, z, STONE);
+				else if (distance <= r + 1)
+					scene.fill(x, height, z, x, height, z, STONE);
+			}
+		int stretch = Math.max(1, path.size() / 64);
+		for (int i = 0; i < path.size(); i++) {
+			int[] cell = path.get(i);
+			int floor = i / 2;
+			BlockState block;
+			int y;
+			if (i % 2 == 0) {
+				block = STONE;
+				y = floor;
+			} else if ((i / stretch) % 2 == 0) {
+				int[] before = path.get(i - 1);
+				block = STAIRS.setValue(StairBlock.FACING, Direction.getNearest(cell[0] - before[0], 0, cell[1] - before[1]));
+				y = floor + 1;
+			} else {
+				block = SLAB;
+				y = floor + 1;
+			}
+			scene.fill(cell[0], y, cell[1], cell[0], y, cell[1], block);
+			scene.fill(cell[0], y + 1, cell[1], cell[0], y + 3, cell[1], AIR);
+		}
+		return height + 1;
+	}
 
 	/** No monsters in the dark rooms (the tests are about finding the way, not fighting). */
 	private static void quiet(Scene scene) {

@@ -107,12 +107,14 @@ final class Watch {
 	/** Counts him into the patch he's in each time he comes into it, and how long he's stood still. */
 	private void noteWhereHeIs(PostmanEntity now) {
 		Vec3 at = scene.helper.relativeVec(now.getVehicle() != null ? now.getVehicle().position() : now.position());
-		long patch = BlockPos.asLong(Math.floorDiv((int) Math.floor(at.x), PATCH), 0, Math.floorDiv((int) Math.floor(at.z), PATCH));
+		// Patches have a height too: going round a spiral passes over the same ground every turn, a storey higher each time
+		int px = Math.floorDiv((int) Math.floor(at.x), PATCH), py = Math.floorDiv((int) Math.floor(at.y), PATCH), pz = Math.floorDiv((int) Math.floor(at.z), PATCH);
+		long patch = BlockPos.asLong(px, py, pz);
 		if (patch != lastPatch) {
 			int times = visits.merge(patch, 1, Integer::sum);
 			if (times > mostVisits) {
 				mostVisits = times;
-				busiest = "patch at x " + Math.floorDiv((int) Math.floor(at.x), PATCH) * PATCH + " z " + Math.floorDiv((int) Math.floor(at.z), PATCH) * PATCH;
+				busiest = "patch at x " + px * PATCH + " y " + py * PATCH + " z " + pz * PATCH;
 			}
 			lastPatch = patch;
 		}

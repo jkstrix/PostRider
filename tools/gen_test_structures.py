@@ -17,6 +17,8 @@ ARENAS = {
     "arena_96x96": (96, 48, 96),
     "arena_128x64": (128, 32, 64),
     "tower_48x48": (48, 80, 48),
+    # As tall as the flat test world allows, for a spire with a stair winding up it
+    "spire_64x64": (64, 300, 64),
 }
 DATA_VERSION = 3955  # Minecraft 1.21.1
 OUT = os.path.join("src", "main", "resources", "data", "postrider", "structure", "gametest")
