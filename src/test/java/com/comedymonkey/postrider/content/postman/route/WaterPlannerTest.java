@@ -101,4 +101,17 @@ class WaterPlannerTest {
 			"#####");
 		assertTrue(WaterPlanner.plan(pond, pond, 2, 2, 40, 2, 2).isEmpty(), "nowhere nearer to go");
 	}
+
+	@Test
+	void theWayKeepsToRoomyWaterWhereItCan() {
+		// A channel nine wide with a post standing in it two blocks off the wall: the way goes round the roomy side
+		// of the post rather than squeezing between it and the wall
+		WaterPlanner.Water water = (x, z) -> x >= 0 && x <= 8 && z >= 0 && z <= 20 && !(x == 2 && z == 10);
+		List<Vec3> way = WaterPlanner.plan(water, (x, z) -> 0, 4, 0, 4.5, 20.5, 1);
+		assertFalse(way.isEmpty());
+		assertTrue(WaterPlanner.tight(water, 1, 10, 4.5, 20.5, 1), "between the post and the wall is tight");
+		assertFalse(WaterPlanner.tight(water, 5, 10, 4.5, 20.5, 1), "the other side of the post is roomy");
+		for (Vec3 point : way)
+			assertFalse(point.x < 2 && Math.abs(point.z - 10) <= 1, "squeezed between the post and the wall at " + point);
+	}
 }

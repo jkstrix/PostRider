@@ -90,6 +90,27 @@ public final class Navigator {
 	private final Set<Long> blocked = new HashSet<>();
 	/** The cells of shore that led nowhere: the barge's way across the water keeps clear of the water in them. */
 	private final Set<Long> noShore = new HashSet<>();
+	/** The strikes were forgiven for the plan now being worked out (so a second failure stands). */
+	private boolean strikesForgivenForThisPlan;
+	private int strikesForgiven;
+	@Nullable
+	private Vec3 lastTarget;
+	@Nullable
+	private ServerLevel lastLevel;
+
+	/** Forgives the cells struck off this trip (bar shores that led nowhere), once per failed plan; false if there were none to forgive, or they just were. */
+	private boolean forgiveStrikes() {
+		if (strikesForgivenForThisPlan || lastTarget == null || lastLevel == null)
+			return false;
+		int before = blocked.size();
+		blocked.retainAll(noShore);
+		strikesForgiven = before - blocked.size();
+		if (strikesForgiven == 0)
+			return false;
+		strikesForgivenForThisPlan = true;
+		return true;
+	}
+
 	/** A route redone takes a while; after this long he goes by the best of it so far. */
 	public static final int REPLAN_PATIENCE = 1200;
 	private int replanTicks;
@@ -127,6 +148,8 @@ public final class Navigator {
 	public void replan(ServerLevel level, Vec3 from, Vec3 target, boolean afloat) {
 		routesAsked++;
 		replanTicks = 0;
+		lastTarget = target;
+		lastLevel = level;
 		clearStretch();
 		plannedAfloat = afloat;
 		landedSincePlanned = false;
@@ -177,10 +200,17 @@ public final class Navigator {
 			adopt(coarse.plan());
 			coarse = null;
 		} else if (status == CoarsePlanner.Status.FAILED) {
-			// No route at all from here (cut off by what's been struck off, say): the old plan isn't kept to, he
-			// heads straight there and the stretches find what they can
-			adopt(null);
 			coarse = null;
+			if (forgiveStrikes()) {
+				// No route at all, with cells struck off: more likely the strikes have walled him in than the world
+				// has, so they're forgiven (bar shores that led nowhere) and the map is tried afresh, once
+				log.accept("no long-range route with " + strikesForgiven + " cells struck off: they're forgiven and the map is tried afresh");
+				replan(lastLevel, lastHere, lastTarget, plannedAfloat);
+				return;
+			}
+			// No route at all from here: the old plan isn't kept to, he heads straight there and the stretches find
+			// what they can
+			adopt(null);
 		} else if (++replanTicks > REPLAN_PATIENCE) {
 			log.accept("the route is taking too long to work out: he goes by the best of it so far");
 			adopt(coarse.bestSoFar());
@@ -473,6 +503,7 @@ public final class Navigator {
 		log.accept(found == null ? "no long-range route; heading straight there" : "route planned: " + describe(found));
 		plan = found;
 		planStruck = false;
+		strikesForgivenForThisPlan = false;
 		// A plan takes a while to work out: he picks it up where he is now, not where he was when he asked for it
 		leg = found == null ? 0 : startingLeg(found.legs(), lastHere, plannedAfloat && landedSincePlanned);
 		// What he's following now was planned for the old route: the next stretch follows the new one
@@ -1596,6 +1627,16 @@ public final class Navigator {
 			+ " cells new, " + blocked.size() + " struck this trip) and the route redone round it");
 		planStruck = true;
 		replan(level, here, target, true);
+	}
+
+	/** The nearest point of the way across the water to the barge, to pull back onto when it's caught an edge; null without a way. */
+	@Nullable
+	public Vec3 waterPathNearest(Vec3 here) {
+		if (waterPath.size() < 2)
+			return null;
+		Nearest nearest = nearestOn(waterPath, here);
+		Vec3 point = waterPath.get(nearest.segment()).lerp(waterPath.get(nearest.segment() + 1), nearest.t());
+		return new Vec3(point.x, here.y, point.z);
 	}
 
 	/**

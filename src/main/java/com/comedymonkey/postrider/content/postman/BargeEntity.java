@@ -63,6 +63,8 @@ public class BargeEntity extends Entity {
 	public static final double DECK_FORWARD = -5 / 16.0, DECK_HEIGHT = 2 / 16.0;
 	/** How far the bow reaches ahead of the middle. */
 	public static final double BOW_REACH = 2.5;
+	/** Its box is a touch narrower than the 3-block hull: in a lead just wide enough, a box the full width caught an edge at every bend. */
+	public static final double BOX_WIDTH = 2.75;
 	/** It stops with its bow this far short of anything that isn't open water (a bank, a wall, a low roof): enough that the rider's seat, in the bow, stays clear. */
 	public static final double STOPS_SHORT = 0.5;
 	/** Nothing but open water ahead of the bow this tick; false when it's up against something (land, if he's lucky). */

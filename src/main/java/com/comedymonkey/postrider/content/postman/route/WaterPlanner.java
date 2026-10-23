@@ -69,7 +69,7 @@ public final class WaterPlanner {
 				boolean diagonal = d[0] != 0 && d[1] != 0;
 				if (diagonal && (!water.open(node.x + d[0], node.z) || !water.open(node.x, node.z + d[1])))
 					continue;
-				double g = node.g + (diagonal ? DIAGONAL : 1) + danger.extra(x, z);
+				double g = node.g + (diagonal ? DIAGONAL : 1) + danger.extra(x, z) + (tight(water, x, z, goalX, goalZ, radius) ? TIGHT_COST : 0);
 				long key = ChunkPos.asLong(x, z);
 				Node next = nodes.get(key);
 				if (next == null) {
@@ -93,6 +93,20 @@ public final class WaterPlanner {
 			points.add(new Vec3(node.x + 0.5, 0, node.z + 0.5));
 		Collections.reverse(points);
 		return points;
+	}
+
+	/** What a column costs on top where the water is only just wide enough: a lead the hull fits with nothing to spare catches its edges at every bend. */
+	public static final double TIGHT_COST = 3;
+
+	/** Whether the water round a column is only just wide enough: anything but open water within two blocks (away from the landing, where it comes right in). */
+	static boolean tight(Water water, int x, int z, double goalX, double goalZ, double radius) {
+		if (Math.hypot(x + 0.5 - goalX, z + 0.5 - goalZ) <= radius + 2)
+			return false;
+		for (int dx = -2; dx <= 2; dx++)
+			for (int dz = -2; dz <= 2; dz++)
+				if ((Math.abs(dx) == 2 || Math.abs(dz) == 2) && !water.open(x + dx, z + dz))
+					return true;
+		return false;
 	}
 
 	/**

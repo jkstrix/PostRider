@@ -685,6 +685,13 @@ public class DeliveryRun {
 				.stream().map(Entity::position).toList();
 			// Along its way across the water, round the bends; with none to be found, the old straight swerves
 			Vec3 aim = navigator.bargeAim(level, barge.position(), nearY, target, drowned, level.getGameTime());
+			// Caught on an edge with the way across going on: it pulls back onto the line of the way first, rather than
+			// push at what it's caught on
+			if (aim != null && barge.isBlockedAhead()) {
+				Vec3 line = navigator.waterPathNearest(barge.position());
+				if (line != null && Journey.horizontalDistance(line, barge.position()) > OFF_THE_LINE)
+					aim = line;
+			}
 			if (aim == null)
 				aim = Crossing.waterAim(barge.position(), target,
 					a -> !Hazards.isDangerous(level, BlockPos.containing(surface(level, a))),
@@ -696,6 +703,8 @@ public class DeliveryRun {
 
 	/** How long after launching before the bank behind it counts as reaching shore. */
 	private static final int PUSH_OFF_TICKS = 40;
+	/** This far off the line of its way across, a barge caught on an edge steers back onto the line before going on. */
+	public static final double OFF_THE_LINE = 0.4;
 
 	/**
 	 * Whether he can step ashore: the bow is up against land near the end of the water leg (he rows on round anything

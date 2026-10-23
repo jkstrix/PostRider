@@ -209,4 +209,9 @@ class CrossingTest {
 		assertEquals(63.0, Crossing.surfaceIn(river, 0, 0, 69, Crossing.LAUNCH_DROP), 0.2, "but launched on from a bank seven up");
 		assertTrue(Double.isNaN(Crossing.surfaceIn(river, 0, 0, 72, Crossing.LAUNCH_DROP)), "ten up is too far to get down into the barge");
 	}
+
+	@Test
+	void theBargesBoxIsATouchNarrowerThanItsHull() {
+		assertTrue(BargeEntity.BOX_WIDTH < 3 && BargeEntity.BOX_WIDTH >= 2.5, "a hull three wide, a box with a little to spare in a lead three wide");
+	}
 }

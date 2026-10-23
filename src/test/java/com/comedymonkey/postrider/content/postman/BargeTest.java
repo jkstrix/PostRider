@@ -79,7 +79,7 @@ class BargeTest {
 	void itGoesAsFastAsABoat() {
 		assertEquals(8.0, BargeEntity.BLOCKS_PER_SECOND, 1e-9);
 		assertEquals(0.4, BargeEntity.SPEED, 1e-9);
-		assertEquals(3.0F, ModEntities.BARGE.get().getWidth());
+		assertEquals((float) BargeEntity.BOX_WIDTH, ModEntities.BARGE.get().getWidth(), "a touch narrower than the three-block hull");
 	}
 
 	@Test
@@ -132,7 +132,7 @@ class BargeTest {
 
 	@Test
 	void itsHitBoxRunsFromTheBottomOfTheHullToTheTopsOfTheRailings() {
-		assertEquals(3.0F, ModEntities.BARGE.get().getWidth());
+		assertEquals((float) BargeEntity.BOX_WIDTH, ModEntities.BARGE.get().getWidth(), "a touch narrower than the three-block hull");
 		assertEquals(BargeEntity.HULL_DEPTH + BargeEntity.RAILING_HEIGHT, ModEntities.BARGE.get().getHeight(), 1e-6);
 		// A solid block at the waterline (a beach, a sandbar) stands above the bottom of the hull, so it bumps into it
 		double surface = 62 + 8 / 9.0;
