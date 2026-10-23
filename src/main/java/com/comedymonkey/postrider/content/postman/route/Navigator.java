@@ -392,7 +392,8 @@ public final class Navigator {
 				long key = CoarsePlanner.key(cx, cz);
 				boolean anEnd = !legs.isEmpty() && (key == startCell || key == goalCell);
 				String wrong = null;
-				if (land && cell.water() && !(wetGoal && key == goalCell))
+				// (A land leg over water at the start is where he is, afloat or on ice: nothing to redo)
+				if (land && cell.water() && key != startCell && !(wetGoal && key == goalCell))
 					wrong = "over water";
 				else if (land && !anEnd && cell.rough() > STEEP_WITHIN)
 					wrong = "over a cliff face " + cell.rough() + " high inside a cell";

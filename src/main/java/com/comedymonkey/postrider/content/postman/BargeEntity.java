@@ -80,6 +80,22 @@ public class BargeEntity extends Entity {
 	public boolean isOnIce() {
 		return onIce;
 	}
+
+	/**
+	 * How far above the ice's top the hull is held: resting exactly on it, a hair under from the easing up to it, the
+	 * hull's box overlaps the ice and every move bumps against it.
+	 */
+	public static final double ICE_CLEARANCE = 0.02;
+
+	/** Where the hull rests on ice whose top is at this height. */
+	public static double iceHeight(double top) {
+		return top + ICE_CLEARANCE;
+	}
+
+	/** Where the hull rests: where the surface under it puts it, or up over the top of ice ahead when that's higher. */
+	public static double restHeight(double here, double iceAhead) {
+		return Double.isNaN(iceAhead) ? here : Math.max(here, iceHeight(iceAhead));
+	}
 	/** Where the bench and deck are from the middle of the deck (blocks forward, and up), as in blockbench/barge.bbmodel. */
 	public static final double BENCH_FORWARD = 21 / 16.0, BENCH_HEIGHT = 7 / 16.0;
 	public static final double DECK_FORWARD = -5 / 16.0, DECK_HEIGHT = 2 / 16.0;
@@ -231,8 +247,13 @@ public class BargeEntity extends Entity {
 		if (onIce)
 			speed = Math.min(speed * ICE_GLIDE, speed() * ICE_GLIDE);
 		Vec3 forward = Vec3.directionFromRotation(0, getYRot()).scale(speed);
-		double rest = onIce ? surface : floatHeight(surface);
-		double dy = Double.isNaN(surface) ? Math.max(motion.y - 0.04, -0.5) : Mth.clamp((rest - getY()) * 0.3, -0.1, 0.1);
+		// Ice ahead at the water's level: the hull rises to the ice's top before it gets there, so it slides up onto
+		// it rather than bump against its edge (afloat its hull sits a pixel lower than the ice)
+		double aheadSurface = Crossing.surfaceIn(level, Mth.floor(ahead.x), Mth.floor(ahead.z), nearY);
+		double iceAhead = !Double.isNaN(aheadSurface) && Crossing.isIceSurface(level, Mth.floor(ahead.x), Mth.floor(ahead.z), aheadSurface) ? aheadSurface : Double.NaN;
+		double rest = restHeight(onIce ? iceHeight(surface) : floatHeight(surface), iceAhead);
+		// Eased towards where it rests, and set there once it's close (eased only, it never quite gets there)
+		double dy = Double.isNaN(surface) ? Math.max(motion.y - 0.04, -0.5) : Math.abs(rest - getY()) < 0.1 ? rest - getY() : Mth.clamp((rest - getY()) * 0.3, -0.1, 0.1);
 		setDeltaMovement(forward.x, dy, forward.z);
 		move(MoverType.SELF, getDeltaMovement());
 		boolean rowing = speed > 0.02;

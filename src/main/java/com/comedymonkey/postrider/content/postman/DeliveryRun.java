@@ -701,8 +701,18 @@ public class DeliveryRun {
 		}
 	}
 
+	/** The height he'd stand at in a column to step ashore there, or unusable: ice isn't stepped onto (the barge slides over it) unless any shore will do. */
+	static int floorAshore(ServerLevel level, int x, int z, int nearY, boolean anyShore) {
+		int floor = CampSites.floorIn(level, x, z, nearY);
+		if (floor == CampSites.UNUSABLE || anyShore)
+			return floor;
+		return Crossing.isIce(level.getBlockState(new BlockPos(x, floor - 1, z))) ? CampSites.UNUSABLE : floor;
+	}
+
 	/** How long after launching before the bank behind it counts as reaching shore. */
 	private static final int PUSH_OFF_TICKS = 40;
+	/** Why the barge counted as ashore the last time it did, for the log. */
+	private String ashoreWhy = "";
 	/** This far off the line of its way across, a barge caught on an edge steers back onto the line before going on. */
 	public static final double OFF_THE_LINE = 0.4;
 
@@ -718,8 +728,12 @@ public class DeliveryRun {
 		boolean against = barge.horizontalCollision || barge.isBlockedAhead();
 		aground = against ? aground + 1 : 0;
 		Vec3 bow = barge.bow();
-		boolean land = against || Double.isNaN(Crossing.surfaceIn(level, Mth.floor(bow.x), Mth.floor(bow.z), barge.getBlockY()));
-		return landsHere(land, navigator.nearLanding(barge.position()), navigator.atEndOfWater(barge.position()), aground);
+		boolean land = against || Double.isNaN(Crossing.surfaceIn(level, Mth.floor(bow.x), Mth.floor(bow.z), barge.waterLevelY()));
+		boolean nearLanding = navigator.nearLanding(barge.position()), endOfWater = navigator.atEndOfWater(barge.position());
+		ashoreWhy = (barge.horizontalCollision ? "bumped" : barge.isBlockedAhead() ? "blocked ahead" : "land at the bow")
+			+ (nearLanding ? ", near the landing" : "") + (endOfWater ? ", at the end of the water" : "") + (aground >= AGROUND_TICKS ? ", hard aground" : "")
+			+ ", hull at " + String.format("%.2f", barge.getY()) + (barge.isOnIce() ? " on ice" : "");
+		return landsHere(land, nearLanding, endOfWater, aground);
 	}
 
 	/**
@@ -769,7 +783,8 @@ public class DeliveryRun {
 			if (passenger instanceof PostmanHorse aboard)
 				horse = aboard;
 		EntityType<?> type = horse != null ? horse.getType() : null;
-		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> !anyShore && navigator.isBlockedShore(x, z) ? CampSites.UNUSABLE : CampSites.floorIn(level, x, z, barge.getBlockY()), reach,
+		// Ice is no landing place while the barge can slide on over it (only when he's stuck afloat and any shore will do)
+		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> !anyShore && navigator.isBlockedShore(x, z) ? CampSites.UNUSABLE : floorAshore(level, x, z, barge.waterLevelY(), anyShore), reach,
 			(x, z, y) -> passable(level, new BlockPos(x, y, z)) && passable(level, new BlockPos(x, y + 1, z)),
 			type == null ? Crossing.Roomy.EVERYWHERE : (x, y, z) -> HorseSpots.find(new Vec3(x + 0.5, y, z + 0.5), yawToward(new Vec3(x + 0.5, y, z + 0.5), target),
 				s -> HorseSpots.fits(level, type, s)) != null);
@@ -813,7 +828,7 @@ public class DeliveryRun {
 		}
 		barge.vanish(level);
 		aimCooldown = 0;
-		logRoute(rider, "stepped ashore at " + Navigator.spot(ground) + horseWhere);
+		logRoute(rider, "stepped ashore at " + Navigator.spot(ground) + horseWhere + " (" + ashoreWhy + ")");
 		traceUntil = level.getGameTime() + 80;
 		navigator.landed(ground, level.getGameTime());
 		// Crossed on foot (he walked down to the water): he calls his horse now he's over, unless the box is close

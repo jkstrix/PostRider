@@ -170,4 +170,13 @@ class BargeTest {
 		assertEquals(62, BargeEntity.levelBelow(BargeEntity.floatHeight(62 + 8 / 9.0)), "afloat: the water's block");
 		assertEquals(62, BargeEntity.levelBelow(63.0), "on ice: the ice's block, so ice a block up is a bank");
 	}
+
+	@Test
+	void itRisesToTheTopOfIceAheadBeforeItsHullGetsThere() {
+		double afloat = BargeEntity.floatHeight(62 + 8 / 9.0);
+		assertEquals(afloat, BargeEntity.restHeight(afloat, Double.NaN), 1e-9, "open water ahead: it floats as it is");
+		assertEquals(63.0 + BargeEntity.ICE_CLEARANCE, BargeEntity.restHeight(afloat, 63.0), 1e-9, "ice ahead: up over its top");
+		assertEquals(63.5, BargeEntity.restHeight(63.5, 62.0), 1e-9, "never down to ice lower than it sits");
+		assertTrue(BargeEntity.ICE_CLEARANCE > 0 && BargeEntity.ICE_CLEARANCE < 0.1, "a hair over the ice, or the hull's box bumps it");
+	}
 }

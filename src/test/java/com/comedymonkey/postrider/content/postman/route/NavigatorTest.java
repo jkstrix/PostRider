@@ -446,4 +446,15 @@ class NavigatorTest {
 		assertTrue(noShore.isEmpty() && noLandings.isEmpty());
 		assertFalse(Navigator.forgiveShores(blocked, noShore, noLandings), "nothing left to forgive");
 	}
+
+	@Test
+	void aLandLegOverWaterWhereHeStartsIsNoMisfit() {
+		// Afloat (or on sea ice, water to the map), the route begins with a land leg of nothing at his own cell
+		CoarsePlanner.Cells iceHere = (cx, cz) -> cx <= 0 ? new CoarsePlanner.Cell(62, 4, 0, false) : new CoarsePlanner.Cell(64, 0, 0, false);
+		CoarsePlanner.Leg start = new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(4, 63, 4), new Vec3(4, 63, 4)));
+		CoarsePlanner.Leg on = new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(12, 64, 4), new Vec3(60, 64, 4)));
+		assertNull(Navigator.misfit(List.of(start, on), 0, iceHere, null, Double.MAX_VALUE), "where he is can't be redone");
+		CoarsePlanner.Leg across = new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(-20, 64, 4), new Vec3(60, 64, 4)));
+		assertNotNull(Navigator.misfit(List.of(across), 0, iceHere, null, Double.MAX_VALUE), "but a land leg over water further on still is");
+	}
 }

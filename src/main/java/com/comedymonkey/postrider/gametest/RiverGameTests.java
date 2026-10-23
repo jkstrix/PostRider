@@ -224,15 +224,16 @@ public final class RiverGameTests {
 	// ---------------------------------------------------------------- the ice field
 
 	/**
-	 * A band of sea ice right across the arena, with holes of open water in it: an ice field is barge country, so
-	 * he puts the barge out at its edge, slides across it (and over the holes) without stopping, and steps ashore on
-	 * the far side; never rides the ice.
+	 * A strip of open water and then a band of sea ice right across the arena, with holes of open water in the ice:
+	 * an ice field is barge country, so he puts the barge out on the water, rises onto the ice from it without
+	 * stopping, slides across (and over the holes), and steps ashore on the far side; never rides the ice.
 	 */
 	@GameTest(skyAccess = true, template = ARENA, batch = "deliver_ice_field", timeoutTicks = DELIVERY_TICKS)
 	public static void heSlidesAcrossAnIceFieldInTheBargeRatherThanRidingIt(GameTestHelper helper) {
 		Scene scene = new Scene(helper);
 		banks(scene);
 		int iceX0 = 48, iceX1 = 79;
+		scene.water(iceX0 - 4, INSIDE_Z0, iceX0 - 1, INSIDE_Z1, 2);
 		scene.fill(iceX0, 0, INSIDE_Z0, iceX1, 0, INSIDE_Z1, Blocks.ICE.defaultBlockState());
 		for (int[] hole : new int[][] {{54, 10}, {62, 30}, {70, 18}, {58, 40}, {74, 50}})
 			scene.water(hole[0], hole[1], hole[0] + 2, hole[1] + 2, 2);
