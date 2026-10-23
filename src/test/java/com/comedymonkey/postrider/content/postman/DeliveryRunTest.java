@@ -241,4 +241,13 @@ class DeliveryRunTest {
 		assertTrue(DeliveryRun.isCutOff(false, LocalPlanner.Status.FAILED, 1), "all the ground searched, the map already redone: cut off");
 		assertTrue(DeliveryRun.isCutOff(false, LocalPlanner.Status.PARTIAL, 2), "nearer but never there is cut off too");
 	}
+
+	@Test
+	void atAColdCampHeShiversEveryFewSecondsInsteadOfPlaying() {
+		assertFalse(DeliveryRun.shiversNow(false, DeliveryRun.SHIVER_GAP / 2, false), "a camp with a fire: the harmonica, not shivering");
+		assertTrue(DeliveryRun.shiversNow(true, DeliveryRun.SHIVER_GAP / 2, false));
+		assertTrue(DeliveryRun.shiversNow(true, DeliveryRun.SHIVER_GAP / 2 + DeliveryRun.SHIVER_GAP * 3, false), "and again every few seconds");
+		assertFalse(DeliveryRun.shiversNow(true, DeliveryRun.SHIVER_GAP / 2 + 1, false), "not every tick");
+		assertFalse(DeliveryRun.shiversNow(true, DeliveryRun.SHIVER_GAP / 2, true), "not over another gesture");
+	}
 }

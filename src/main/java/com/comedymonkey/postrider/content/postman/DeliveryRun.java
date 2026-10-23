@@ -945,7 +945,14 @@ public class DeliveryRun {
 				if (stepTicks >= HAMMER_TICKS) {
 					pitchTent(rider, level);
 					face(rider, campSite.yaw());
-					step(CampStep.LIGHTING);
+					// A camp on ice is a cold one: no fire is lit on ice (it would melt through), and he shivers instead
+					coldCamp = isColdCamp(level, campSite);
+					if (coldCamp) {
+						logRoute(rider, "camped on the ice at " + Navigator.spot(campSite.seatPos()) + ": no fire, and a cold night of it");
+						startEvening(rider, level);
+					} else {
+						step(CampStep.LIGHTING);
+					}
 				}
 			}
 			case LIGHTING -> {
@@ -963,19 +970,35 @@ public class DeliveryRun {
 			case PLAYING -> {
 				if (PostOfficeHours.isBedtime(level.getDayTime()))
 					turnIn(rider, level);
+				else if (shiversNow(coldCamp, stepTicks, rider.isBusy()))
+					rider.playGesture(PostmanEntity.Gesture.SHIVER);
 			}
 			case SLEEPING -> {}
 		}
 	}
 
-	/** The harmonica until monsters come out; straight to bed if they already have. */
+	/** The harmonica until monsters come out (sat shivering at a cold camp instead); straight to bed if they already have. */
 	private void startEvening(PostmanEntity rider, ServerLevel level) {
 		if (PostOfficeHours.isBedtime(level.getDayTime())) {
 			turnIn(rider, level);
 			return;
 		}
-		rider.setActivity(PostmanEntity.Activity.HARMONICA);
+		rider.setActivity(coldCamp ? PostmanEntity.Activity.CAMP_REST : PostmanEntity.Activity.HARMONICA);
 		step(CampStep.PLAYING);
+	}
+
+	/** How often he shivers at a cold camp, in ticks. */
+	public static final int SHIVER_GAP = 5 * 20;
+	/** Whether a camp is a cold one: the seat or the fire's spot stands on ice. */
+	private boolean coldCamp;
+
+	public static boolean isColdCamp(ServerLevel level, CampSites.Site site) {
+		return CampfireBlock.isIce(level.getBlockState(site.seat().below())) || CampfireBlock.isIce(level.getBlockState(CampfireBlock.spotFor(site).below()));
+	}
+
+	/** Whether he shivers this tick of the evening: at a cold camp, every few seconds, when nothing else is playing. */
+	public static boolean shiversNow(boolean coldCamp, int stepTicks, boolean busy) {
+		return coldCamp && !busy && stepTicks % SHIVER_GAP == SHIVER_GAP / 2;
 	}
 
 	private static void face(PostmanEntity rider, float yaw) {
@@ -1591,6 +1614,8 @@ public class DeliveryRun {
 			tag.putLong("campfire", campfire.asLong());
 			tag.putLong("fire_lit_at", fireLitAt);
 		}
+		if (coldCamp)
+			tag.putBoolean("cold_camp", true);
 		if (attacker != null)
 			tag.putUUID("attacker", attacker);
 		return tag;
@@ -1642,6 +1667,7 @@ public class DeliveryRun {
 			run.campfire = BlockPos.of(tag.getLong("campfire"));
 			run.fireLitAt = tag.getLong("fire_lit_at");
 		}
+		run.coldCamp = tag.getBoolean("cold_camp");
 		if (tag.hasUUID("attacker"))
 			run.attacker = tag.getUUID("attacker");
 		return run;

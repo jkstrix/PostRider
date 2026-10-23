@@ -343,22 +343,16 @@ class CoarsePlannerTest {
 	}
 
 	@Test
-	void theBargeNeverRowsTheWaterOfAnIceField() {
-		CoarsePlanner.Cells sea = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx >= 8 && cx <= 12 ? ICE_WATER : LAND;
-		assertEquals(Status.FAILED, new CoarsePlanner(sea, 2, 2, 18, 2, Set.of()).finishNow(), "sea ice shuts the barge in");
-		CoarsePlanner.Cells open = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx >= 8 && cx <= 12 ? WATER : LAND;
-		Plan plan = plan(open, 2, 2, 18, 2);
-		assertEquals(LegKind.WATER, plan.legs().get(1).kind(), "open water is rowed: " + plan.legs());
+	void theWaterOfAnIceFieldIsRowedOnlyWhenThereIsNoOtherWay() {
+		// Frozen sea across the way with a land bridge round its south end: the bridge is taken
+		CoarsePlanner.Cells sea = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 6 ? VOID : cx >= 8 && cx <= 12 && cz <= 4 ? ICE_WATER : LAND;
+		Plan round = plan(sea, 2, 1, 18, 1);
+		assertEquals(1, round.legs().size(), "ridden round: " + round.legs());
+		assertEquals(LegKind.LAND, round.legs().get(0).kind());
+		// Frozen sea right across: rowed all the same, as there's no other way (no route at all would be worse)
+		CoarsePlanner.Cells wall = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx >= 8 && cx <= 12 ? ICE_WATER : LAND;
+		Plan across = plan(wall, 2, 2, 18, 2);
+		assertEquals(LegKind.WATER, across.legs().get(1).kind(), "rowed: " + across.legs());
 	}
 
-	@Test
-	void aLoneCellOfTheOtherKindMakesNoLegOfItsOwn() {
-		LegKind[] kinds = {LegKind.LAND, LegKind.LAND, LegKind.WATER, LegKind.LAND, LegKind.LAND, LegKind.WATER, LegKind.WATER, LegKind.LAND, LegKind.WATER, LegKind.WATER};
-		CoarsePlanner.smooth(kinds);
-		LegKind[] smoothed = {LegKind.LAND, LegKind.LAND, LegKind.LAND, LegKind.LAND, LegKind.LAND, LegKind.WATER, LegKind.WATER, LegKind.WATER, LegKind.WATER, LegKind.WATER};
-		assertEquals(List.of(smoothed), List.of(kinds), "a pond is ridden round and an islet rowed round");
-		LegKind[] ends = {LegKind.WATER, LegKind.LAND, LegKind.LAND};
-		CoarsePlanner.smooth(ends);
-		assertEquals(LegKind.WATER, ends[0], "the ends are left alone");
-	}
 }

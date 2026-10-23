@@ -137,4 +137,13 @@ class CampfireTest {
 		assertNotNull(json("assets", "postrider", "textures", "block", "campfire_flame.png.mcmeta").getAsJsonObject("animation"));
 		assertTrue(json("assets", "postrider", "lang", "en_us.json").has("block.postrider.campfire"));
 	}
+
+	@Test
+	void noFireIsLitOnIce() {
+		assertTrue(CampfireBlock.isIce(net.minecraft.world.level.block.Blocks.ICE.defaultBlockState()));
+		assertTrue(CampfireBlock.isIce(net.minecraft.world.level.block.Blocks.PACKED_ICE.defaultBlockState()));
+		assertTrue(CampfireBlock.isIce(net.minecraft.world.level.block.Blocks.BLUE_ICE.defaultBlockState()));
+		assertFalse(CampfireBlock.isIce(net.minecraft.world.level.block.Blocks.STONE.defaultBlockState()));
+		assertFalse(CampfireBlock.isIce(net.minecraft.world.level.block.Blocks.SNOW_BLOCK.defaultBlockState()), "snow takes a fire; ice would melt through");
+	}
 }

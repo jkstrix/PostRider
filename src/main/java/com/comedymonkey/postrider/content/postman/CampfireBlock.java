@@ -9,6 +9,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
@@ -69,7 +71,13 @@ public class CampfireBlock extends Block {
 	}
 
 	public static boolean canLightAt(Level level, BlockPos pos) {
-		return level.getBlockState(pos).isAir() && level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP);
+		return level.getBlockState(pos).isAir() && level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP)
+			&& !isIce(level.getBlockState(pos.below()));
+	}
+
+	/** Ice of any kind: no fire is lit on it (it would melt through), and a camp on it is a cold one. */
+	public static boolean isIce(BlockState ground) {
+		return ground.is(Blocks.ICE) || ground.is(Blocks.PACKED_ICE) || ground.is(Blocks.BLUE_ICE) || ground.is(Blocks.FROSTED_ICE) || ground.is(BlockTags.ICE);
 	}
 
 	@Override

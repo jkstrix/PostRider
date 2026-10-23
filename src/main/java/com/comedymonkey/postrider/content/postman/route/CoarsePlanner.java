@@ -49,8 +49,9 @@ public final class CoarsePlanner {
 	/** Half-water ground (a marsh, a river bank) is slow going. */
 	public static final double SHORE_COST = 1.25;
 	/**
-	 * What riding an ice field costs, to the block: sea ice is cracked by leads and holes, so a route goes round by
-	 * the coast when there is one within reach, and across the ice only when there isn't.
+	 * What riding (or rowing) an ice field costs, to the block: sea ice is cracked by leads and holes and shuts the
+	 * barge in, so a route goes round by the coast when there is one within reach, and across the ice only when
+	 * there isn't (never impassable: with no route at all he'd head straight there, which is worse).
 	 */
 	public static final double ICE_COST = 4;
 	public static final int MAX_NODES = 60_000;
@@ -258,10 +259,10 @@ public final class CoarsePlanner {
 		// start is water whatever its columns say (an inlet in sea ice reads as land, and he's in the barge in it)
 		boolean fromWater = fromStart ? afloat : from.water(), toWater = to.water() && !toGoal;
 		if (toWater) {
-			// The water of an ice field is never rowed: sea ice shuts the barge in
-			if (!barge || to.ice())
+			if (!barge)
 				return -1;
-			return length * rowing + (fromWater ? 0 : LAUNCH_COST);
+			// The water of an ice field is rowed only when there's no other way: sea ice shuts the barge in
+			return length * rowing * (to.ice() ? ICE_COST : 1) + (fromWater ? 0 : LAUNCH_COST);
 		}
 		int rise = Math.abs(to.height() - from.height());
 		// A cliff isn't ridden up, and nor is it landed on from the water: a shore that leads nowhere
@@ -290,15 +291,12 @@ public final class CoarsePlanner {
 		List<Leg> legs = new ArrayList<>();
 		List<Node> run = new ArrayList<>();
 		LegKind kind = null;
-		LegKind[] kinds = new LegKind[path.size()];
-		for (int i = 0; i < path.size(); i++) {
-			boolean ends = i == 0 && !afloat || i == path.size() - 1;
-			kinds[i] = (path.get(i).cell.water() || i == 0 && afloat) && !ends ? LegKind.WATER : LegKind.LAND;
-		}
-		smooth(kinds);
 		for (int i = 0; i < path.size(); i++) {
 			Node node = path.get(i);
-			LegKind here = kinds[i];
+			boolean ends = i == 0 && !afloat || i == path.size() - 1;
+			// (A lone cell of the other kind is a leg of its own all the same: a cell of water in a run of land can be
+			// a channel he can't ride across, and a cell of land in a run of water a bar the barge can't cross)
+			LegKind here = (node.cell.water() || i == 0 && afloat) && !ends ? LegKind.WATER : LegKind.LAND;
 			if (kind != null && here != kind) {
 				legs.add(new Leg(kind, pull(run, kind)));
 				run = new ArrayList<>();
@@ -309,16 +307,6 @@ public final class CoarsePlanner {
 		if (!run.isEmpty())
 			legs.add(new Leg(kind, pull(run, kind)));
 		return new Plan(legs, effort(path));
-	}
-
-	/**
-	 * A lone cell of the other kind between two runs is no leg of its own (a pond on the way is ridden round, an
-	 * islet rowed round): it goes with the run either side, so the route isn't chopped into legs of a few blocks.
-	 */
-	static void smooth(LegKind[] kinds) {
-		for (int i = 1; i + 1 < kinds.length; i++)
-			if (kinds[i] != kinds[i - 1] && kinds[i] != kinds[i + 1] && kinds[i - 1] == kinds[i + 1])
-				kinds[i] = kinds[i - 1];
 	}
 
 	/** What the way really costs, with rowing at its true price (the search made it dearer so he'd row less). */
