@@ -325,11 +325,11 @@ public final class Navigator {
 	/** Thrown up out of a rising column, or nearly at the foot of a whirlpool: being pushed across onto the ledge beside it. */
 	private boolean leavingColumn;
 	/** This close (in blocks) to the foot of a whirlpool he's pushed out, so his feet never touch the magma under it. */
-	public static final double FOOT_OF_WHIRLPOOL = 1.5;
+	public static final double FOOT_OF_WHIRLPOOL = 2.5;
 	/** He's pulled this far off the column's middle: knocked out of it. */
 	public static final double COLUMN_OFF = 0.8;
 	/** How hard he's pushed, a tick, from the top of a rising column onto the ledge beside it (blocks a tick). */
-	public static final double PUSH_OUT = 0.3;
+	public static final double PUSH_OUT = 0.4;
 	/** Longer than this up or down one column means something's wrong. */
 	public static final int COLUMN_TICKS = 400;
 

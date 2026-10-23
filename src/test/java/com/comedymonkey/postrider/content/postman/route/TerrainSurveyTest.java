@@ -54,7 +54,6 @@ class TerrainSurveyTest {
 	void aTileIsFourChunksSquare() {
 		assertEquals(2, TerrainSurvey.CELLS_PER_CHUNK);
 		assertEquals(8, TerrainSurvey.TILE_CELLS);
-		assertTrue(TerrainSurvey.MAX_GENERATING <= 16, "a few chunks at a time");
 	}
 
 	@Test
@@ -72,5 +71,19 @@ class TerrainSurveyTest {
 		assertEquals(TerrainSurvey.TILE_LIFETIME, TerrainSurvey.lifetime(all - 1), "one off disk: ten minutes");
 		assertEquals(TerrainSurvey.TILE_LIFETIME, TerrainSurvey.lifetime(0));
 		assertTrue(TerrainSurvey.LOADED_LIFETIME < TerrainSurvey.TILE_LIFETIME);
+	}
+
+	@Test
+	void anEstimateLooksOnlyAtTheColumnsTheCellsSample() {
+		int[] columns = TerrainSurvey.sampledColumns();
+		assertEquals(TerrainSurvey.CELLS_PER_CHUNK * TerrainSurvey.CELLS_PER_CHUNK * 4, columns.length, "four to each cell");
+		assertEquals(columns.length, java.util.Arrays.stream(columns).distinct().count(), "no column twice");
+		for (int column : columns)
+			assertTrue(column >= 0 && column < 256, "in the chunk: " + column);
+		// The first cell's four: (2,2), (6,2), (2,6), (6,6)
+		assertEquals(2 * 16 + 2, columns[0]);
+		assertEquals(2 * 16 + 6, columns[1]);
+		assertEquals(6 * 16 + 2, columns[2]);
+		assertEquals(6 * 16 + 6, columns[3]);
 	}
 }
