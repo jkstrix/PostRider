@@ -431,4 +431,19 @@ class LocalPlannerTest {
 		GridTerrain high = new GridTerrain().fill(10, Y - 12, -400, 12, Y - 1, 400, Kind.OPEN).fill(0, Y + LocalPlanner.LEAP_HEIGHT, -400, 30, Y + LocalPlanner.LEAP_HEIGHT, 400, Kind.SOLID);
 		assertEquals(Status.FOUND, riding(high, 30, 1).finishNow(), "a canopy five up is room enough");
 	}
+
+	@Test
+	void twoBigDropsInARowNeedALandingBetween() {
+		// Down a bank in two drops of three, landing on a ledge a single block: he'd be over its edge before he's
+		// down and fall the six together, so it's no way; a ledge with a level step on it (two wide, or along it) is
+		// (the ground east of x 10 is sunk six blocks, with the ledge three down standing against the bank)
+		GridTerrain single = new GridTerrain().fill(10, Y - 6, -400, 400, Y - 1, 400, Kind.OPEN).fill(10, Y - 6, 0, 10, Y - 4, 0, Kind.SOLID);
+		GridTerrain wide = new GridTerrain().fill(10, Y - 6, -400, 400, Y - 1, 400, Kind.OPEN).fill(10, Y - 6, -400, 11, Y - 4, 400, Kind.SOLID);
+		assertNotEquals(Status.FOUND, walking(single, 20.5, 0.5, false).finishNow(), "a six-block bank with a single-block ledge halfway: no way down it");
+		LocalPlanner planner = walking(wide, 20.5, 0.5, false);
+		assertEquals(Status.FOUND, planner.finishNow(), "a two-wide ledge: a step on it between the drops");
+		List<Step> steps = planner.steps();
+		for (int i = 2; i < steps.size(); i++)
+			assertFalse(steps.get(i - 2).y() - steps.get(i - 1).y() >= 2 && steps.get(i - 1).y() - steps.get(i).y() >= 2, "no two big drops in a row");
+	}
 }

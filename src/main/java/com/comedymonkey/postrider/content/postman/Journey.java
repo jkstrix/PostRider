@@ -138,9 +138,13 @@ public final class Journey {
 				+ ", still " + (Double.isNaN(stallX) ? "unset" : (tick - stallSince) + " ticks") + ", tries " + triesInARow;
 		}
 
+		/**
+		 * He has been jumped (or pushed) free once more; the clocks start again. Put down further off than he was,
+		 * coming back to where he was stuck isn't getting nearer: he has to get past it.
+		 */
 		public void unstuck(double distance, long tick) {
 			triesInARow++;
-			bestDistance = distance;
+			bestDistance = Math.min(bestDistance, distance);
 			bestSince = tick;
 			stallX = Double.NaN;
 		}

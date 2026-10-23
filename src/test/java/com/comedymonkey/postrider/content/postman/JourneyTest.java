@@ -144,4 +144,18 @@ class JourneyTest {
 		assertFalse(progress.isStuck(690, 100 + Journey.Progress.PATIENCE), "nearer along the new way");
 		assertEquals(0, progress.triesInARow());
 	}
+
+	@Test
+	void comingBackFromAPushOffIsntProgress() {
+		Journey.Progress progress = new Journey.Progress();
+		progress.isStuck(500, 0);
+		assertTrue(progress.isStuck(500, Journey.Progress.PATIENCE));
+		// Pushed off twelve blocks further from the box, and drifting straight back to where he was stuck
+		progress.unstuck(512, Journey.Progress.PATIENCE);
+		assertEquals(1, progress.triesInARow());
+		assertTrue(progress.isStuck(500, 2 * Journey.Progress.PATIENCE), "back where he was: no nearer than before");
+		assertEquals(1, progress.triesInARow(), "the try still counts");
+		progress.isStuck(495, 2 * Journey.Progress.PATIENCE + 1);
+		assertEquals(0, progress.triesInARow(), "past where he was stuck: that's getting on");
+	}
 }

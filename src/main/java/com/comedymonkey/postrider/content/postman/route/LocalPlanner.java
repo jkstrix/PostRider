@@ -322,8 +322,11 @@ public final class LocalPlanner {
 			int[] outs = m && !diagonal ? new int[] {1, 2} : new int[] {1};
 			for (int out : outs) {
 				int fx = to.x - d[0] * out, fz = to.z - d[1] * out;
+				boolean dropsOn = to.parent != null && to.y - to.parent.y >= 2;
 				for (int drop = 1; drop <= maxDrop; drop++) {
 					if (!m && diagonal && drop > 1)
+						break;
+					if (drop >= 2 && dropsOn)
 						break;
 					int fy = to.y + drop;
 					if (!stands(terrain, m, fx, fy, fz) || !cornersClear(m, fx, fy, fz, d))
@@ -577,10 +580,15 @@ public final class LocalPlanner {
 				if (out == 2 && !fits(terrain, m, lx, from.y, lz))
 					break;
 				boolean landed = false;
+				boolean justDropped = from.parent != null && from.parent.y - from.y >= 2;
 				for (int drop = 1; drop <= maxDrop; drop++) {
 					// On foot, more than a block down is dropped straight, never corner to corner: into a hole a block
 					// wide (a shaft, a steep stair cut into the ground) he'd wedge on the corners
 					if (!m && diagonal && drop > 1)
+						break;
+					// Never a drop of two or more straight after another: landing a block wide he's over the next edge
+					// before he's down, and falls the two together
+					if (drop >= 2 && justDropped)
 						break;
 					int y = from.y - drop;
 					if (m ? landsOn(terrain, lx, y, lz, d[0], d[1]) : stands(terrain, m, lx, y, lz)) {

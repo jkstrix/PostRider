@@ -1520,16 +1520,46 @@ public final class Navigator {
 			waterPathFinal = landing;
 			waterPlannedAt = now;
 		}
-		if (waterPath.isEmpty())
+		if (waterPath.isEmpty()) {
+			noWayAcross(level, here, goal, target);
 			return null;
+		}
 		// A way across that only gets as far as the next block or two (the water the plan expected isn't there, or is
 		// closed off) is no way: the old straight swerves take over
 		if (!waterPathFinal && Journey.horizontalDistance(here, waterPath.get(waterPath.size() - 1)) <= WATER_LOOKAHEAD / 2) {
 			waterPath = List.of();
+			noWayAcross(level, here, goal, target);
 			return null;
 		}
+		waterFails = 0;
 		Vec3 point = steerFor(waterPath, waterPathFinal, goal, here);
 		return new Vec3(point.x, here.y, point.z);
+	}
+
+	/** This many times running with no way across the water towards where the water leg goes, the water ahead is struck off. */
+	public static final int WATER_FAILS_TO_STRIKE = 3;
+	private int waterFails;
+
+	/**
+	 * No way across the water towards where the water leg goes (a strip of land the cells can't see closes it, say):
+	 * found so a few times running, the water ahead is struck off the map like a stretch of land that fails, and the
+	 * route redone round it; rowing at it and bumping the bank, with the route redone round that shore, only brought
+	 * him straight back.
+	 */
+	private void noWayAcross(ServerLevel level, Vec3 here, Vec3 goal, Vec3 target) {
+		if (coarse != null || plan == null || ++waterFails < WATER_FAILS_TO_STRIKE)
+			return;
+		waterFails = 0;
+		int struck = 0;
+		for (long cell : strikeBand(here, goal))
+			if (blocked.add(cell))
+				struck++;
+		if (struck == 0)
+			return;
+		log.accept("no way across the water from " + spot(here) + " towards " + spot(goal) + ": the water ahead is struck off the map (" + struck
+			+ " cells new, " + blocked.size() + " struck this trip) and the route redone round it");
+		planStruck = true;
+		replan(level, here, target, true);
 	}
 
 	/**
