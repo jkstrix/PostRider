@@ -36,6 +36,11 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
             systemProperty 'postrider.trace', 'true'
             systemProperty 'postrider.watch', project.findProperty('tests') ?: 'all'
+            // Or a trip across a real world: ./gradlew runWatch -Pworld="New World (1)" -Pfrom=Testing -Pto=Smelly, or
+            // -Pworld=new -Pseed=<seed> (-Pfrom=spawn -Pto=random:3000 unless said otherwise), as the headless run takes them
+            systemProperty 'postrider.watchWorld', project.findProperty('world')
+                ? "${project.findProperty('world')}|${project.findProperty('from') ?: 'spawn'}|${project.findProperty('to') ?: 'random:3000'}" : ''
+            systemProperty 'postrider.watchSeed', project.findProperty('seed') ?: ''
         }
         // A headless trip across one of the client's worlds (run/saves/<world>, copied to run-headless/world): the server
         // starts on it, posts a parcel from one box to the other, logs the rider's progress, and stops once it's delivered
@@ -93,6 +98,15 @@ repositories {
 }
 
 dependencies {
+    // Runs alongside the mod in every run (client, watch, headless, in-world tests): the Concurrent Chunk Management
+    // Engine, spreading chunk generation and loading across cores, as players are likely to have it. Not compiled
+    // against. (Alpha builds only exist for NeoForge 1.21.1.)
+    runtimeOnly 'maven.modrinth:c2me-neoforge:0.4.0-alpha.0.123+1.21.1'
+    // And Distant Horizons, for the same reason: far terrain drawn as low-detail chunks, which loads chunks of its own.
+    // Not in the in-world tests' run, where it crashes at startup (it takes any server that isn't a client for a
+    // dedicated one, and the game-test server is neither)
+    for (run in ['client', 'server', 'watch', 'headless', 'screenshots'])
+        add("${run}AdditionalRuntimeClasspath", 'maven.modrinth:distanthorizons:3.3.3-1.21.1')
     testImplementation(platform('org.junit:junit-bom:5.10.2'))
     testImplementation('org.junit.jupiter:junit-jupiter')
     testRuntimeOnly('org.junit.platform:junit-platform-launcher')
@@ -101,6 +115,24 @@ dependencies {
 // Each run of the in-world tests starts from a fresh world, so nothing is left over from the last
 tasks.matching { it.name == 'runGameTestServer' }.configureEach {
     doFirst { delete file('run-gametest/world') }
+}
+
+// A watched trip across one of the client's worlds runs on a fresh copy of it, so the client's own save is never touched
+tasks.matching { it.name == 'runWatch' }.configureEach {
+    doFirst {
+        def world = project.findProperty('world')
+        if (world && world != 'new') {
+            def source = file("run/saves/${world}")
+            if (!source.isDirectory())
+                throw new GradleException("No world at ${source}: pass -Pworld=<name of a world in run/saves>, or -Pworld=new")
+            def target = file("run-watch/saves/${world}")
+            delete target
+            copy {
+                from source
+                into target
+            }
+        }
+    }
 }
 
 // The headless trip runs on a fresh copy of the chosen client world, so the client's own save is never touched

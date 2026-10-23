@@ -25,4 +25,25 @@ class DevWatchTest {
 		Vec3 above = DevWatch.viewpoint(eyes, new Vec3(0, -2, 0));
 		assertEquals(new Vec3(100, 65.6 + DevWatch.FOLLOW_DISTANCE, 200), above, "looking down: up above him, however long the look vector");
 	}
+
+	@Test
+	void aTripAcrossAWorldIsThreeNamesWithBarsBetween() {
+		DevWatch.WorldRun run = DevWatch.worldRun("New World (1)|Testing|Smelly");
+		assertEquals("New World (1)", run.world());
+		assertEquals("Testing", run.from());
+		assertEquals("Smelly", run.to());
+		assertEquals(false, run.fresh());
+		DevWatch.WorldRun fresh = DevWatch.worldRun("new|spawn|random:3000");
+		assertEquals(true, fresh.fresh());
+		assertEquals("postrider_watch_postrider12", fresh.folder("postrider12"), "a fresh world is kept by its seed, for the same world again");
+		assertEquals("postrider_watch_random", fresh.folder(""), "no seed: a random one each time");
+		assertEquals(null, DevWatch.worldRun(""), "unset: the tests run instead");
+		assertEquals(null, DevWatch.worldRun("new|spawn"), "a name missing");
+	}
+
+	@Test
+	void aSeedIsANumberAsItIsOrAnythingElseByItsHash() {
+		assertEquals(12345L, DevWatch.seed("12345"));
+		assertEquals("postrider".hashCode(), DevWatch.seed("postrider"), "as the game takes a word for a seed");
+	}
 }

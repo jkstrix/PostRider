@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.RiderWatch;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.Roster;
 import com.comedymonkey.postrider.post.PendingDelivery;
@@ -57,6 +58,20 @@ public final class PostRiderCommand {
 						return 0;
 					}
 				}))));
+		// Watch the riders: a spectator kept a few blocks off the rider most recently out (shift lets go until the next)
+		root.then(Commands.literal("watch")
+			.executes(ctx -> {
+				ServerPlayer player = ctx.getSource().getPlayerOrException();
+				RiderWatch.start(player);
+				ctx.getSource().sendSuccess(() -> Component.literal("Watching the riders: you're kept off the one most recently out; shift lets go until the next. /postrider watch stop ends it."), false);
+				return 1;
+			})
+			.then(Commands.literal("stop").executes(ctx -> {
+				ServerPlayer player = ctx.getSource().getPlayerOrException();
+				RiderWatch.stop(player);
+				ctx.getSource().sendSuccess(() -> Component.literal("No longer following the riders."), false);
+				return 1;
+			})));
 		root.then(Commands.literal("dispatch").executes(ctx -> {
 			int sent = PostDispatcher.dispatch(ctx.getSource().getServer());
 			ctx.getSource().sendSuccess(() -> Component.translatable("command.postrider.dispatched", sent), true);

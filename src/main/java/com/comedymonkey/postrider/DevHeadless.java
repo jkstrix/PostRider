@@ -80,32 +80,39 @@ public final class DevHeadless {
 			server.halt(false);
 			return;
 		}
-		ServerLevel overworld = server.overworld();
-		overworld.setDayTime(MORNING);
+		server.overworld().setDayTime(MORNING);
 		try {
-			if (names[0].equals("spawn"))
-				names[0] = putDownSpawnBox(server);
-			if (names[1].startsWith("random:") || names[1].startsWith("at:"))
-				names[1] = putDownFarBox(server, names[0], names[1]);
-			delivery = Posting.post(server, names[0], names[1]);
+			delivery = postNamed(server, names);
 		} catch (IllegalArgumentException e) {
 			PostRider.LOGGER.error("Post Rider headless run: {}", e.getMessage());
 			server.halt(false);
 			return;
 		}
-		// Nobody is about to keep the box's chunks loaded and ticking for the rider to set out from: the box's chunk and
-		// the ring round it (he appears a few blocks from the box, maybe over a chunk's edge; and only a forced chunk
-		// itself ticks its entities, not the ring it keeps loaded)
-		ChunkPos box = new ChunkPos(delivery.from().pos());
-		ServerLevel level = server.getLevel(delivery.from().dimension());
-		for (int dx = -1; dx <= 1; dx++)
-			for (int dz = -1; dz <= 1; dz++)
-				(level != null ? level : overworld).setChunkForced(box.x + dx, box.z + dz, true);
 		startedAt = server.getTickCount();
 		if (Boolean.parseBoolean(System.getProperty(SPRINT_PROPERTY, "true")))
 			server.tickRateManager().requestGameToSprint(TIMEOUT_TICKS);
 		PostRider.LOGGER.info("Post Rider headless run: posted from {} at {} to {}{}", delivery.fromName(), delivery.from().pos().toShortString(), delivery.toName(),
 			server.tickRateManager().isSprinting() ? ", sprinting" : "");
+	}
+
+	/**
+	 * Posts from one box to another as a run asks: {@code spawn} for the first puts a "Spawn Post" down by the world's
+	 * spawn, {@code random:<blocks>} or {@code at:<x>,<z>} for the second puts a "Far Post" down there; and the first
+	 * box's chunk and the ring round it are kept loaded and ticking for the rider to set out from (with nobody about,
+	 * or a player elsewhere). Throws IllegalArgumentException with the reason if it can't.
+	 */
+	public static PendingDelivery postNamed(MinecraftServer server, String[] names) {
+		if (names[0].equals("spawn"))
+			names[0] = putDownSpawnBox(server);
+		if (names[1].startsWith("random:") || names[1].startsWith("at:"))
+			names[1] = putDownFarBox(server, names[0], names[1]);
+		PendingDelivery posted = Posting.post(server, names[0], names[1]);
+		ChunkPos box = new ChunkPos(posted.from().pos());
+		ServerLevel level = server.getLevel(posted.from().dimension());
+		for (int dx = -1; dx <= 1; dx++)
+			for (int dz = -1; dz <= 1; dz++)
+				(level != null ? level : server.overworld()).setChunkForced(box.x + dx, box.z + dz, true);
+		return posted;
 	}
 
 	public static final String FAR_BOX = "Far Post";

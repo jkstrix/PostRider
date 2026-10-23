@@ -1,14 +1,15 @@
 package com.comedymonkey.postrider.client;
 
 import java.util.Locale;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.DevHeadless;
 import com.comedymonkey.postrider.PostRider;
-import com.comedymonkey.postrider.content.postman.DeliveryRun;
+import com.comedymonkey.postrider.RiderWatch;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
+import com.comedymonkey.postrider.post.PendingDelivery;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
@@ -17,8 +18,6 @@ import net.minecraft.client.tutorial.TutorialSteps;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.RelativeMovement;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.level.GameRules;
@@ -34,31 +33,65 @@ import net.neoforged.neoforge.common.NeoForge;
  * For development only: started with the system property {@code postrider.watch} (the {@code runWatch} Gradle
  * task), the game opens a flat creative world of its own and runs the in-world tests in front of the player, to be
  * watched: all of them, or the one the property names. The player is made a spectator and kept a few blocks off
- * the rider most recently out, looking at him (the mouse swings the view round him), then the next once that
- * one's delivered, and so on; shift lets go of a rider until the next one, and the game doesn't pause when another
- * window is in front. It stays open
- * afterwards (type {@code /test runall} or {@code /test run <name>} for another go; {@code /test clearall}
+ * the rider most recently out (see {@link RiderWatch}), and the game doesn't pause when another window is in front.
+ * It stays open afterwards (type {@code /test runall} or {@code /test run <name>} for another go; {@code /test clearall}
  * tidies up).
+ * <p>
+ * With {@code postrider.watchWorld} set to {@code "<world>|<from>|<to>"} instead ({@code runWatch -Pworld=...}), a
+ * trip across a real world is watched: one of the player's worlds (copied into the run's saves by Gradle), or a
+ * fresh ordinary one for {@code new} ({@code postrider.watchSeed} for the same one again); a parcel is posted from
+ * the one box to the other as the headless run posts ({@code spawn}, {@code random:<blocks>}, {@code at:<x>,<z>}),
+ * and the player follows the rider the same way, at the game's own pace, day and night.
  */
 public final class DevWatch {
 	public static final String PROPERTY = "postrider.watch";
+	public static final String WORLD_PROPERTY = "postrider.watchWorld";
+	public static final String SEED_PROPERTY = "postrider.watchSeed";
 	private static final String WORLD = "postrider_watch";
+
+	/** A trip to watch across a real world: which world ({@code new} for a fresh one), and the boxes to post from and to. */
+	public record WorldRun(String world, String from, String to) {
+		public boolean fresh() {
+			return world.equals("new");
+		}
+
+		/** The fresh world's folder name, by its seed, so the same seed opens the same world again. */
+		public String folder(@Nullable String seed) {
+			return "postrider_watch_" + (seed == null || seed.isBlank() ? "random" : seed.trim().replaceAll("[^A-Za-z0-9_-]", "_"));
+		}
+	}
+
+	/** The trip the property asks for; null if it's unset or isn't three names with bars between. */
+	@Nullable
+	public static WorldRun worldRun(@Nullable String property) {
+		if (property == null || property.isBlank())
+			return null;
+		String[] parts = property.split("\\|", -1);
+		if (parts.length != 3 || parts[0].isBlank() || parts[1].isBlank() || parts[2].isBlank())
+			return null;
+		return new WorldRun(parts[0].trim(), parts[1].trim(), parts[2].trim());
+	}
+
+	/** A world seed as the game takes one: a number as it is, anything else by its hash; a random one if there's none. */
+	public static long seed(@Nullable String seed) {
+		if (seed == null || seed.isBlank())
+			return new java.util.Random().nextLong();
+		try {
+			return Long.parseLong(seed.trim());
+		} catch (NumberFormatException e) {
+			return seed.trim().hashCode();
+		}
+	}
 	/** Ticks to let the world settle (the player stood on the ground, chunks round him loaded) before the tests. */
 	private static final int SETTLE_TICKS = 60;
 
 	private enum Step { START, JOINING, SETTLING, WATCHING }
-	/** How often (in ticks) the spectator is given the next rider to follow, once his is done. */
-	private static final int FOLLOW_CHECK = 10;
-	/** How far back from the rider the spectator is kept, along his own line of sight. */
-	public static final double FOLLOW_DISTANCE = 7.0;
+	public static final double FOLLOW_DISTANCE = RiderWatch.FOLLOW_DISTANCE;
 
 	private static Step step = Step.START;
 	private static int ticks;
-	/** The rider the spectator was last set to follow (the player lets go with shift; nobody is forced back on). */
 	@Nullable
-	private static PostmanEntity followed;
-	/** The player let go (shift): he's left where he is until the next rider. */
-	private static boolean letGo;
+	private static WorldRun worldRun;
 
 	private DevWatch() {}
 
@@ -75,9 +108,13 @@ public final class DevWatch {
 
 	/** Switches the run on if the game was started for it. */
 	public static void registerIfWanted() {
-		if (System.getProperty(PROPERTY) == null)
+		worldRun = worldRun(System.getProperty(WORLD_PROPERTY));
+		if (worldRun != null)
+			PostRider.LOGGER.info("Post Rider watch run: the game will open the world {} and post from {} to {}", worldRun.world(), worldRun.from(), worldRun.to());
+		else if (System.getProperty(PROPERTY) != null)
+			PostRider.LOGGER.info("Post Rider watch run: the game will open a world and run the in-world tests ({})", command(System.getProperty(PROPERTY)));
+		else
 			return;
-		PostRider.LOGGER.info("Post Rider watch run: the game will open a world and run the in-world tests ({})", command(System.getProperty(PROPERTY)));
 		Consumer<ClientTickEvent.Post> tick = event -> tick(Minecraft.getInstance());
 		NeoForge.EVENT_BUS.addListener(tick);
 	}
@@ -100,7 +137,9 @@ public final class DevWatch {
 				minecraft.options.pauseOnLostFocus = false;
 				minecraft.options.save();
 				step = Step.JOINING;
-				if (minecraft.getLevelSource().levelExists(WORLD)) {
+				if (worldRun != null) {
+					openWorldToWatch(minecraft, worldRun);
+				} else if (minecraft.getLevelSource().levelExists(WORLD)) {
 					minecraft.createWorldOpenFlows().openWorld(WORLD, () -> minecraft.setScreen(new TitleScreen()));
 				} else {
 					LevelSettings settings = new LevelSettings(WORLD, GameType.CREATIVE, false, Difficulty.PEACEFUL, true, new GameRules(),
@@ -122,6 +161,10 @@ public final class DevWatch {
 					return;
 				step = Step.WATCHING;
 				ticks = 0;
+				if (worldRun != null) {
+					server.execute(() -> postAndWatch(server, worldRun));
+					return;
+				}
 				String command = command(System.getProperty(PROPERTY));
 				// On the server's own thread (this is the client's): the tests load chunks and set blocks as they're placed
 				server.execute(() -> {
@@ -136,59 +179,56 @@ public final class DevWatch {
 					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "tp @s " + (spot * 2048 + 512) + " -60 " + ((spot * 7919) % 64 * 2048 + 512));
 					PostRider.LOGGER.info("Post Rider watch run: /{}", command);
 					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), command);
-					// A spectator: through walls and roofs to see, and a click on a rider to follow him
-					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "gamemode spectator");
+					// A spectator, kept off the rider most recently out
+					RiderWatch.start(player);
 				});
 			}
-			case WATCHING -> {
-				MinecraftServer server = minecraft.getSingleplayerServer();
-				if (server != null)
-					server.execute(() -> follow(server));
+			case WATCHING -> {}
+		}
+	}
+
+	/** Opens the world a trip is to be watched across: one of the player's (copied in by Gradle), or a fresh ordinary one. */
+	private static void openWorldToWatch(Minecraft minecraft, WorldRun run) {
+		if (!run.fresh()) {
+			if (!minecraft.getLevelSource().levelExists(run.world())) {
+				PostRider.LOGGER.error("Post Rider watch run: no world called {} in this run's saves", run.world());
+				return;
 			}
+			minecraft.createWorldOpenFlows().openWorld(run.world(), () -> minecraft.setScreen(new TitleScreen()));
+			return;
 		}
+		String folder = run.folder(System.getProperty(SEED_PROPERTY));
+		if (minecraft.getLevelSource().levelExists(folder)) {
+			minecraft.createWorldOpenFlows().openWorld(folder, () -> minecraft.setScreen(new TitleScreen()));
+			return;
+		}
+		LevelSettings settings = new LevelSettings(folder, GameType.CREATIVE, false, Difficulty.EASY, true, new GameRules(), WorldDataConfiguration.DEFAULT);
+		minecraft.createWorldOpenFlows().createFreshLevel(folder, settings, new WorldOptions(seed(System.getProperty(SEED_PROPERTY)), true, false),
+			access -> access.registryOrThrow(Registries.WORLD_PRESET).getHolderOrThrow(WorldPresets.NORMAL).value().createWorldDimensions(),
+			new TitleScreen());
 	}
 
-	/**
-	 * Keeps the spectator a few blocks off the rider he's following, looking at him, and once that rider has
-	 * finished picks the next one still on the road.
-	 */
-	private static void follow(MinecraftServer server) {
-		if (server.getPlayerList().getPlayers().isEmpty())
-			return;
+	/** Posts the parcel the run asks for and sets the player following the rider (on the server's own thread). */
+	private static void postAndWatch(MinecraftServer server, WorldRun run) {
 		ServerPlayer player = server.getPlayerList().getPlayers().get(0);
-		if (!player.isSpectator())
+		try {
+			PendingDelivery posted = DevHeadless.postNamed(server, new String[] {run.from(), run.to()});
+			PostRider.LOGGER.info("Post Rider watch run: posted from {} at {} to {}", posted.fromName(), posted.from().pos().toShortString(), posted.toName());
+		} catch (IllegalArgumentException e) {
+			PostRider.LOGGER.error("Post Rider watch run: {}", e.getMessage());
+			player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Post Rider watch run: " + e.getMessage()));
 			return;
-		if (followed == null || !onTheRoad(followed)) {
-			if (player.tickCount % FOLLOW_CHECK != 0)
-				return;
-			PostmanEntity next = null;
-			for (Entity entity : server.overworld().getAllEntities())
-				// The one most recently out, for the whole of his trip
-				if (entity instanceof PostmanEntity rider && onTheRoad(rider) && (next == null || rider.tickCount < next.tickCount))
-					next = rider;
-			if (next == null || next == followed)
-				return;
-			followed = next;
-			letGo = false;
-			PostRider.LOGGER.info("Post Rider watch run: following {}", next.getName().getString());
 		}
-		if (player.isShiftKeyDown())
-			letGo = true;
-		if (letGo)
-			return;
-		Vec3 at = viewpoint(followed.getEyePosition(), player.getLookAngle());
-		player.teleportTo(server.overworld(), at.x, at.y - player.getEyeHeight(), at.z, Set.of(RelativeMovement.X_ROT, RelativeMovement.Y_ROT),
-			player.getYRot(), player.getXRot());
+		RiderWatch.start(player);
 	}
 
-	/** Where the spectator's eyes go: {@link #FOLLOW_DISTANCE} back from the rider's along the way he's looking, so the rider stays in the middle of the view. */
+	/** As {@link RiderWatch#viewpoint}. */
 	public static Vec3 viewpoint(Vec3 riderEyes, Vec3 look) {
-		return riderEyes.subtract(look.normalize().scale(FOLLOW_DISTANCE));
+		return RiderWatch.viewpoint(riderEyes, look);
 	}
 
-	/** Whether a rider is out on a delivery (not finished, not gone). */
+	/** As {@link RiderWatch#onTheRoad}. */
 	public static boolean onTheRoad(PostmanEntity rider) {
-		DeliveryRun run = rider.getRun();
-		return rider.isAlive() && run != null && run.stage() != DeliveryRun.Stage.DONE;
+		return RiderWatch.onTheRoad(rider);
 	}
 }
