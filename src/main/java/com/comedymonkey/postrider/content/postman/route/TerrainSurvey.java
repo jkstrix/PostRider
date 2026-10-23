@@ -102,8 +102,29 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 			tile = survey(tx, tz, now);
 			tiles.put(key, tile);
 			trim();
+		} else if (tile.isDone() && now - tile.refreshedAt >= LOADED_LIFETIME) {
+			refresh(tile, tx, tz, now);
 		}
 		return tile.isDone() ? tile.cells[Math.floorMod(cz, TILE_CELLS) * TILE_CELLS + Math.floorMod(cx, TILE_CELLS)] : null;
+	}
+
+	/** Any chunk of a tile that was estimated (or read off disk) and has since been loaded is read from the real ground. */
+	private void refresh(Tile tile, int tx, int tz, long now) {
+		tile.refreshedAt = now;
+		for (int dx = 0; dx < TILE_CHUNKS; dx++)
+			for (int dz = 0; dz < TILE_CHUNKS; dz++) {
+				int chunk = dz * TILE_CHUNKS + dx;
+				if (!tile.guessed[chunk])
+					continue;
+				ChunkPos pos = new ChunkPos(tx * TILE_CHUNKS + dx, tz * TILE_CHUNKS + dz);
+				LevelChunk loaded = level.getChunkSource().getChunkNow(pos.x, pos.z);
+				if (loaded == null)
+					continue;
+				tile.guessed[chunk] = false;
+				tile.filled[chunk] = false;
+				tile.chunksLeft++;
+				fill(tile, pos, loadedHeights(loaded, Heightmap.Types.OCEAN_FLOOR), loadedHeights(loaded, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES));
+			}
 	}
 
 	private void trim() {
@@ -207,8 +228,11 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 
 	private void fill(ChunkPos pos, int[] floors, int[] tops) {
 		Tile tile = tiles.get(ChunkPos.asLong(Math.floorDiv(pos.x, TILE_CHUNKS), Math.floorDiv(pos.z, TILE_CHUNKS)));
-		if (tile != null)
+		if (tile != null) {
+			// Off disk or estimated: to be read from the real ground once the chunk is loaded
+			tile.guessed[Math.floorMod(pos.z, TILE_CHUNKS) * TILE_CHUNKS + Math.floorMod(pos.x, TILE_CHUNKS)] = true;
 			fill(tile, pos, floors, tops);
+		}
 	}
 
 	private void fill(Tile tile, ChunkPos pos, int[] floors, int[] tops) {
@@ -274,12 +298,16 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	private static final class Tile {
 		final CoarsePlanner.Cell[] cells = new CoarsePlanner.Cell[TILE_CELLS * TILE_CELLS];
 		final boolean[] filled = new boolean[TILE_CHUNKS * TILE_CHUNKS];
+		/** Chunks whose heights came off disk or from the generator's noise, not the loaded chunk itself. */
+		final boolean[] guessed = new boolean[TILE_CHUNKS * TILE_CHUNKS];
 		final long since;
+		long refreshedAt;
 		long lifetime = TILE_LIFETIME;
 		int chunksLeft = TILE_CHUNKS * TILE_CHUNKS;
 
 		Tile(long since) {
 			this.since = since;
+			this.refreshedAt = since;
 		}
 
 		boolean isDone() {

@@ -206,4 +206,10 @@ class DeliveryRunTest {
 			< PostmanEntity.blocksPerSecond(DeliveryRun.RUN_SPEED, PostmanEntity.BASE_SPEED * PostmanEntity.SPRINT_BOOST), "a walk is slower than his run");
 		assertEquals(DeliveryRun.WALK_BLOCKS_PER_SECOND, PostmanEntity.blocksPerSecond(DeliveryRun.WALK_SPEED, PostmanEntity.BASE_SPEED), 0.05, "a player's walking pace");
 	}
+
+	@Test
+	void theMapStaysOutWhileTheRouteIsCheckedAgainstTheGround() {
+		assertTrue(DeliveryRun.MAP_CHECK_TICKS >= 20 * 30, "long enough for a stage's chunks to load (half a minute at least)");
+		assertTrue(DeliveryRun.MAP_CHECKS >= 1 && DeliveryRun.MAP_CHECKS <= 3, "a redo or two, then he goes regardless");
+	}
 }

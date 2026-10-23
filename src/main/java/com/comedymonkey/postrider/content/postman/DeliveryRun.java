@@ -89,6 +89,12 @@ public class DeliveryRun {
 	/** He looks at his map for at least 5 seconds, and sets off with the best route so far after 20. */
 	public static final int MAP_MIN_TICKS = 100;
 	public static final int MAP_MAX_TICKS = 400;
+	/** Once the route is planned, the map stays out this long at most while the ground along it is read and the plan checked (a minute). */
+	public static final int MAP_CHECK_TICKS = 1200;
+	/** How many times the plan is redone against the real ground before he sets off regardless. */
+	public static final int MAP_CHECKS = 2;
+	private int mapChecks;
+	private boolean checkingMap;
 	/** After the pickup he walks this far out from the front of the mailbox to look at his map, for at most this long. */
 	public static final double MAP_STAND_OFF = 4.0;
 	public static final int STEP_AWAY_TICKS = 60;
@@ -393,6 +399,7 @@ public class DeliveryRun {
 		rider.getNavigation().stop();
 		if (stageTicks == 1) {
 			rider.setSprinting(false);
+			checkingMap = false;
 			if (!alreadyPlanning)
 				navigator.replan(level, rider.position(), target);
 			alreadyPlanning = false;
@@ -402,7 +409,30 @@ public class DeliveryRun {
 				face(rider, yawToward(rider.position(), navigator.heading(rider.position(), target)));
 			showMap(rider, true);
 		}
-		if (stageTicks >= MAP_MIN_TICKS && (navigator.isPlanned() || stageTicks >= MAP_MAX_TICKS)) {
+		// Planned: the ground along the whole stage is held (loaded, generated if need be) and read, and the plan checked
+		// against it; one that doesn't fit is redone, a couple of times at most, before he sets off
+		if (!checkingMap && navigator.isPlanned() && navigator.plan() != null) {
+			checkingMap = true;
+			mapChecks = 0;
+			navigator.holdStageAhead(level, rider.position());
+			logRoute(rider, "checking the route against the ground: " + navigator.chunksAhead() + " chunks along it to read");
+		}
+		if (checkingMap && navigator.isPlanned() && stageTicks < MAP_MAX_TICKS + MAP_CHECK_TICKS) {
+			if (!navigator.aheadLoaded(level))
+				return;
+			if (!navigator.planFits(level) && mapChecks < MAP_CHECKS) {
+				mapChecks++;
+				logRoute(rider, "the ground along the route isn't as the map had it: the route is redone (" + mapChecks + ")");
+				navigator.replan(level, rider.position(), target);
+				navigator.holdStageAhead(level, rider.position());
+				return;
+			}
+		}
+		if (stageTicks >= MAP_MIN_TICKS && (navigator.isPlanned() && (!checkingMap || navigator.aheadLoaded(level) || stageTicks >= MAP_MAX_TICKS + MAP_CHECK_TICKS)
+				|| stageTicks >= MAP_MAX_TICKS + MAP_CHECK_TICKS)) {
+			if (checkingMap)
+				logRoute(rider, "the route checks out against the ground" + (mapChecks > 0 ? " (after " + mapChecks + " redoing)" : ""));
+			checkingMap = false;
 			navigator.goWithBestSoFar();
 			showMap(rider, false);
 			enter(afterPlanning);

@@ -312,11 +312,40 @@ public final class Navigator {
 		return points;
 	}
 
+	/** Holds the chunks along the whole of this stage of the plan, to be read before he sets off. */
+	public void holdStageAhead(ServerLevel level, Vec3 here) {
+		keepAheadLoaded(level, here, STAGE);
+	}
+
+	/** Whether every chunk held ahead is loaded now (and so its real ground is in the survey, or about to be). */
+	public boolean aheadLoaded(ServerLevel level) {
+		for (long chunk : ahead) {
+			ChunkPos pos = new ChunkPos(chunk);
+			if (level.getChunkSource().getChunkNow(pos.x, pos.z) == null)
+				return false;
+		}
+		return true;
+	}
+
+	/** Whether the plan, as it stands, fits the ground as the survey now has it. */
+	public boolean planFits(ServerLevel level) {
+		return plan == null || legsFit(plan.legs(), leg, TerrainSurvey.of(level));
+	}
+
+	/** How many chunks are held ahead, for the log. */
+	public int chunksAhead() {
+		return ahead.size();
+	}
+
 	/** Keeps the chunks along the plan ahead loaded (and so generated), a window moved on as he goes. */
 	private void keepAheadLoaded(ServerLevel level, Vec3 here) {
+		keepAheadLoaded(level, here, AHEAD_BLOCKS);
+	}
+
+	private void keepAheadLoaded(ServerLevel level, Vec3 here, double distance) {
 		Set<Long> wanted = new HashSet<>();
 		if (owner != null && plan != null)
-			for (Vec3 point : pointsAhead(plan.legs(), leg, here, AHEAD_BLOCKS, CoarsePlanner.CELL))
+			for (Vec3 point : pointsAhead(plan.legs(), leg, here, distance, CoarsePlanner.CELL))
 				for (int dx = -AHEAD_WIDTH; dx <= AHEAD_WIDTH; dx++)
 					for (int dz = -AHEAD_WIDTH; dz <= AHEAD_WIDTH; dz++)
 						wanted.add(ChunkPos.asLong((Mth.floor(point.x) >> 4) + dx, (Mth.floor(point.z) >> 4) + dz));
