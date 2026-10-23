@@ -18,9 +18,15 @@ bin/
 # dev runs
 run/
 run-gametest/
+run-headless/
+run-watch/
 runs/
 run-screenshots/
 repo/
+
+# claude code: agent worktrees and local settings
+.claude/worktrees/
+.claude/settings.local.json
 
 # built jars copied out for release
 release/
