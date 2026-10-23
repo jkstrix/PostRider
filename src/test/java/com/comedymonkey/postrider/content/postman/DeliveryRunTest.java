@@ -258,4 +258,11 @@ class DeliveryRunTest {
 		// Ice a block higher (stood on at 64): a bank, and he steps ashore onto it
 		assertFalse(DeliveryRun.isSlidableIce(64, 62));
 	}
+
+	@Test
+	void aHullBumpingWithOpenWaterAheadIsCaughtOnACorner() {
+		assertTrue(DeliveryRun.caughtOnACorner(true, false), "bumping, nothing ahead of the bow: the side's caught");
+		assertFalse(DeliveryRun.caughtOnACorner(true, true), "bumping with the bow against a bank: hard against the shore, not a corner");
+		assertFalse(DeliveryRun.caughtOnACorner(false, false));
+	}
 }

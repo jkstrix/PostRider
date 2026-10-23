@@ -63,6 +63,8 @@ public final class Navigator {
 	/** On the water, the way across is planned again this often (drowned move), and he steers for this far along it. */
 	public static final int WATER_REPLAN_TICKS = 40;
 	public static final double WATER_LOOKAHEAD = 5;
+	/** In tight water (a lead between bergs, a channel just wide enough) it steers for a point only this far along, or the hull cuts the bends and catches on the corners. */
+	public static final double TIGHT_LOOKAHEAD = 2.5;
 	/** How close to the landing place the barge's way across has to come. */
 	public static final double LANDING_RADIUS = 6;
 	/** On foot with the barge this close ahead, he stays on foot rather than calling his horse for a few blocks. */
@@ -1647,7 +1649,8 @@ public final class Navigator {
 			return null;
 		}
 		waterFails = 0;
-		Vec3 point = steerFor(waterPath, waterPathFinal, goal, here);
+		boolean tight = WaterPlanner.tight(water(level, nearY), Mth.floor(here.x), Mth.floor(here.z), goal.x, goal.z, radius);
+		Vec3 point = steerFor(waterPath, waterPathFinal, goal, here, tight);
 		return new Vec3(point.x, here.y, point.z);
 	}
 
@@ -1692,9 +1695,14 @@ public final class Navigator {
 	 * landing place itself, so the bow runs up onto the bank rather than the barge drifting to a stop short of it.
 	 */
 	public static Vec3 steerFor(List<Vec3> path, boolean landing, Vec3 goal, Vec3 here) {
+		return steerFor(path, landing, goal, here, false);
+	}
+
+	/** As above; in {@code tight} water, for a point only {@link #TIGHT_LOOKAHEAD} along, so the hull follows the bends rather than cut them. */
+	public static Vec3 steerFor(List<Vec3> path, boolean landing, Vec3 goal, Vec3 here, boolean tight) {
 		if (landing && Journey.horizontalDistance(here, path.get(path.size() - 1)) <= WATER_LOOKAHEAD)
 			return goal;
-		return along(path, here, WATER_LOOKAHEAD);
+		return along(path, here, tight ? TIGHT_LOOKAHEAD : WATER_LOOKAHEAD);
 	}
 
 	/**

@@ -692,6 +692,13 @@ public class DeliveryRun {
 				if (line != null && Journey.horizontalDistance(line, barge.position()) > OFF_THE_LINE)
 					aim = line;
 			}
+			// The hull's side caught on a corner (bumping, with open water ahead of the bow): a block back off it every
+			// second or so, and on round it, rather than push at the corner
+			if (aim != null && caughtOnACorner(barge.horizontalCollision, barge.isBlockedAhead()) && level.getGameTime() - lastBackOff >= CORNER_BACKOFF_TICKS) {
+				lastBackOff = level.getGameTime();
+				logRoute(rider, "the barge is caught on a corner at " + Navigator.spot(barge.position()) + ": it backs off a block");
+				barge.backOff();
+			}
 			if (aim == null)
 				aim = Crossing.waterAim(barge.position(), target,
 					a -> !Hazards.isDangerous(level, BlockPos.containing(surface(level, a))),
@@ -720,6 +727,14 @@ public class DeliveryRun {
 
 	/** How long after launching before the bank behind it counts as reaching shore. */
 	private static final int PUSH_OFF_TICKS = 40;
+	/** How often, at most, the barge backs off a corner its hull is caught on. */
+	public static final int CORNER_BACKOFF_TICKS = 20;
+	private long lastBackOff = Long.MIN_VALUE / 2;
+
+	/** Whether the hull is caught on a corner: bumping against something, with nothing but open water ahead of the bow. */
+	public static boolean caughtOnACorner(boolean bumping, boolean blockedAhead) {
+		return bumping && !blockedAhead;
+	}
 	/** Why the barge counted as ashore the last time it did, for the log. */
 	private String ashoreWhy = "";
 	/** This far off the line of its way across, a barge caught on an edge steers back onto the line before going on. */

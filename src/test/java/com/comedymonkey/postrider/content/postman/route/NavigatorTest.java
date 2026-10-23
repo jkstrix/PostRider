@@ -470,4 +470,13 @@ class NavigatorTest {
 		List<Long> struck = Navigator.shoreAround(new Vec3(4, barge, 4), (cx, cz) -> cx > 0 ? iceStep : seaIce);
 		assertEquals(3, struck.size(), "the three cells of the ice step beside him, none of the sea ice");
 	}
+
+	@Test
+	void inTightWaterItSteersForAPointCloserAlongTheWay() {
+		List<Vec3> way = List.of(new Vec3(0.5, 62, 0.5), new Vec3(20.5, 62, 0.5));
+		Vec3 goal = new Vec3(20.5, 62, 0.5), here = new Vec3(0.5, 62, 0.5);
+		assertEquals(0.5 + Navigator.WATER_LOOKAHEAD, Navigator.steerFor(way, false, goal, here, false).x, 1e-6, "open water: well along");
+		assertEquals(0.5 + Navigator.TIGHT_LOOKAHEAD, Navigator.steerFor(way, false, goal, here, true).x, 1e-6, "a lead between bergs: close along, so the hull follows the bends");
+		assertTrue(Navigator.TIGHT_LOOKAHEAD < Navigator.WATER_LOOKAHEAD);
+	}
 }
