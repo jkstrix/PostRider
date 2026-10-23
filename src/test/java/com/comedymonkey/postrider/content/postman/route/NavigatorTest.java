@@ -285,9 +285,27 @@ class NavigatorTest {
 	@Test
 	void theCellsFromHereToTheGoalAreTheOnesStruckOff() {
 		List<Long> cells = Navigator.cellsBetween(new Vec3(4, 64, 4), new Vec3(44, 64, 4));
-		assertEquals(6, cells.size(), "his own cell, four between, and the goal's");
-		assertEquals(CoarsePlanner.key(0, 0), cells.get(0));
-		assertEquals(CoarsePlanner.key(5, 0), cells.get(cells.size() - 1));
-		assertEquals(1, Navigator.cellsBetween(new Vec3(4, 64, 4), new Vec3(5, 64, 5)).size(), "the same cell once");
+		assertEquals(8 * 3, cells.size(), "his own cell, four between, and the goal's, the cells either side of each, and one beyond each end");
+		assertTrue(cells.contains(CoarsePlanner.key(0, 0)));
+		assertTrue(cells.contains(CoarsePlanner.key(5, 0)));
+		assertTrue(cells.contains(CoarsePlanner.key(3, 1)) && cells.contains(CoarsePlanner.key(3, -1)), "a band, not a thread");
+		assertEquals(9, Navigator.cellsBetween(new Vec3(4, 64, 4), new Vec3(5, 64, 5)).size(), "the same cell once, with its neighbours");
+	}
+
+	@Test
+	void aLandLegOverACliffNoLongerFits() {
+		CoarsePlanner.Leg land = new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(4, 64, 4), new Vec3(92, 64, 4)));
+		CoarsePlanner.Cells gentle = (cx, cz) -> new CoarsePlanner.Cell(64 + cx * 3, 0, 3, false);
+		assertTrue(Navigator.legsFit(List.of(land), 0, gentle), "three up a cell, rolling: ridden");
+		CoarsePlanner.Cells cliffWithin = (cx, cz) -> new CoarsePlanner.Cell(64, 0, cx >= 5 && cx <= 7 ? 12 : 0, false);
+		assertFalse(Navigator.legsFit(List.of(land), 0, cliffWithin), "a twelve-block cliff inside the cells on the way");
+		CoarsePlanner.Cells cliffAtTheEnds = (cx, cz) -> new CoarsePlanner.Cell(64, 0, cx == 0 || cx == 11 ? 12 : 0, false);
+		assertTrue(Navigator.legsFit(List.of(land), 0, cliffAtTheEnds), "where he stands and the mailbox's cell may be as steep as they like");
+		assertEquals(CoarsePlanner.MAX_RISE, Navigator.STEEP_BETWEEN, "the check asks no more of a step than the plan did, or it'd never pass");
+		assertEquals(CoarsePlanner.CLIFF_WITHIN, Navigator.STEEP_WITHIN, "nor of a cell");
+		CoarsePlanner.Cells stepBetween = (cx, cz) -> new CoarsePlanner.Cell(cx >= 6 ? 80 : 64, 0, 0, false);
+		assertFalse(Navigator.legsFit(List.of(land), 0, stepBetween), "sixteen up from one cell to the next");
+		CoarsePlanner.Cells terrace = (cx, cz) -> new CoarsePlanner.Cell(cx >= 6 ? 70 : 64, 0, 0, false);
+		assertTrue(Navigator.legsFit(List.of(land), 0, terrace), "six up from one cell to the next is a slope");
 	}
 }

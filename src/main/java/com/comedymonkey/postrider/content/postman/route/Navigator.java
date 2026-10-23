@@ -261,24 +261,45 @@ public final class Navigator {
 		return legsFit(legs, fromLeg, cells, null, Double.MAX_VALUE);
 	}
 
-	/** As above, looking only at the plan within {@code reach} blocks along it from {@code here} (what's loaded and so really known). */
+	/** More than this much height within one cell of a land leg (its highest sample over its lowest) is a cliff, not ground to ride over. */
+	public static final int STEEP_WITHIN = CoarsePlanner.CLIFF_WITHIN;
+	/** More than this many blocks up or down from one cell of a land leg to the next is a step no horse or man makes. */
+	public static final int STEEP_BETWEEN = CoarsePlanner.MAX_RISE;
+
+	/**
+	 * As above, looking only at the plan within {@code reach} blocks along it from {@code here} (what's loaded and so
+	 * really known). A land leg over ground too steep to ride (a cliff within a cell, or a step of more than
+	 * {@link #STEEP_BETWEEN} from one cell to the next) doesn't fit either, the plan being made the same way; the
+	 * cells at either end (where he stands, and the mailbox's) may be as steep as they like.
+	 */
 	public static boolean legsFit(List<CoarsePlanner.Leg> legs, int fromLeg, CoarsePlanner.Cells cells, @Nullable Vec3 here, double reach) {
-		for (int i = Math.max(0, fromLeg); i < legs.size(); i++) {
+		int first = Math.max(0, fromLeg);
+		long startCell = first < legs.size() ? cellKeyOf(legs.get(first).points().get(0)) : 0;
+		long goalCell = !legs.isEmpty() ? cellKeyOf(legs.get(legs.size() - 1).points().get(legs.get(legs.size() - 1).points().size() - 1)) : 0;
+		for (int i = first; i < legs.size(); i++) {
 			CoarsePlanner.Leg leg = legs.get(i);
+			CoarsePlanner.Cell previous = null;
 			for (Vec3 point : sampled(leg.points(), CoarsePlanner.CELL)) {
 				if (here != null && Journey.horizontalDistance(here, point) > reach)
 					continue;
 				int cx = CoarsePlanner.cellOf(point.x), cz = CoarsePlanner.cellOf(point.z);
 				CoarsePlanner.Cell cell = cells.cell(cx, cz);
-				if (cell == null)
+				if (cell == null) {
+					previous = null;
 					continue;
+				}
 				if (cell.isVoid())
 					return false;
-				boolean wrong = leg.kind() == CoarsePlanner.LegKind.LAND ? cell.water() : !cell.water() && !cell.shore();
+				long key = CoarsePlanner.key(cx, cz);
+				boolean anEnd = !legs.isEmpty() && (key == startCell || key == goalCell);
+				boolean wrong = leg.kind() == CoarsePlanner.LegKind.LAND ? cell.water() || (!anEnd && cell.rough() > STEEP_WITHIN) : !cell.water() && !cell.shore();
 				// A leg's line is drawn between the cells its way went through, so at a bend it clips the corner of a
 				// cell beside the way: only a cell with no fitting ground next to it is a real mismatch
 				if (wrong && !fittingBeside(cells, cx, cz, leg.kind()))
 					return false;
+				if (leg.kind() == CoarsePlanner.LegKind.LAND && previous != null && cell != previous && Math.abs(cell.height() - previous.height()) > STEEP_BETWEEN)
+					return false;
+				previous = cell;
 			}
 		}
 		return true;
@@ -293,7 +314,7 @@ public final class Navigator {
 				CoarsePlanner.Cell cell = cells.cell(cx + dx, cz + dz);
 				if (cell == null || cell.isVoid())
 					continue;
-				if (kind == CoarsePlanner.LegKind.LAND ? !cell.water() : cell.water() || cell.shore())
+				if (kind == CoarsePlanner.LegKind.LAND ? !cell.water() && cell.rough() <= STEEP_WITHIN : cell.water() || cell.shore())
 					return true;
 			}
 		return false;
@@ -1453,16 +1474,28 @@ public final class Navigator {
 		return Journey.horizontalDistance(here, nearest) > OFF_PATH + 1;
 	}
 
-	/** The long-range plan's cells on the straight line from one spot to another, both ends included. */
+	private static long cellKeyOf(Vec3 point) {
+		return CoarsePlanner.key(CoarsePlanner.cellOf(point.x), CoarsePlanner.cellOf(point.z));
+	}
+
+	/**
+	 * The long-range plan's cells on the straight line from one spot to another, both ends included, and the cells
+	 * either side of the line (a cliff or a ridge the way ran into is struck off as a band, not a thread, or the next
+	 * plan tries it one cell over).
+	 */
 	public static List<Long> cellsBetween(Vec3 from, Vec3 to) {
 		List<Long> cells = new ArrayList<>();
 		double distance = Journey.horizontalDistance(from, to);
 		int steps = Math.max(1, (int) Math.ceil(distance / CoarsePlanner.CELL));
 		for (int i = 0; i <= steps; i++) {
 			Vec3 point = from.lerp(to, (double) i / steps);
-			long cell = CoarsePlanner.key(CoarsePlanner.cellOf(point.x), CoarsePlanner.cellOf(point.z));
-			if (!cells.contains(cell))
-				cells.add(cell);
+			int cx = CoarsePlanner.cellOf(point.x), cz = CoarsePlanner.cellOf(point.z);
+			for (int dx = -1; dx <= 1; dx++)
+				for (int dz = -1; dz <= 1; dz++) {
+					long cell = CoarsePlanner.key(cx + dx, cz + dz);
+					if (!cells.contains(cell))
+						cells.add(cell);
+				}
 		}
 		return cells;
 	}

@@ -243,4 +243,15 @@ class CoarsePlannerTest {
 		CoarsePlanner.Cells steep = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(73, 0, 0, false) : LAND;
 		assertEquals(Status.DONE, new CoarsePlanner(steep, 2, 2, 18, 2, Set.of()).finishNow(), "nine up across a cell is a steep slope, taken");
 	}
+
+	@Test
+	void aCliffFaceInsideACellIsntCrossedEither() {
+		// A wall of cells with nine blocks of height inside each (a cliff face), level with the ground either side
+		CoarsePlanner.Cells face = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(64, 0, 9, false) : LAND;
+		assertEquals(Status.FAILED, new CoarsePlanner(face, 2, 2, 18, 2, Set.of()).finishNow(), "a cliff face of nine inside the cells");
+		CoarsePlanner.Cells rugged = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(64, 0, 8, false) : LAND;
+		assertEquals(Status.DONE, new CoarsePlanner(rugged, 2, 2, 18, 2, Set.of()).finishNow(), "eight inside a cell is rugged, ridden");
+		CoarsePlanner.Cells boxOnACliff = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 18 ? new Cell(64, 0, 12, false) : LAND;
+		assertEquals(Status.DONE, new CoarsePlanner(boxOnACliff, 2, 2, 18, 2, Set.of()).finishNow(), "the mailbox's own cell may be a cliff");
+	}
 }

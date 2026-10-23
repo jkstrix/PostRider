@@ -41,6 +41,11 @@ public final class CoarsePlanner {
 	 * which sees what the cells can't: a bridge a block wide over a chasm, a ramp cut into a cliff.
 	 */
 	public static final int MAX_RISE = 12;
+	/**
+	 * More than this much height inside one cell (its highest sampled column over its lowest) is a cliff face, not
+	 * ground to ride over: never crossed, unless it's the cell the mailbox stands in (or the one he stands in).
+	 */
+	public static final int CLIFF_WITHIN = 8;
 	/** Half-water ground (a marsh, a river bank) is slow going. */
 	public static final double SHORE_COST = 1.25;
 	public static final int MAX_NODES = 60_000;
@@ -238,7 +243,7 @@ public final class CoarsePlanner {
 		if (fromWater)
 			return length * rowing + LANDING_COST;
 		int rise = Math.abs(to.height() - from.height());
-		if (rise > MAX_RISE)
+		if (rise > MAX_RISE || (!toGoal && to.rough() > CLIFF_WITHIN))
 			return -1;
 		double slope = rise / length;
 		double steep = slope <= 0.25 ? slope : 0.25 + (slope - 0.25) * 6;

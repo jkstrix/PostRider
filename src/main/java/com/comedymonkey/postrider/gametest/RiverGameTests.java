@@ -27,21 +27,28 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * instead, and that a sandbar or an island in his way doesn't catch him. Each is a whole delivery, judged by
  * {@link Trials}.
  * <p>
- * The long-range plan samples four columns in each 8x8 cell, so it can't see a one-block wall, and the test world
- * outside an arena is open flat ground: a river reaching the arena's edge would look, from afar, as if it could be
- * ridden round outside. So each river here is closed off at both ends by a chasm (a strip of void, down out of the
- * world, too wide for the plan's sampling to miss) behind a stone rim that keeps the water in and the rider out of
- * the chasm. Rivers are 14 blocks wide and land strips at least 10, so they read as water and land in the plan's cells
- * however the scene happens to line up with them; a bridge is 12 wide for the same reason.
+ * The long-range plan samples four columns in each 8x8 cell (four blocks apart), so it can't see a one-block wall,
+ * and the test world outside an arena is open flat ground: a river reaching the arena's edge would look, from afar,
+ * as if it could be ridden round outside. So each river here is closed off at both ends by a chasm (a strip of void,
+ * down out of the world, too wide for the plan's sampling to miss) behind a stone rim that keeps the water in and
+ * the rider out of the chasm. The rim is four blocks thick and thirteen high, so however the scene lines up with the
+ * cells one of them samples it, and that cell has a cliff face inside it the plan never crosses (a one-block rim fell
+ * between the samples one time in eight, and the plan rode out over it). Rivers are 14 blocks wide and land strips
+ * at least 10, so they read as water and land in the plan's cells however the scene happens to line up with them;
+ * a bridge is 12 wide for the same reason.
  */
 @GameTestHolder(PostRider.MOD_ID)
 @PrefixGameTestTemplate(false)
 public final class RiverGameTests {
 	private static final int DELIVERY_TICKS = 6000;
 	private static final String ARENA = "gametest/arena_128x64";
-	/** How wide the chasm at each end of the arena is, and the ground between the two (the rim stands on its edges). */
+	/** How far in from each end of the arena the ground between the chasms starts (the rim stands on its edges). */
 	static final int CHASM = 12;
+	/** How thick the rim is: the plan samples columns four apart, so a rim four thick is always seen. */
+	static final int RIM = 4;
 	static final int X0 = CHASM, X1 = 127 - CHASM, Z0 = 0, Z1 = 63;
+	/** The rows the ground inside the rim runs between. */
+	static final int INSIDE_Z0 = Z0 + RIM, INSIDE_Z1 = Z1 - RIM;
 	/** Rivers run east to west across the arena, between these rows. */
 	static final int BANK_SOUTH = 38, BANK_NORTH = 25;
 	static final double MIDSTREAM = (BANK_NORTH + BANK_SOUTH + 1) / 2.0;
@@ -58,12 +65,13 @@ public final class RiverGameTests {
 		BlockState air = Blocks.AIR.defaultBlockState();
 		scene.fill(0, -8, Z0, CHASM - 1, 4, Z1, air);
 		scene.fill(128 - CHASM, -8, Z0, 127, 4, Z1, air);
-		// The rim is a cliff to the long-range plan (more than twelve high), so it never routes over it and out
+		// The rim is a cliff to the long-range plan (more than twelve high, and thick enough to be sampled whatever
+		// the alignment), so it never routes over it and out; it stands on the chasms' inner edges
 		BlockState rim = Blocks.STONE.defaultBlockState();
-		scene.fill(X0, -2, Z0, X0, 13, Z1, rim);
-		scene.fill(X1, -2, Z0, X1, 13, Z1, rim);
-		scene.fill(X0, -2, Z0, X1, 13, Z0, rim);
-		scene.fill(X0, -2, Z1, X1, 13, Z1, rim);
+		scene.fill(X0 - RIM + 1, -8, Z0, X0, 13, Z1, rim);
+		scene.fill(X1, -8, Z0, X1 + RIM - 1, 13, Z1, rim);
+		scene.fill(X0 - RIM + 1, -2, Z0, X1 + RIM - 1, 13, Z0 + RIM - 1, rim);
+		scene.fill(X0 - RIM + 1, -2, Z1 - RIM + 1, X1 + RIM - 1, 13, Z1, rim);
 	}
 
 	/** Two blocks of water between the rows, from one column to another (inside the rim). */
@@ -188,7 +196,7 @@ public final class RiverGameTests {
 	private static Scene riverMouth(GameTestHelper helper) {
 		Scene scene = new Scene(helper);
 		banks(scene);
-		river(scene, X0 + 1, Z0 + 1, 35, Z1 - 1);
+		river(scene, X0 + 1, INSIDE_Z0, 35, INSIDE_Z1);
 		river(scene, 36, BANK_NORTH, X1 - 1, BANK_SOUTH);
 		return scene;
 	}

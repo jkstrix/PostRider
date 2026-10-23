@@ -224,12 +224,13 @@ public final class RiderGameTests {
 		scene.water(18, 0, 44, 63, 2);
 		scene.fill(52, -6, 0, 56, 0, 47, Blocks.AIR.defaultBlockState());
 		// A stone wall round the edge, so neither the lake nor the barge leads out of the scene; a cliff to the long-range
-		// plan too (more than twelve high), so it never routes over it onto the ground beyond
+		// plan too (more than twelve high, and four thick so its sampling can't miss it), so it never routes over it onto
+		// the ground beyond
 		BlockState wall = Blocks.STONE.defaultBlockState();
-		scene.fill(0, -2, 0, 79, 13, 0, wall);
-		scene.fill(0, -2, 63, 79, 13, 63, wall);
-		scene.fill(0, -2, 0, 0, 13, 63, wall);
-		scene.fill(79, -2, 0, 79, 13, 63, wall);
+		scene.fill(0, -2, 0, 79, 13, 3, wall);
+		scene.fill(0, -2, 60, 79, 13, 63, wall);
+		scene.fill(0, -2, 0, 3, 13, 63, wall);
+		scene.fill(76, -2, 0, 79, 13, 63, wall);
 		String fromName = Scene.address("GT Shore A"), toName = Scene.address("GT Shore B");
 		BlockPos from = scene.mailbox(6, 24, Direction.EAST, fromName);
 		BlockPos to = scene.mailbox(72, 24, Direction.WEST, toName);
