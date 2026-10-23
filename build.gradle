@@ -51,7 +51,8 @@ neoForge {
             programArgument '--nogui'
             systemProperty 'postrider.post', "${project.findProperty('from') ?: 'Testing'}|${project.findProperty('to') ?: 'Smelly'}"
             systemProperty 'postrider.sprint', "${project.findProperty('sprint') ?: 'true'}"
-            systemProperty 'postrider.timeout', "${project.findProperty('timeout') ?: '30'}"
+            // (An hour of game time: a 3,000-block trip is a day's riding, and a night camped on the way is no failure)
+            systemProperty 'postrider.timeout', "${project.findProperty('timeout') ?: '60'}"
             systemProperty 'postrider.trace', 'true'
             systemProperty 'postrider.traceAll', 'true'
         }

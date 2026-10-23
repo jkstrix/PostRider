@@ -31,7 +31,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * For development only: started with the system property {@code postrider.post} set to {@code "<from>|<to>"}
  * (the {@code runHeadless} Gradle task, on a copy of one of the client's worlds), the server sets the clock to
  * morning, posts a parcel from the one mailbox to the other, logs how the rider is getting on every quarter minute,
- * and stops once it's delivered or lost (or after half an hour), so a trip across a real world can be run and read
+ * and stops once it's delivered or lost (or after an hour of game time), so a trip across a real world can be run and read
  * without anyone at the keyboard. The box to post to can be one put down for the run: {@code random:<blocks>} puts a
  * box called "Far Post" on dry land about that far from the first box, any way round; {@code at:<x>,<z>} puts it
  * there (the ground height is found), so a spot can be tried again.
@@ -40,8 +40,8 @@ public final class DevHeadless {
 	public static final String PROPERTY = "postrider.post";
 	/** Unless this is false, the server runs the trip as fast as it can (a tick sprint) rather than at twenty a second. */
 	public static final String SPRINT_PROPERTY = "postrider.sprint";
-	/** The server stops after this long whatever has happened (half an hour of game time, unless {@code postrider.timeout} says otherwise, in minutes). */
-	public static final int TIMEOUT_TICKS = 20 * 60 * Integer.getInteger("postrider.timeout", 30);
+	/** The server stops after this long whatever has happened (an hour of game time, unless {@code postrider.timeout} says otherwise, in minutes). */
+	public static final int TIMEOUT_TICKS = 20 * 60 * Integer.getInteger("postrider.timeout", 60);
 	private static final int STATUS_INTERVAL = 20 * 15;
 	private static final long MORNING = 1000;
 

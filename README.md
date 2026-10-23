@@ -134,8 +134,8 @@ twenty rider skins with `python tools/stamp_prop.py X Y WIDTH HEIGHT`.
 - **A real world, headless:** `./gradlew runHeadless -Pworld="New World (1)" -Pfrom=Testing -Pto=Smelly` copies that
   world from `run/saves/` to `run-headless/world`, starts a dedicated server on it, sets the clock to morning, posts a
   parcel from the one mailbox to the other, logs the rider's progress every fifteen seconds of game time (and his
-  every move, with tracing on), and stops once it's delivered or lost, or after half an hour of game time
-  (`-Ptimeout=<minutes>`). The server sprints (runs ticks as fast as it can) unless `-Psprint=false`; a fourteen-hundred-block
+  every move, with tracing on), and stops once it's delivered or lost, or after an hour of game time (a 3,000-block
+  trip is a day's ride, and a night camped on the way is no failure; `-Ptimeout=<minutes>` for another cap). The server sprints (runs ticks as fast as it can) unless `-Psprint=false`; a fourteen-hundred-block
   trip takes a few minutes. `-Pto=random:3000` puts a box called "Far Post" down on dry land about that far from the
   first box, any way round, and posts to it (the log says where; `-Pto=at:<x>,<z>` tries that spot again).
   `-Pworld=new -Pfrom=spawn` has the server generate a fresh ordinary world instead and puts a "Spawn Post" down by
