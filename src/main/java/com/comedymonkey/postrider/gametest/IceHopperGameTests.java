@@ -41,4 +41,25 @@ public final class IceHopperGameTests {
 				throw new GameTestAssertException("Not up on the ice and sliding yet: at " + at + " (ice top " + (iceTop - helper.absolutePos(net.minecraft.core.BlockPos.ZERO).getY()) + ")");
 		});
 	}
+
+	/** Sliding along a sheet of ice at a step of ice one block higher, it hops up the step and slides on. */
+	@GameTest(skyAccess = true, template = ARENA, batch = "ice_hopper_step", timeoutTicks = 400)
+	public static void itHopsUpABlockOfIceFromTheSheet(GameTestHelper helper) {
+		Scene scene = new Scene(helper);
+		scene.ground(10, 10, 70, 30);
+		scene.fill(12, 0, 12, 40, 0, 28, Blocks.ICE.defaultBlockState());
+		scene.fill(41, 0, 12, 60, 1, 28, Blocks.ICE.defaultBlockState());
+		IceHopperEntity hopper = helper.spawn(ModEntities.ICE_HOPPER.get(), new Vec3(30.5, 1.0, 20.5));
+		hopper.setYRot(-90);
+		double stepTop = helper.absolutePos(new net.minecraft.core.BlockPos(0, 2, 0)).getY();
+		helper.onEachTick(() -> {
+			if (hopper.getY() < stepTop - 0.05)
+				hopper.setDeltaMovement(0.35, hopper.getDeltaMovement().y, 0);
+		});
+		helper.succeedWhen(() -> {
+			Vec3 at = helper.relativeVec(hopper.position());
+			if (hopper.getY() < stepTop - 0.05 || at.x < 44)
+				throw new GameTestAssertException("Not up the step and sliding yet: at " + at);
+		});
+	}
 }

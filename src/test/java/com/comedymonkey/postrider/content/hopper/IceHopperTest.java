@@ -101,4 +101,19 @@ class IceHopperTest {
 		assertEquals(IceHopperEntity.BACK_SEAT, IceHopperEntity.seatOffset(2, 1), 1e-9, "the passenger the back one");
 		assertTrue(IceHopperEntity.SEAT_HEIGHT > 0.2 && IceHopperEntity.SEAT_HEIGHT <= 0.375, "sat on the seats, not through the hull");
 	}
+
+	@Test
+	void itHopsUpOneBlockOfIceTooButNeverOntoIceItsAlreadyOn() {
+		BlockState ice = Blocks.ICE.defaultBlockState(), stone = Blocks.STONE.defaultBlockState();
+		// Afloat in the water block at 62 (the hull at 62.5), sea ice ahead at 62: up to 63
+		assertEquals(63.0, IceHopperEntity.hopTop(column(Map.of(62, ice)), new BlockPos(0, 62, 0), 62.5), 1e-9);
+		// A block of ice standing on the sheet (at 63) ahead: up to 64, from the water or from the sheet
+		assertEquals(64.0, IceHopperEntity.hopTop(column(Map.of(62, ice, 63, ice)), new BlockPos(0, 62, 0), 62.5), 1e-9, "from the water, over the sheet's edge and up the block");
+		assertEquals(64.0, IceHopperEntity.hopTop(column(Map.of(62, ice, 63, ice)), new BlockPos(0, 63, 0), 63.0), 1e-9, "from the sheet");
+		// Sliding on the sheet (hull at 63) with sheet ahead: nothing to hop
+		assertTrue(Double.isNaN(IceHopperEntity.hopTop(column(Map.of(62, ice)), new BlockPos(0, 63, 0), 63.0)));
+		// Two blocks up is a wall
+		assertTrue(Double.isNaN(IceHopperEntity.hopTop(column(Map.of(62, stone, 63, stone, 64, ice)), new BlockPos(0, 62, 0), 62.5)));
+		assertTrue(IceHopperEntity.MIN_HOP_SPEED <= 0.04, "a single tick of rowing against the ice is enough to hop");
+	}
 }

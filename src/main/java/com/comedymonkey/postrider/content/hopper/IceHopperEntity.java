@@ -22,8 +22,10 @@ import net.minecraft.world.phys.Vec3;
 public class IceHopperEntity extends Boat {
 	/** How far ahead of the middle the bow looks for ice to hop onto. */
 	public static final double REACH = 1.0;
-	/** Slower than this it's only drifting, and drifts against the ice like any boat. */
-	public static final double MIN_HOP_SPEED = 0.06;
+	/** Slower than this it's only drifting, and drifts against the ice like any boat (a single tick of rowing is enough: bumped against the ice it has no way on left). */
+	public static final double MIN_HOP_SPEED = 0.03;
+	/** How far in from the hull's sides the corners of the bow look for ice, so an angled approach hops as well as a square one. */
+	public static final double CORNER_INSET = 0.15;
 	/** Clear blocks needed over the ice: the hull and whoever's in it. */
 	public static final int HEADROOM = 2;
 
@@ -83,23 +85,46 @@ public class IceHopperEntity extends Boat {
 			hop(wayOn);
 	}
 
-	/** Under way in the water with ice ahead at the water's level: up onto it, keeping way on. */
+	/**
+	 * Under way in the water, or on ice, with ice ahead at its own level or one block up: up onto it, keeping way on.
+	 * The bow's middle and both its corners look ahead, so it hops coming in at an angle too.
+	 */
 	private void hop(Vec3 motion) {
 		double speed = motion.horizontalDistance();
-		if (speed < MIN_HOP_SPEED || !isInWater())
+		if (speed < MIN_HOP_SPEED || !(isInWater() || isOnIce()))
 			return;
 		double dx = motion.x / speed, dz = motion.z / speed;
-		Vec3 ahead = position().add(dx * REACH, 0.1, dz * REACH);
-		BlockPos ice = BlockPos.containing(ahead);
-		if (!canHopOnto(level(), ice))
+		double half = getBbWidth() / 2 - CORNER_INSET;
+		for (double side : new double[] {0, half, -half}) {
+			Vec3 ahead = position().add(dx * REACH - dz * side, 0.1, dz * REACH + dx * side);
+			double top = hopTop(level(), BlockPos.containing(ahead), getY());
+			if (Double.isNaN(top))
+				continue;
+			// Up onto the ice's top, and a little way onto it, so the hull has ice under it to slide on (not just in front)
+			Vec3 up = new Vec3(getX() + dx * ONTO, top, getZ() + dz * ONTO);
+			if (!level().noCollision(this, getBoundingBox().move(up.subtract(position()))))
+				continue;
+			setPos(up.x, up.y, up.z);
+			setDeltaMovement(motion.x, 0, motion.z);
+			hasImpulse = true;
 			return;
-		// Up onto the ice's top, and a little way onto it, so the hull has ice under it to slide on (not just in front)
-		Vec3 up = new Vec3(getX() + dx * ONTO, ice.getY() + 1, getZ() + dz * ONTO);
-		if (!level().noCollision(this, getBoundingBox().move(up.subtract(position()))))
-			return;
-		setPos(up.x, up.y, up.z);
-		setDeltaMovement(motion.x, 0, motion.z);
-		hasImpulse = true;
+		}
+	}
+
+	/** Whether the hull is sat on ice (sliding, rather than afloat). */
+	public boolean isOnIce() {
+		return Crossing.isIce(level().getBlockState(BlockPos.containing(getX(), getY() - 0.1, getZ())));
+	}
+
+	/**
+	 * The top of the ice to hop onto from a block ahead at the hull's level, or NaN: that block if it's ice, else the
+	 * one above it (a single block of ice standing on the sheet, the foot of a berg); never ice it's already up on.
+	 */
+	public static double hopTop(BlockGetter level, BlockPos base, double y) {
+		for (BlockPos ice : new BlockPos[] {base, base.above()})
+			if (canHopOnto(level, ice))
+				return ice.getY() + 1 > y + 0.05 ? ice.getY() + 1 : Double.NaN;
+		return Double.NaN;
 	}
 
 	/** How far onto the ice the hull is carried as it hops up, so there's ice under it. */
