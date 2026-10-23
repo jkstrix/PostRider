@@ -130,5 +130,7 @@
   "item.postrider.journey.barge": "Crossed water by barge",
   "item.postrider.journey.night": "Spent a night on the trail",
   "item.postrider.journey.nights": "Spent %s nights on the trail",
-  "block.postrider.campfire": "Rider's Campfire"
+  "block.postrider.campfire": "Rider's Campfire",
+  "item.postrider.ice_hopper": "Ice Hopper",
+  "entity.postrider.ice_hopper": "Ice Hopper"
 }

@@ -1,6 +1,7 @@
 package com.comedymonkey.postrider.registry;
 
 import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.content.hopper.IceHopperEntity;
 import com.comedymonkey.postrider.content.postman.BargeEntity;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.PostmanHorse;
@@ -43,6 +44,14 @@ public final class ModEntities {
 			.noSummon()
 			.clientTrackingRange(10)
 			.build(PostRider.asResource("tent").toString()));
+
+	/** The ice hopper, a player's boat that hops from the water onto sea ice: sized like a vanilla boat. */
+	public static final DeferredHolder<EntityType<?>, EntityType<IceHopperEntity>> ICE_HOPPER = ENTITIES.register("ice_hopper",
+		() -> EntityType.Builder.<IceHopperEntity>of(IceHopperEntity::new, MobCategory.MISC)
+			.sized(1.375F, 0.5625F)
+			.eyeHeight(0.5625F)
+			.clientTrackingRange(10)
+			.build("ice_hopper"));
 
 	public static final DeferredHolder<EntityType<?>, EntityType<BargeEntity>> BARGE = ENTITIES.register("barge",
 		() -> EntityType.Builder.<BargeEntity>of(BargeEntity::new, MobCategory.MISC)

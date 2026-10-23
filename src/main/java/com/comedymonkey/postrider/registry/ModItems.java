@@ -4,6 +4,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.content.hopper.IceHopperItem;
 import com.comedymonkey.postrider.content.letter.BlankLetterItem;
 import com.comedymonkey.postrider.content.letter.WrittenLetterItem;
 import com.comedymonkey.postrider.content.parcel.ParcelItem;
@@ -25,6 +26,8 @@ public final class ModItems {
 		ITEMS.register("written_letter", () -> new WrittenLetterItem(new Item.Properties().stacksTo(1)));
 	public static final DeferredItem<ParcelItem> PARCEL =
 		ITEMS.register("parcel", () -> new ParcelItem(new Item.Properties().stacksTo(1)));
+	public static final DeferredItem<IceHopperItem> ICE_HOPPER =
+		ITEMS.register("ice_hopper", () -> new IceHopperItem(new Item.Properties().stacksTo(1)));
 
 	static {
 		for (DyeColor color : DyeColor.values()) {

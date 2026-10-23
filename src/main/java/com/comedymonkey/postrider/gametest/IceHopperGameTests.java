@@ -1,0 +1,44 @@
+package com.comedymonkey.postrider.gametest;
+
+import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.content.hopper.IceHopperEntity;
+import com.comedymonkey.postrider.registry.ModEntities;
+
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestAssertException;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+
+/** The ice hopper in a real world: a pool with sea ice beyond it, and the boat driven at the ice. */
+@GameTestHolder(PostRider.MOD_ID)
+@PrefixGameTestTemplate(false)
+public final class IceHopperGameTests {
+	private static final String ARENA = "gametest/arena_128x64";
+
+	private IceHopperGameTests() {}
+
+	/** Driven east across a pool, it hops up onto the ice sheet beyond and slides on, rather than stopping against its edge. */
+	@GameTest(skyAccess = true, template = ARENA, batch = "ice_hopper", timeoutTicks = 400)
+	public static void itHopsFromTheWaterOntoTheIceAndSlidesOn(GameTestHelper helper) {
+		Scene scene = new Scene(helper);
+		scene.ground(10, 10, 70, 30);
+		scene.water(12, 12, 30, 28, 2);
+		scene.fill(31, 0, 12, 60, 0, 28, Blocks.ICE.defaultBlockState());
+		IceHopperEntity hopper = helper.spawn(ModEntities.ICE_HOPPER.get(), new Vec3(26.5, scene.surface() - helper.absolutePos(net.minecraft.core.BlockPos.ZERO).getY() + 0.2, 20.5));
+		hopper.setYRot(-90);
+		double iceTop = helper.absolutePos(new net.minecraft.core.BlockPos(0, 1, 0)).getY();
+		helper.onEachTick(() -> {
+			// Rowed east at a boat's pace until it's up on the ice
+			if (hopper.getY() < iceTop - 0.05)
+				hopper.setDeltaMovement(0.35, hopper.getDeltaMovement().y, 0);
+		});
+		helper.succeedWhen(() -> {
+			Vec3 at = helper.relativeVec(hopper.position());
+			if (hopper.getY() < iceTop - 0.05 || at.x < 34)
+				throw new GameTestAssertException("Not up on the ice and sliding yet: at " + at + " (ice top " + (iceTop - helper.absolutePos(net.minecraft.core.BlockPos.ZERO).getY()) + ")");
+		});
+	}
+}

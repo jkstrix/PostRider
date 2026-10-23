@@ -5,6 +5,8 @@ import com.comedymonkey.postrider.client.gui.LetterEditScreen;
 import com.comedymonkey.postrider.client.gui.LetterReadScreen;
 import com.comedymonkey.postrider.client.gui.MailboxScreen;
 import com.comedymonkey.postrider.client.model.BargeModel;
+import com.comedymonkey.postrider.client.renderer.IceHopperRenderer;
+import com.comedymonkey.postrider.client.model.IceHopperModel;
 import com.comedymonkey.postrider.client.model.MochilaModel;
 import com.comedymonkey.postrider.client.model.PostmanModel;
 import com.comedymonkey.postrider.client.model.TentModel;
@@ -63,6 +65,7 @@ public class PostRiderClient {
 		event.registerLayerDefinition(MochilaModel.LAYER, MochilaModel::createBodyLayer);
 		event.registerLayerDefinition(TentModel.LAYER, TentModel::createBodyLayer);
 		event.registerLayerDefinition(BargeModel.LAYER, BargeModel::createBodyLayer);
+		event.registerLayerDefinition(IceHopperModel.LAYER, IceHopperModel::createBodyLayer);
 	}
 
 	private void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
@@ -70,6 +73,7 @@ public class PostRiderClient {
 		event.registerEntityRenderer(ModEntities.POSTMAN_HORSE.get(), PostmanHorseRenderer::new);
 		event.registerEntityRenderer(ModEntities.TENT.get(), TentRenderer::new);
 		event.registerEntityRenderer(ModEntities.BARGE.get(), BargeRenderer::new);
+		event.registerEntityRenderer(ModEntities.ICE_HOPPER.get(), IceHopperRenderer::new);
 	}
 
 	private void registerScreens(RegisterMenuScreensEvent event) {

@@ -19,6 +19,7 @@ public final class ModCreativeTabs {
 			for (DyeColor color : DyeColor.values())
 				output.accept(ModItems.mailbox(color));
 			output.accept(ModItems.LETTER);
+			output.accept(ModItems.ICE_HOPPER);
 		})
 		.build());
 
