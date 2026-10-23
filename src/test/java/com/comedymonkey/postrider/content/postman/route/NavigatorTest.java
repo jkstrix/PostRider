@@ -263,7 +263,8 @@ class NavigatorTest {
 		CoarsePlanner.Leg water = new CoarsePlanner.Leg(CoarsePlanner.LegKind.WATER, List.of(new Vec3(100, 62, 4), new Vec3(140, 62, 4)));
 		CoarsePlanner.Cells asPlanned = (cx, cz) -> cx >= 12 ? new CoarsePlanner.Cell(62, 4, 0, false) : new CoarsePlanner.Cell(64, 0, 0, false);
 		assertTrue(Navigator.legsFit(List.of(land, water), 0, asPlanned));
-		CoarsePlanner.Cells lakeTurnedUp = (cx, cz) -> cx == 6 || cx >= 12 ? new CoarsePlanner.Cell(62, 4, 0, false) : new CoarsePlanner.Cell(64, 0, 0, false);
+		// A lake right across the leg, wider than a cell in every direction (a single water cell beside the line is a corner clipped, not a lake)
+		CoarsePlanner.Cells lakeTurnedUp = (cx, cz) -> cx >= 5 && cx <= 7 || cx >= 12 ? new CoarsePlanner.Cell(62, 4, 0, false) : new CoarsePlanner.Cell(64, 0, 0, false);
 		assertFalse(Navigator.legsFit(List.of(land, water), 0, lakeTurnedUp), "water across the land leg");
 		CoarsePlanner.Cells unknown = (cx, cz) -> null;
 		assertTrue(Navigator.legsFit(List.of(land, water), 0, unknown), "what isn't known yet is trusted");

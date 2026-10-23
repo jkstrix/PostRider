@@ -268,16 +268,35 @@ public final class Navigator {
 			for (Vec3 point : sampled(leg.points(), CoarsePlanner.CELL)) {
 				if (here != null && Journey.horizontalDistance(here, point) > reach)
 					continue;
-				CoarsePlanner.Cell cell = cells.cell(CoarsePlanner.cellOf(point.x), CoarsePlanner.cellOf(point.z));
+				int cx = CoarsePlanner.cellOf(point.x), cz = CoarsePlanner.cellOf(point.z);
+				CoarsePlanner.Cell cell = cells.cell(cx, cz);
 				if (cell == null)
 					continue;
 				if (cell.isVoid())
 					return false;
-				if (leg.kind() == CoarsePlanner.LegKind.LAND ? cell.water() : !cell.water() && !cell.shore())
+				boolean wrong = leg.kind() == CoarsePlanner.LegKind.LAND ? cell.water() : !cell.water() && !cell.shore();
+				// A leg's line is drawn between the cells its way went through, so at a bend it clips the corner of a
+				// cell beside the way: only a cell with no fitting ground next to it is a real mismatch
+				if (wrong && !fittingBeside(cells, cx, cz, leg.kind()))
 					return false;
 			}
 		}
 		return true;
+	}
+
+	/** Whether any of the eight cells round one would do for a leg of this kind (land for a land leg, water or shore for a water one). */
+	static boolean fittingBeside(CoarsePlanner.Cells cells, int cx, int cz, CoarsePlanner.LegKind kind) {
+		for (int dx = -1; dx <= 1; dx++)
+			for (int dz = -1; dz <= 1; dz++) {
+				if (dx == 0 && dz == 0)
+					continue;
+				CoarsePlanner.Cell cell = cells.cell(cx + dx, cz + dz);
+				if (cell == null || cell.isVoid())
+					continue;
+				if (kind == CoarsePlanner.LegKind.LAND ? !cell.water() : cell.water() || cell.shore())
+					return true;
+			}
+		return false;
 	}
 
 	/** The points of a line, and points every {@code step} blocks along it between them. */
@@ -783,7 +802,12 @@ public final class Navigator {
 				return Action.LAUNCH;
 			}
 			case REPLAN -> {
-				blocked.add(CoarsePlanner.key(CoarsePlanner.cellOf(localGoal.x), CoarsePlanner.cellOf(localGoal.z)));
+				// The whole way from here to the stretch's goal is struck off, not just its last cell: a cliff the plan
+				// took for a slope is not got round a cell at a time
+				long own = CoarsePlanner.key(CoarsePlanner.cellOf(rider.getX()), CoarsePlanner.cellOf(rider.getZ()));
+				for (long cell : cellsBetween(rider.position(), localGoal))
+					if (cell != own)
+						blocked.add(cell);
 				return Action.REPLAN;
 			}
 			case DROP_PLAN -> plan = null;
@@ -1076,10 +1100,16 @@ public final class Navigator {
 			rider.dismissHorse();
 			startSegment(rider);
 		} else if (change.move() == LocalPlanner.Move.MOUNT) {
-			log.accept("whistles for his horse at " + spot(rider.position()));
 			onModeChange.run();
-			rider.whistleForHorse();
-			waitingForHorse = DeliveryRun.HORSE_WAIT_TICKS;
+			if (rider.whistleForHorse()) {
+				log.accept("whistles for his horse at " + spot(rider.position()));
+				waitingForHorse = DeliveryRun.HORSE_WAIT_TICKS;
+			} else {
+				// No room for the horse here: on foot a while longer, and whistles where there is
+				log.accept("no room for his horse at " + spot(rider.position()) + ": on foot a while longer");
+				footOnlyUntil = rider.level().getGameTime() + FOOT_ONLY_TICKS;
+				clearStretch();
+			}
 		} else {
 			startSegment(rider);
 		}

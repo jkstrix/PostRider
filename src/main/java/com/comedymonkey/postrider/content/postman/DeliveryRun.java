@@ -432,7 +432,8 @@ public class DeliveryRun {
 		if (stageTicks >= MAP_MIN_TICKS && (navigator.isPlanned() && (!checkingMap || navigator.aheadLoaded(level) || stageTicks >= MAP_MAX_TICKS + MAP_CHECK_TICKS)
 				|| stageTicks >= MAP_MAX_TICKS + MAP_CHECK_TICKS)) {
 			if (checkingMap)
-				logRoute(rider, "the route checks out against the ground" + (mapChecks > 0 ? " (after " + mapChecks + " redoing)" : ""));
+				logRoute(rider, navigator.planFits(level) ? "the route checks out against the ground" + (mapChecks > 0 ? " (after " + mapChecks + " redoing)" : "")
+					: "the route still doesn't quite match the ground after " + mapChecks + " redoing: he goes anyway");
 			checkingMap = false;
 			navigator.goWithBestSoFar();
 			showMap(rider, false);
@@ -1229,6 +1230,28 @@ public class DeliveryRun {
 			}
 			// Failing that, the nearest safe spot a way does lead on from: a hop of a few blocks, usually
 			free = nearestWayOut(rider, level, target);
+		}
+		// Stuck on the water with nowhere to step off: the barge is pushed off to open water a little way on towards the
+		// box (never put down on land, as a jump would); failing that he leaves it and is jumped ashore like anyone
+		if (stage == Stage.BARGING && rider.getVehicle() instanceof BargeEntity barge) {
+			int nearY = barge.getBlockY();
+			Vec3 on = barge.position().add(new Vec3(target.x - barge.getX(), 0, target.z - barge.getZ()).normalize().scale(JUMP_MAX / 2));
+			Vec3 water = Crossing.launchSpotAround(on, (x, z) -> Crossing.surfaceIn(level, x, z, nearY));
+			double hop = water == null ? 0 : Journey.horizontalDistance(water, barge.position());
+			if (water != null && hop > 2 && hop <= JUMP_MAX) {
+				logRoute(rider, stuck + "; on the water; the barge is pushed off to open water " + Math.round(hop) + " blocks on, at " + Navigator.spot(water));
+				jumps.add(new Jump(stage, why, BlockPos.containing(barge.position()), BlockPos.containing(water), false, "pushed off " + Math.round(hop) + " blocks"));
+				PostmanEffects.puff(level, barge);
+				barge.moveTo(water.x, BargeEntity.floatHeight(water.y), water.z, yawToward(water, target), 0);
+				PostmanEffects.puff(level, barge);
+				jumpsFree++;
+				aimCooldown = 0;
+				progress.unstuck(Journey.horizontalDistance(water, target), now);
+				return true;
+			}
+			rider.stopRiding();
+			barge.vanish(level);
+			mover = rider;
 		}
 		if (free == null)
 			free = freeSpot(level, rider.position(), target, rider.level().canSeeSky(rider.blockPosition()));

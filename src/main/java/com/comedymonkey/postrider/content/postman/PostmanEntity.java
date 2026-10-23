@@ -349,12 +349,24 @@ public class PostmanEntity extends PathfinderMob {
 			run.horseLost(this, level, source);
 	}
 
-	/** He whistles; a moment later his horse appears beside him in a puff of smoke and he climbs on. */
-	public void whistleForHorse() {
-		if (getVehicle() != null || horseCountdown > 0 || arrivingHorse != null || !mayWhistle())
-			return;
+	/**
+	 * He whistles; a moment later his horse appears beside him in a puff of smoke and he climbs on. False if there's
+	 * no whistling it up here: it's been killed this trip, or there's no room beside him for it (a steep hillside, a
+	 * wood): then there's no sense waiting for it.
+	 */
+	public boolean whistleForHorse() {
+		if (getVehicle() != null || horseCountdown > 0 || arrivingHorse != null)
+			return true;
+		if (!mayWhistle())
+			return false;
+		if (level() instanceof ServerLevel server) {
+			EntityType<PostmanHorse> type = ModEntities.POSTMAN_HORSE.get();
+			if (HorseSpots.find(position(), getYRot(), s -> HorseSpots.fits(server, type, s)) == null)
+				return false;
+		}
 		playGesture(Gesture.WHISTLE);
 		horseCountdown = HORSE_ARRIVES_AFTER;
+		return true;
 	}
 
 	/** He gets down and his horse vanishes in a puff of smoke. */
