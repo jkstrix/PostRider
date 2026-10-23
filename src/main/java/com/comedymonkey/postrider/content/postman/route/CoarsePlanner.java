@@ -414,8 +414,9 @@ public final class CoarsePlanner {
 				if (isBlocked(x, z))
 					continue;
 				boolean diagonal = d[0] != 0 && d[1] != 0;
-				// No squeezing between two cells he couldn't cross
-				if (diagonal && (impassable(from.x + d[0], from.z) || impassable(from.x, from.z + d[1])))
+				// No squeezing between two cells he couldn't cross, nor past a cliff on the corner (he passes over it)
+				if (diagonal && (impassable(from.x + d[0], from.z) || impassable(from.x, from.z + d[1])
+						|| cliffBeside(from.cell, from.x + d[0], from.z) || cliffBeside(from.cell, from.x, from.z + d[1])))
 					continue;
 				Cell cell = cells.cell(x, z);
 				double step = cost(from.cell, cell, diagonal ? CELL * DIAGONAL : CELL, barge, ROWING_RELUCTANCE, x == goalX && z == goalZ, from == start);
@@ -440,6 +441,13 @@ public final class CoarsePlanner {
 		boolean impassable(int x, int z) {
 			Cell cell = cells.cell(x, z);
 			return cell == null || cell.isVoid() || isBlocked(x, z) || !barge && cell.water();
+		}
+
+		/** Whether the cell on the corner of a diagonal move is a cliff from where he is: too big a step, or a cliff face inside it. */
+		boolean cliffBeside(Cell from, int x, int z) {
+			Cell corner = cells.cell(x, z);
+			return corner != null && !corner.isVoid() && !corner.water()
+				&& (Math.abs(corner.height() - from.height()) > MAX_RISE || corner.rough() > CLIFF_WITHIN);
 		}
 
 		/**

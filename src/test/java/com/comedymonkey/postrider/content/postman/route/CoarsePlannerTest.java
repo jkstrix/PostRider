@@ -290,4 +290,15 @@ class CoarsePlannerTest {
 			wall.add(CoarsePlanner.key(10, cz));
 		assertEquals(Status.FAILED, new CoarsePlanner(plain, 2, 2, 18, 2, wall).finishNow(), "a wall of strikes further off still stops him");
 	}
+
+	@Test
+	void aDiagonalMoveNeverSqueezesPastACliffOnTheCorner() {
+		// Two cells by two, the way from one corner to the other diagonal, with cliffs on the two cells between: he'd
+		// pass over them, so it's no way; one of them a slope and it is
+		Cell cliff = new Cell(150, 0, 0, false);
+		CoarsePlanner.Cells cliffs = (cx, cz) -> cx < 0 || cz < 0 || cx > 1 || cz > 1 ? VOID : (cx == 1 && cz == 0) || (cx == 0 && cz == 1) ? cliff : LAND;
+		assertEquals(Status.FAILED, new CoarsePlanner(cliffs, 0, 0, 1, 1, Set.of()).finishNow(), "between two cliffs");
+		CoarsePlanner.Cells one = (cx, cz) -> cx < 0 || cz < 0 || cx > 1 || cz > 1 ? VOID : cx == 1 && cz == 0 ? cliff : LAND;
+		assertEquals(Status.DONE, new CoarsePlanner(one, 0, 0, 1, 1, Set.of()).finishNow(), "round by the slope");
+	}
 }

@@ -353,7 +353,7 @@ public final class Navigator {
 				if (wrong != null && !fittingBeside(cells, cx, cz, leg.kind()))
 					return which + " " + wrong + at;
 				if (land && previous != null && cell != previous && Math.abs(cell.height() - previous.height()) > STEEP_BETWEEN)
-					return which + " over a step of " + Math.abs(cell.height() - previous.height()) + " from one cell to the next" + at;
+					return which + " over a step of " + Math.abs(cell.height() - previous.height()) + " from one cell to the next (" + previous.height() + " to " + cell.height() + ")" + at;
 				previous = cell;
 			}
 		}
