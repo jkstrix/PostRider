@@ -154,6 +154,11 @@ public final class Navigator {
 		return coarse != null;
 	}
 
+	/** Whether he's whistled for his horse and is waiting for it to come (standing still meanwhile isn't being stuck). */
+	public boolean isWaitingForHorse() {
+		return waitingForHorse > 0;
+	}
+
 	/** Whether a stretch may be planned now: not along a plan that's been struck off while its replacement is worked out. */
 	static boolean mayPlanStretch(boolean planStruck, boolean replanning) {
 		return !(planStruck && replanning);
@@ -753,7 +758,8 @@ public final class Navigator {
 		if (!leavingColumn) {
 			rider.setPos(cx, rider.getY(), cz);
 			boolean up = end.y() > rider.getY();
-			if (up && rider.onClimbable())
+			// Climbing he jumps to go up; at the foot of a vine that hangs to the water he swims up into it first
+			if (up && (rider.onClimbable() || rider.isInWater()))
 				rider.getJumpControl().jump();
 			boolean there = up ? rider.getY() >= columnTop(steps, columnEnd) - 0.05 : rider.getY() <= end.y() + 0.05 && (rider.onGround() || rider.onClimbable());
 			// The water of a rising column throws him up and would hold him bobbing there, and the magma at the foot

@@ -1166,8 +1166,9 @@ public class DeliveryRun {
 		if (stageTicks % 20 != 0)
 			return false;
 		long now = level.getGameTime();
-		// Standing while the route is worked out again isn't being stuck: the clocks wait for the new route
-		if (navigator.isReplanning()) {
+		// Standing while the route is worked out again, or for his horse to come to his whistle, isn't being stuck:
+		// the clocks wait
+		if (navigator.isReplanning() || navigator.isWaitingForHorse()) {
 			progress.pause(now);
 			return false;
 		}
