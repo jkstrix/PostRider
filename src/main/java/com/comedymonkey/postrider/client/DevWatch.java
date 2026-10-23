@@ -3,7 +3,11 @@ package com.comedymonkey.postrider.client;
 import java.util.Locale;
 import java.util.function.Consumer;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.content.postman.DeliveryRun;
+import com.comedymonkey.postrider.content.postman.PostmanEntity;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
@@ -12,6 +16,7 @@ import net.minecraft.client.tutorial.TutorialSteps;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
@@ -25,8 +30,9 @@ import net.neoforged.neoforge.common.NeoForge;
 /**
  * For development only: started with the system property {@code postrider.watch} (the {@code runWatch} Gradle
  * task), the game opens a flat creative world of its own and runs the in-world tests in front of the player, to be
- * watched: all of them, or the one the property names. The player is made a spectator (through walls and roofs,
- * and a click on a rider follows him) and the game doesn't pause when another window is in front. It stays open
+ * watched: all of them, or the one the property names. The player is made a spectator and set to follow the first
+ * rider out, then the one most recently out once that one's delivered, and so on; shift lets go of a rider (a click on any rider
+ * follows him again), and the game doesn't pause when another window is in front. It stays open
  * afterwards (type {@code /test runall} or {@code /test run postrider:<name>} for another go; {@code /test clearall}
  * tidies up).
  */
@@ -36,10 +42,15 @@ public final class DevWatch {
 	/** Ticks to let the world settle (the player stood on the ground, chunks round him loaded) before the tests. */
 	private static final int SETTLE_TICKS = 60;
 
-	private enum Step { START, JOINING, SETTLING, DONE }
+	private enum Step { START, JOINING, SETTLING, WATCHING }
+	/** How often (in ticks) the spectator is given the next rider to follow, once his is done. */
+	private static final int FOLLOW_CHECK = 10;
 
 	private static Step step = Step.START;
 	private static int ticks;
+	/** The rider the spectator was last set to follow (the player lets go with shift; nobody is forced back on). */
+	@Nullable
+	private static PostmanEntity followed;
 
 	private DevWatch() {}
 
@@ -98,7 +109,8 @@ public final class DevWatch {
 				MinecraftServer server = minecraft.getSingleplayerServer();
 				if (ticks < SETTLE_TICKS || server == null || server.getPlayerList().getPlayers().isEmpty())
 					return;
-				step = Step.DONE;
+				step = Step.WATCHING;
+				ticks = 0;
 				String command = command(System.getProperty(PROPERTY));
 				// On the server's own thread (this is the client's): the tests load chunks and set blocks as they're placed
 				server.execute(() -> {
@@ -113,7 +125,43 @@ public final class DevWatch {
 					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "gamemode spectator");
 				});
 			}
-			case DONE -> {}
+			case WATCHING -> {
+				MinecraftServer server = minecraft.getSingleplayerServer();
+				if (ticks % FOLLOW_CHECK == 0 && server != null)
+					server.execute(() -> follow(server));
+			}
 		}
+	}
+
+	/** Puts the spectator's eyes on a rider still on the road, once the one he was following has finished. */
+	private static void follow(MinecraftServer server) {
+		if (server.getPlayerList().getPlayers().isEmpty())
+			return;
+		ServerPlayer player = server.getPlayerList().getPlayers().get(0);
+		if (!player.isSpectator())
+			return;
+		if (followed != null && onTheRoad(followed))
+			return;
+		Entity camera = player.getCamera();
+		if (camera != player && camera instanceof PostmanEntity rider && onTheRoad(rider)) {
+			followed = rider;
+			return;
+		}
+		PostmanEntity next = null;
+		for (Entity entity : server.overworld().getAllEntities())
+			// The one most recently out, for the whole of his trip
+			if (entity instanceof PostmanEntity rider && onTheRoad(rider) && (next == null || rider.tickCount < next.tickCount))
+				next = rider;
+		if (next == null || next == followed)
+			return;
+		followed = next;
+		player.setCamera(next);
+		PostRider.LOGGER.info("Post Rider watch run: following {}", next.getName().getString());
+	}
+
+	/** Whether a rider is out on a delivery (not finished, not gone). */
+	public static boolean onTheRoad(PostmanEntity rider) {
+		DeliveryRun run = rider.getRun();
+		return rider.isAlive() && run != null && run.stage() != DeliveryRun.Stage.DONE;
 	}
 }
