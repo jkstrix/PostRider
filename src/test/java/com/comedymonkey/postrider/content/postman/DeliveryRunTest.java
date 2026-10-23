@@ -199,4 +199,11 @@ class DeliveryRunTest {
 		assertTrue(DeliveryRun.load(saved, registries).isHorseLost(), "once killed, gone for the rest of the trip, even over a restart");
 		assertFalse(DeliveryRun.load(run.save(registries), registries).isHorseLost(), "a new run has it again");
 	}
+
+	@Test
+	void goingDownOnFootHeWalksRatherThanRuns() {
+		assertTrue(PostmanEntity.blocksPerSecond(DeliveryRun.WALK_SPEED, PostmanEntity.BASE_SPEED)
+			< PostmanEntity.blocksPerSecond(DeliveryRun.RUN_SPEED, PostmanEntity.BASE_SPEED * PostmanEntity.SPRINT_BOOST), "a walk is slower than his run");
+		assertEquals(DeliveryRun.WALK_BLOCKS_PER_SECOND, PostmanEntity.blocksPerSecond(DeliveryRun.WALK_SPEED, PostmanEntity.BASE_SPEED), 0.05, "a player's walking pace");
+	}
 }

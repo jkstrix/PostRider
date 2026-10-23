@@ -226,4 +226,19 @@ class NavigatorTest {
 		assertFalse(Navigator.nearNoLanding(noLandings, -1000, 705), "the coast well on from it");
 		assertFalse(Navigator.nearNoLanding(List.of(), -1032, 705));
 	}
+
+	@Test
+	void theWayAheadGoingDownIsSeenAStepOrTwoBeforeIt() {
+		List<Step> down = List.of(
+			new Step(0, 70, 0, true, Move.START),
+			new Step(1, 70, 0, true, Move.WALK),
+			new Step(2, 70, 0, true, Move.WALK),
+			new Step(3, 69, 0, true, Move.WALK),
+			new Step(4, 68, 0, true, Move.WALK),
+			new Step(5, 69, 0, true, Move.WALK));
+		assertTrue(Navigator.descends(down, 1, 1 + Navigator.DESCENT_LOOKAHEAD, 70), "the drop at the fourth step is within the look-ahead");
+		assertFalse(Navigator.descends(down, 0, 2, 70), "level so far");
+		assertFalse(Navigator.descends(down, 5, 5, 68), "a step up isn't a descent");
+		assertTrue(Navigator.descends(down, 3, 3, 70), "the first step against where he stands");
+	}
 }

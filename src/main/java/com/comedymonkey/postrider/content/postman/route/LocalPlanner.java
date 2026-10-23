@@ -91,7 +91,8 @@ public final class LocalPlanner {
 	public static final int BACKWARD_NODES = 16_000;
 	/** Only a goal this near (a mailbox, not a waypoint) is worth searching backwards for. */
 	public static final double BACKWARD_RADIUS = 8;
-	public static final int MOUNTED_DROP = 5;
+	/** The furthest down a step may go, in the saddle or on foot: any further and the fall hurts them both. */
+	public static final int MOUNTED_DROP = 3;
 	public static final int FOOT_DROP = 3;
 	/** A plan that doesn't reach the goal is only worth having if it gets him at least this much closer. */
 	public static final double MIN_PARTIAL_GAIN = 4.0;

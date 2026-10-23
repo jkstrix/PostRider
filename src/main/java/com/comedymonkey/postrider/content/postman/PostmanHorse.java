@@ -167,9 +167,18 @@ public class PostmanHorse extends Horse {
 	 * mark, so the horse gallops at its real speed.
 	 */
 	public static double gallopInput(double forward, double distanceToMark) {
+		return gallopInput(forward, distanceToMark, false);
+	}
+
+	/** How hard he pushes where the way goes down: a walk, so the horse steps down a block at a time rather than gallop off a ledge and skip a step. */
+	public static final double WALK_INPUT = 0.3;
+
+	/** As above; {@code descending} (the way ahead goes down) holds it to a walk. */
+	public static double gallopInput(double forward, double distanceToMark, boolean descending) {
 		if (forward <= 0)
 			return forward;
-		return Math.max(forward, Math.min(1.0, distanceToMark / EASE_OFF_DISTANCE));
+		double push = Math.max(forward, Math.min(1.0, distanceToMark / EASE_OFF_DISTANCE));
+		return descending ? Math.min(push, WALK_INPUT) : push;
 	}
 
 	/**
@@ -184,11 +193,11 @@ public class PostmanHorse extends Horse {
 	@Override
 	public void travel(Vec3 input) {
 		// The move control has already handed over its push by now (and stopped "wanting"), but it keeps its mark
-		if (getControllingPassenger() instanceof PostmanEntity && input.z > 0) {
+		if (getControllingPassenger() instanceof PostmanEntity rider && input.z > 0) {
 			Path path = getNavigation().getPath();
 			Vec3 pathEnd = path != null && !path.isDone() && path.getEndNode() != null ? Vec3.atBottomCenterOf(path.getEndNode().asBlockPos()) : null;
 			Vec3 mark = new Vec3(getMoveControl().getWantedX(), getY(), getMoveControl().getWantedZ());
-			input = new Vec3(input.x, input.y, gallopInput(input.z, distanceToGo(position(), pathEnd, mark)));
+			input = new Vec3(input.x, input.y, gallopInput(input.z, distanceToGo(position(), pathEnd, mark), rider.isDescending()));
 		}
 		super.travel(input);
 	}

@@ -275,6 +275,13 @@ public final class Navigator {
 			startStretch(rider, level, target, now);
 		}
 		skipPassed(rider);
+		boolean descending = descendingAhead(rider);
+		rider.setDescending(descending);
+		// On foot likewise: a walk going down, a run on the flat
+		if (rider.getVehicle() == null && !steps.isEmpty() && !rider.getNavigation().isDone()) {
+			rider.setSprinting(!descending);
+			rider.getNavigation().setSpeedModifier(descending ? DeliveryRun.WALK_SPEED : DeliveryRun.RUN_SPEED);
+		}
 		nudgeIntoClimb(rider, level);
 		if (tickColumn(rider, level))
 			return Action.GOING;
@@ -868,6 +875,30 @@ public final class Navigator {
 		} else {
 			startSegment(rider);
 		}
+	}
+
+	/** How many steps ahead of the one he's heading for are looked at for a way down. */
+	public static final int DESCENT_LOOKAHEAD = 3;
+
+	/** Whether the way goes down among steps {@code from} to {@code to} (each against the one before it, the first against {@code fromY}). */
+	public static boolean descends(List<LocalPlanner.Step> steps, int from, int to, int fromY) {
+		int y = fromY;
+		for (int i = Math.max(0, from); i <= Math.min(to, steps.size() - 1); i++) {
+			if (steps.get(i).y() < y)
+				return true;
+			y = steps.get(i).y();
+		}
+		return false;
+	}
+
+	/** Whether the next few steps of the way he's on go down. */
+	private boolean descendingAhead(PostmanEntity rider) {
+		Path path = rider.getNavigation().getPath();
+		if (steps.isEmpty() || path == null || path.isDone())
+			return false;
+		int next = segmentStart + path.getNextNodeIndex();
+		Entity body = rider.getVehicle() != null ? rider.getVehicle() : rider;
+		return descends(steps, next, Math.min(segmentEnd, next + DESCENT_LOOKAHEAD), Mth.floor(body.getY() + 1e-3));
 	}
 
 	/** The last step of the piece of the way starting here that's all on horseback or all on foot. */

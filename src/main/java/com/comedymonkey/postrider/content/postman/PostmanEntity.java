@@ -327,6 +327,17 @@ public class PostmanEntity extends PathfinderMob {
 		return run;
 	}
 
+	/** The way just ahead goes down: his horse is held to a walk (set each tick by the navigator). */
+	private boolean descending;
+
+	public boolean isDescending() {
+		return descending;
+	}
+
+	public void setDescending(boolean descending) {
+		this.descending = descending;
+	}
+
 	/** Whether his horse comes when he whistles: not once it's been killed, for the rest of that trip. */
 	public boolean mayWhistle() {
 		return run == null || !run.isHorseLost();

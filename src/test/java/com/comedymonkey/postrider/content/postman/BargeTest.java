@@ -160,6 +160,7 @@ class BargeTest {
 		net.minecraft.world.phys.Vec3 ahead = BargeEntity.beyondBow(new net.minecraft.world.phys.Vec3(10, 63, 10), 0, BargeEntity.STOPS_SHORT);
 		assertEquals(10, ahead.x, 1e-6);
 		assertEquals(10 + BargeEntity.BOW_REACH + BargeEntity.STOPS_SHORT, ahead.z, 1e-6);
-		assertTrue(BargeEntity.STOPS_SHORT >= BargeEntity.BOW_REACH - 1.5, "the bow reaches a block past the hull box: it must stop at least that short");
+		// His seat is in the bow: with the bow stopped this short of a bank, the seat (bench forward, and his half width) is still clear of it
+		assertTrue(BargeEntity.STOPS_SHORT + BargeEntity.BOW_REACH - BargeEntity.BENCH_FORWARD - 0.3 > 0.5, "the seat stays clear of the bank");
 	}
 }

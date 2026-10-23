@@ -97,6 +97,22 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 	}
 
 	/** Tries to take the name in the server's directory; on success this mailbox answers to it. */
+	/** Makes this somebody's box with this name, with no player at hand (a box put down by a headless test run). */
+	public MailboxDirectory.Result claim(String newName, UUID newOwner) {
+		if (level == null || level.getServer() == null)
+			return MailboxDirectory.Result.INVALID;
+		owner = newOwner;
+		MailboxDirectory directory = MailboxDirectory.get(level.getServer());
+		MailboxDirectory.Result result = directory.register(newName, GlobalPos.of(level.dimension(), worldPosition), owner);
+		if (result == MailboxDirectory.Result.OK) {
+			MailboxDirectory.Entry entry = directory.at(GlobalPos.of(level.dimension(), worldPosition));
+			name = entry != null ? entry.name() : newName;
+		}
+		setChanged();
+		syncToClients();
+		return result;
+	}
+
 	public MailboxDirectory.Result rename(String newName, Player player) {
 		if (level == null || level.getServer() == null)
 			return MailboxDirectory.Result.INVALID;

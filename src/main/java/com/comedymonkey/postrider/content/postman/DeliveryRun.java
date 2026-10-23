@@ -99,6 +99,9 @@ public class DeliveryRun {
 	/** On foot he runs as fast as a sprinting player; he only walks the last few steps to the mailbox. */
 	public static final double RUN_BLOCKS_PER_SECOND = 5.6;
 	public static final double RUN_SPEED = PostmanEntity.moveSpeedFor(RUN_BLOCKS_PER_SECOND, PostmanEntity.BASE_SPEED * PostmanEntity.SPRINT_BOOST);
+	/** Where the way goes down he walks (a run skips a step and the fall hurts): a player's walking pace. */
+	public static final double WALK_BLOCKS_PER_SECOND = 4.3;
+	public static final double WALK_SPEED = PostmanEntity.moveSpeedFor(WALK_BLOCKS_PER_SECOND, PostmanEntity.BASE_SPEED);
 
 	private final PendingDelivery delivery;
 	@Nullable
@@ -1299,17 +1302,27 @@ public class DeliveryRun {
 	 * Never onto water, lava, fire and the like: null if there's nowhere safe at all.
 	 */
 	@Nullable
+	/** A spot to be jumped to is taken near his own level if there is one: a mountain top leads only to falls. */
+	public static final int JUMP_LEVEL = 8;
+
 	static Vec3 freeSpot(ServerLevel level, Vec3 from, Vec3 target, boolean underOpenSky) {
 		List<Vec3> safe = underOpenSky ? safeOf(level, Journey.escapes(from, target)) : List.of(surface(level, from));
-		if (safe.isEmpty())
-			return null;
-		Vec3 aim = safe.get(0);
-		BlockPos column = BlockPos.containing(aim);
-		int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column.getX(), column.getZ());
-		BlockPos feet = new BlockPos(column.getX(), y, column.getZ());
-		if (Hazards.isDangerous(level, feet))
-			return underOpenSky ? null : freeSpot(level, from, target, true);
-		return new Vec3(column.getX() + 0.5, y, column.getZ() + 0.5);
+		Vec3 first = null;
+		for (Vec3 aim : safe) {
+			BlockPos column = BlockPos.containing(aim);
+			int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column.getX(), column.getZ());
+			BlockPos feet = new BlockPos(column.getX(), y, column.getZ());
+			if (Hazards.isDangerous(level, feet))
+				continue;
+			Vec3 spot = new Vec3(column.getX() + 0.5, y, column.getZ() + 0.5);
+			if (Math.abs(y - from.y) <= JUMP_LEVEL)
+				return spot;
+			if (first == null)
+				first = spot;
+		}
+		if (first == null && !underOpenSky)
+			return freeSpot(level, from, target, true);
+		return first;
 	}
 
 	// ---------------------------------------------------------------- ending

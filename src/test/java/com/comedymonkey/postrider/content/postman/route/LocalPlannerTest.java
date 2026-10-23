@@ -100,17 +100,16 @@ class LocalPlannerTest {
 	}
 
 	@Test
-	void hisHorseDropsFiveBlocksButNotSix() {
-		GridTerrain five = new GridTerrain().fill(-3, Y, -3, 3, Y + 4, 3, Kind.SOLID);
-		LocalPlanner down = new LocalPlanner(five, 0, Y + 5, 0, true, LocalPlanner.Goal.anyHeight(20, 1, 1.5), true);
-		assertEquals(Status.FOUND, down.finishNow());
-		GridTerrain six = new GridTerrain().fill(-3, Y, -3, 3, Y + 5, 3, Kind.SOLID);
-		LocalPlanner stuck = new LocalPlanner(six, 0, Y + 6, 0, true, LocalPlanner.Goal.anyHeight(20, 1, 1.5), false);
-		assertEquals(Status.FAILED, stuck.finishNow());
-		// On foot he only jumps down three
-		GridTerrain four = new GridTerrain().fill(-3, Y, -3, 3, Y + 3, 3, Kind.SOLID);
-		assertEquals(Status.FAILED, new LocalPlanner(four, 0, Y + 4, 0, false, LocalPlanner.Goal.anyHeight(20, 1, 1.5), false).finishNow());
+	void hisHorseDropsThreeBlocksButNotFourAsAnyFurtherHurtsThemBoth() {
 		GridTerrain three = new GridTerrain().fill(-3, Y, -3, 3, Y + 2, 3, Kind.SOLID);
+		LocalPlanner down = new LocalPlanner(three, 0, Y + 3, 0, true, LocalPlanner.Goal.anyHeight(20, 1, 1.5), true);
+		assertEquals(Status.FOUND, down.finishNow());
+		GridTerrain four = new GridTerrain().fill(-3, Y, -3, 3, Y + 3, 3, Kind.SOLID);
+		LocalPlanner stuck = new LocalPlanner(four, 0, Y + 4, 0, true, LocalPlanner.Goal.anyHeight(20, 1, 1.5), false);
+		assertEquals(Status.FAILED, stuck.finishNow());
+		assertEquals(3, LocalPlanner.MOUNTED_DROP, "a fall of more than three blocks hurts, the rider as much as the horse");
+		// On foot likewise
+		assertEquals(Status.FAILED, new LocalPlanner(four, 0, Y + 4, 0, false, LocalPlanner.Goal.anyHeight(20, 1, 1.5), false).finishNow());
 		assertEquals(Status.FOUND, new LocalPlanner(three, 0, Y + 3, 0, false, LocalPlanner.Goal.anyHeight(20, 1, 1.5), false).finishNow());
 	}
 

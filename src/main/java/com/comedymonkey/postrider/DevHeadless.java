@@ -2,15 +2,25 @@ package com.comedymonkey.postrider;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
+import com.comedymonkey.postrider.content.mailbox.MailboxBlockEntity;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.route.TerrainSurvey;
 import com.comedymonkey.postrider.post.PendingDelivery;
 import com.comedymonkey.postrider.post.PostOffice;
+import com.comedymonkey.postrider.post.MailboxDirectory;
 import com.comedymonkey.postrider.post.Posting;
+import com.comedymonkey.postrider.registry.ModBlocks;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -20,7 +30,9 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * (the {@code runHeadless} Gradle task, on a copy of one of the client's worlds), the server sets the clock to
  * morning, posts a parcel from the one mailbox to the other, logs how the rider is getting on every quarter minute,
  * and stops once it's delivered or lost (or after half an hour), so a trip across a real world can be run and read
- * without anyone at the keyboard.
+ * without anyone at the keyboard. The box to post to can be one put down for the run: {@code random:<blocks>} puts a
+ * box called "Far Post" on dry land about that far from the first box, any way round; {@code at:<x>,<z>} puts it
+ * there (the ground height is found), so a spot can be tried again.
  */
 public final class DevHeadless {
 	public static final String PROPERTY = "postrider.post";
@@ -69,6 +81,8 @@ public final class DevHeadless {
 		ServerLevel overworld = server.overworld();
 		overworld.setDayTime(MORNING);
 		try {
+			if (names[1].startsWith("random:") || names[1].startsWith("at:"))
+				names[1] = putDownFarBox(server, names[0], names[1]);
 			delivery = Posting.post(server, names[0], names[1]);
 		} catch (IllegalArgumentException e) {
 			PostRider.LOGGER.error("Post Rider headless run: {}", e.getMessage());
@@ -88,6 +102,64 @@ public final class DevHeadless {
 			server.tickRateManager().requestGameToSprint(TIMEOUT_TICKS);
 		PostRider.LOGGER.info("Post Rider headless run: posted from {} at {} to {}{}", delivery.fromName(), delivery.from().pos().toShortString(), delivery.toName(),
 			server.tickRateManager().isSprinting() ? ", sprinting" : "");
+	}
+
+	public static final String FAR_BOX = "Far Post";
+	/** Looking for dry land for the far box, the direction is turned this much at a time. */
+	private static final double TURN_DEGREES = 10;
+
+	/**
+	 * Puts a mailbox down for the run: {@code random:<blocks>} about that far from the first box on dry land, any
+	 * way round (turning until land is found), or {@code at:<x>,<z>} just there. The box's name.
+	 */
+	static String putDownFarBox(MinecraftServer server, String fromName, String where) {
+		MailboxDirectory.Entry from = MailboxDirectory.get(server).find(fromName);
+		if (from == null)
+			throw new IllegalArgumentException("No mailbox called '" + fromName + "'");
+		ServerLevel level = server.getLevel(from.pos().dimension());
+		if (level == null)
+			throw new IllegalArgumentException("The first box's world is gone");
+		BlockPos spot;
+		if (where.startsWith("at:")) {
+			String[] xz = where.substring(3).split(",");
+			spot = dryLandAt(level, Integer.parseInt(xz[0].trim()), Integer.parseInt(xz[1].trim()));
+			if (spot == null)
+				throw new IllegalArgumentException("No dry land at " + where);
+		} else {
+			double distance = Double.parseDouble(where.substring("random:".length()));
+			double angle = level.getRandom().nextDouble() * 360;
+			spot = null;
+			for (int turn = 0; turn < 360 / TURN_DEGREES && spot == null; turn++) {
+				double radians = Math.toRadians(angle + turn * TURN_DEGREES);
+				spot = dryLandAt(level, (int) Math.round(from.pos().pos().getX() + Math.cos(radians) * distance),
+					(int) Math.round(from.pos().pos().getZ() + Math.sin(radians) * distance));
+			}
+			if (spot == null)
+				throw new IllegalArgumentException("No dry land " + distance + " blocks from " + fromName + " any way round");
+		}
+		BlockState lower = ModBlocks.mailbox(DyeColor.RED).get().defaultBlockState().setValue(MailboxBlock.FACING, Direction.WEST);
+		level.setBlockAndUpdate(spot, lower);
+		level.setBlockAndUpdate(spot.above(), lower.setValue(MailboxBlock.HALF, DoubleBlockHalf.UPPER));
+		if (!(level.getBlockEntity(spot) instanceof MailboxBlockEntity box))
+			throw new IllegalArgumentException("No mailbox could be put down at " + spot.toShortString());
+		MailboxDirectory.Result named = box.claim(FAR_BOX, from.owner());
+		if (named != MailboxDirectory.Result.OK)
+			throw new IllegalArgumentException("Couldn't name the far box: " + named);
+		PostRider.LOGGER.info("Post Rider headless run: put the box {} down at {} (-Pto=at:{},{} tries this spot again)", FAR_BOX, spot.toShortString(), spot.getX(), spot.getZ());
+		return FAR_BOX;
+	}
+
+	/** The block a box would stand in at (x, z): on the ground there if it's dry, solid and open to the sky; null if not. */
+	@Nullable
+	static BlockPos dryLandAt(ServerLevel level, int x, int z) {
+		level.getChunk(x >> 4, z >> 4);
+		int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+		BlockPos ground = new BlockPos(x, y - 1, z), feet = new BlockPos(x, y, z);
+		BlockState under = level.getBlockState(ground);
+		if (!under.getFluidState().isEmpty() || !under.isFaceSturdy(level, ground, Direction.UP) || !level.getFluidState(feet).isEmpty()
+				|| !level.getBlockState(feet).getCollisionShape(level, feet).isEmpty() || !level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty())
+			return null;
+		return feet;
 	}
 
 	private static void onTick(ServerTickEvent.Post event) {

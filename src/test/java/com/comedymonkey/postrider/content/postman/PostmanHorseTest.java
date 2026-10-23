@@ -91,4 +91,12 @@ class PostmanHorseTest {
 		// The sums: twice the move speed is four times as fast
 		assertEquals(4 * PostmanEntity.blocksPerSecond(0.5, 0.3), PostmanEntity.blocksPerSecond(1.0, 0.3), 1e-9);
 	}
+
+	@Test
+	void goingDownTheHorseIsHeldToAWalk() {
+		assertEquals(1.0, PostmanHorse.gallopInput(0.2, 30, false), 1e-9, "flat out on the level");
+		assertEquals(PostmanHorse.WALK_INPUT, PostmanHorse.gallopInput(0.2, 30, true), 1e-9, "a walk going down");
+		assertTrue(PostmanHorse.WALK_INPUT < 0.5, "a walk, not a canter");
+		assertEquals(0, PostmanHorse.gallopInput(0, 30, true), 1e-9, "standing still is standing still");
+	}
 }
