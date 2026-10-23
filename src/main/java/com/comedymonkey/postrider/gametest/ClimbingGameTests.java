@@ -453,7 +453,7 @@ public final class ClimbingGameTests {
 	 * mailbox while well above or below it. Also notes which places he's been to, and whether he was on his horse
 	 * there, for the test's own checks at the end.
 	 */
-	private static final class Lookout {
+	static final class Lookout {
 		/** Further than this in one tick isn't riding, or being thrown out of a bubble column: he was moved. */
 		static final double JUMP = 6;
 		/** How far above or below the mailbox he can be when he gets off to walk the last few steps to it. */

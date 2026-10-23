@@ -487,21 +487,29 @@ public final class Navigator {
 			if (next + 1 > segmentEnd)
 				break;
 			LocalPlanner.Step a = steps.get(next), b = steps.get(next + 1);
-			if (!passed(body.getX(), body.getZ(), a.centreX(), a.centreZ(), b.centreX(), b.centreZ()))
+			if (!passed(body.getX(), body.getY(), body.getZ(), a.centreX(), a.y(), a.centreZ(), b.centreX(), b.centreZ()))
 				break;
 			path.advance();
 		}
 	}
 
+	/** He's this far from a step's level, or from the line of the way, at most, to count as having passed it. */
+	public static final double PASS_NEAR = 2.0;
+
 	/**
-	 * Whether, at (x, z), he's gone past step a on the way to step b: beyond it in the direction of b, and nearer b
+	 * Whether, at (x, y, z), he's gone past step a on the way to step b: on its level (the ground over a tunnel the
+	 * way runs through is not the way), beside the line of the way, beyond a in the direction of b, and nearer b
 	 * than a is.
 	 */
-	public static boolean passed(double x, double z, double ax, double az, double bx, double bz) {
-		double dx = bx - ax, dz = bz - az;
-		if ((x - ax) * dx + (z - az) * dz <= 0)
+	public static boolean passed(double x, double y, double z, double ax, double ay, double az, double bx, double bz) {
+		if (Math.abs(y - ay) > PASS_NEAR)
 			return false;
-		return Math.hypot(bx - x, bz - z) < Math.hypot(dx, dz);
+		double dx = bx - ax, dz = bz - az;
+		double length = Math.hypot(dx, dz);
+		if (length < 1e-6 || (x - ax) * dx + (z - az) * dz <= 0)
+			return false;
+		double across = Math.abs((x - ax) * dz - (z - az) * dx) / length;
+		return across <= PASS_NEAR && Math.hypot(bx - x, bz - z) < length;
 	}
 
 	private Action workOnStretch(PostmanEntity rider, ServerLevel level, Vec3 target, long now) {
@@ -816,7 +824,7 @@ public final class Navigator {
 		}
 		Path path = toPath(steps, segmentStart, segmentEnd, stepsAreFinal && segmentEnd == steps.size() - 1);
 		Entity body = mounted ? rider.getHorse() : rider;
-		path.setNextNodeIndex(firstToHeadFor(steps, segmentStart, segmentEnd, body.getX(), body.getZ()) - segmentStart);
+		path.setNextNodeIndex(firstToHeadFor(steps, segmentStart, segmentEnd, body.getX(), body.getY(), body.getZ()) - segmentStart);
 		rider.setSprinting(!mounted);
 		rider.getNavigation().moveTo(path, mounted ? 1.0 : DeliveryRun.RUN_SPEED);
 	}
@@ -870,11 +878,13 @@ public final class Navigator {
 		return new Path(nodes, new BlockPos(last.x(), last.y(), last.z()), reaches);
 	}
 
-	/** The step to head for first: the nearest of the first few, or the one after if he's already past it. */
-	public static int firstToHeadFor(List<LocalPlanner.Step> steps, int from, int to, double x, double z) {
+	/** The step to head for first: the nearest of the first few on his level, or the one after if he's already past it. */
+	public static int firstToHeadFor(List<LocalPlanner.Step> steps, int from, int to, double x, double y, double z) {
 		int nearest = from;
 		double best = Double.MAX_VALUE;
 		for (int i = from; i <= Math.min(to, from + 6); i++) {
+			if (Math.abs(steps.get(i).y() - y) > PASS_NEAR)
+				continue;
 			double d = Math.hypot(steps.get(i).centreX() - x, steps.get(i).centreZ() - z);
 			if (d < best) {
 				best = d;
@@ -884,7 +894,7 @@ public final class Navigator {
 		if (nearest < to) {
 			LocalPlanner.Step a = steps.get(nearest), b = steps.get(nearest + 1);
 			double toNext = Math.hypot(b.centreX() - x, b.centreZ() - z);
-			if (toNext < Math.hypot(b.centreX() - a.centreX(), b.centreZ() - a.centreZ()))
+			if (Math.abs(b.y() - y) <= PASS_NEAR && toNext < Math.hypot(b.centreX() - a.centreX(), b.centreZ() - a.centreZ()))
 				nearest++;
 		}
 		return nearest;

@@ -30,10 +30,10 @@ class GapJumpTest {
 	@Test
 	void landingPastWhereTheLeapEndsHeRidesOnRatherThanTurningBack() {
 		// Steps at x 14 (where the leap lands) and x 15: having landed at x 14.8, he's past the first
-		assertTrue(Navigator.passed(14.8, 10, 14, 10, 15, 10));
+		assertTrue(Navigator.passed(14.8, 64, 10, 14, 64, 10, 15, 10));
 		// Short of it, or off to the side behind it, he isn't
-		assertFalse(Navigator.passed(13.2, 10, 14, 10, 15, 10));
-		assertFalse(Navigator.passed(14.2, 12, 14, 10, 15, 10), "nearer the step he's heading for than the one after");
+		assertFalse(Navigator.passed(13.2, 64, 10, 14, 64, 10, 15, 10));
+		assertFalse(Navigator.passed(14.2, 64, 12, 14, 64, 10, 15, 10), "nearer the step he's heading for than the one after");
 	}
 
 	@Test

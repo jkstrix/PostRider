@@ -54,8 +54,9 @@ class NavigatorTest {
 	void heDoesntTurnBackForAStepHesAlreadyPast() {
 		List<Step> line = List.of(new Step(0, 64, 0, false, Move.START), new Step(1, 64, 0, false, Move.WALK),
 			new Step(2, 64, 0, false, Move.WALK), new Step(3, 64, 0, false, Move.WALK));
-		assertEquals(0, Navigator.firstToHeadFor(line, 0, 3, 0.2, 0.5));
-		assertEquals(2, Navigator.firstToHeadFor(line, 0, 3, 1.9, 0.5), "between the second and third: on to the third");
+		assertEquals(0, Navigator.firstToHeadFor(line, 0, 3, 0.2, 64, 0.5));
+		assertEquals(2, Navigator.firstToHeadFor(line, 0, 3, 1.9, 64, 0.5), "between the second and third: on to the third");
+		assertEquals(0, Navigator.firstToHeadFor(line, 0, 3, 1.9, 70, 0.5), "six blocks above the way: none of its steps is near, so the first");
 	}
 
 	@Test
@@ -198,5 +199,15 @@ class NavigatorTest {
 		Vec3 nearly = Navigator.pushOut(65.6, 45.5, ledge);
 		assertEquals(-0.1, nearly.x, 1e-9, "only as far as the middle of the ledge");
 		assertEquals(Vec3.ZERO, Navigator.pushOut(65.5, 45.5, ledge));
+	}
+
+	@Test
+	void aStepIsOnlyPassedFromBesideItOnItsOwnLevel() {
+		// The way runs east along z 0.5 at y 64, from step a (0.5) to step b (1.5)
+		assertTrue(Navigator.passed(1.2, 64, 0.5, 0.5, 64, 0.5, 1.5, 0.5), "between a and b, nearer b");
+		assertFalse(Navigator.passed(0.3, 64, 0.5, 0.5, 64, 0.5, 1.5, 0.5), "not yet at a");
+		assertFalse(Navigator.passed(1.2, 69, 0.5, 0.5, 64, 0.5, 1.5, 0.5), "on the ground over the tunnel the way runs through");
+		assertFalse(Navigator.passed(1.2, 64, 4.5, 0.5, 64, 0.5, 1.5, 0.5), "four blocks off to the side of the way");
+		assertFalse(Navigator.passed(20, 64, 0.5, 0.5, 64, 0.5, 1.5, 0.5), "far beyond b");
 	}
 }
