@@ -220,6 +220,9 @@ public final class Navigator {
 	public static final int AHEAD_WIDTH = 1;
 	/** How often (ticks) the plan is checked against the ground as it's now known, and the chunks ahead are moved on. */
 	public static final int CHECK_INTERVAL = 100;
+	/** The plan isn't redone for the ground not matching it more often than this (ticks): the map fills in as he goes. */
+	public static final int REDO_INTERVAL = 600;
+	private long lastRedo = Long.MIN_VALUE;
 
 	/** Whose chunks the ones ahead are held as (the rider's), so they're let go with his if he's ever lost. */
 	public void setOwner(UUID owner) {
@@ -255,9 +258,16 @@ public final class Navigator {
 	 * are given the benefit of the doubt.
 	 */
 	public static boolean legsFit(List<CoarsePlanner.Leg> legs, int fromLeg, CoarsePlanner.Cells cells) {
+		return legsFit(legs, fromLeg, cells, null, Double.MAX_VALUE);
+	}
+
+	/** As above, looking only at the plan within {@code reach} blocks along it from {@code here} (what's loaded and so really known). */
+	public static boolean legsFit(List<CoarsePlanner.Leg> legs, int fromLeg, CoarsePlanner.Cells cells, @Nullable Vec3 here, double reach) {
 		for (int i = Math.max(0, fromLeg); i < legs.size(); i++) {
 			CoarsePlanner.Leg leg = legs.get(i);
 			for (Vec3 point : sampled(leg.points(), CoarsePlanner.CELL)) {
+				if (here != null && Journey.horizontalDistance(here, point) > reach)
+					continue;
 				CoarsePlanner.Cell cell = cells.cell(CoarsePlanner.cellOf(point.x), CoarsePlanner.cellOf(point.z));
 				if (cell == null)
 					continue;
@@ -369,10 +379,19 @@ public final class Navigator {
 		}
 		if (now % CHECK_INTERVAL != 0)
 			return false;
-		if (plan != null && !legsFit(plan.legs(), leg, TerrainSurvey.of(level))) {
+		if (plan != null && now - lastRedo >= REDO_INTERVAL && !legsFit(plan.legs(), leg, TerrainSurvey.of(level), here, AHEAD_BLOCKS)) {
 			log.accept("the ground ahead isn't as the map had it: the route is redone");
+			lastRedo = now;
+			// He keeps to the way he's on while the new route is worked out
+			List<LocalPlanner.Step> keep = steps;
+			boolean keepFinal = stepsAreFinal;
+			int keepStart = segmentStart, keepEnd = segmentEnd;
 			replan(level, here, target, plannedAfloat);
-			return true;
+			steps = keep;
+			stepsAreFinal = keepFinal;
+			segmentStart = keepStart;
+			segmentEnd = keepEnd;
+			return false;
 		}
 		keepAheadLoaded(level, here);
 		return false;
