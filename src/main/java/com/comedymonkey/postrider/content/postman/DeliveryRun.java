@@ -744,6 +744,7 @@ public class DeliveryRun {
 		rider.stopRiding();
 		rider.setActivity(PostmanEntity.Activity.NONE);
 		rider.moveTo(ground.x, ground.y, ground.z, yaw, 0);
+		keepChunksLoaded(rider, level);
 		String horseWhere = "";
 		if (horse != null) {
 			Vec3 room = HorseSpots.find(ground, yaw, s -> HorseSpots.fits(level, type, s));
@@ -1231,6 +1232,8 @@ public class DeliveryRun {
 		jumps.add(new Jump(stage, why, BlockPos.containing(mover.position()), BlockPos.containing(free), wayFromHere, diagnosis));
 		PostmanEffects.puff(level, mover);
 		mover.teleportTo(free.x, free.y, free.z);
+		// His chunks go with him at once: put down in one that isn't ticking, he'd never tick again to move them
+		keepChunksLoaded(rider, level);
 		jumpsFree++;
 		lastFollowSpot = null;
 		PostmanEffects.puff(level, mover);

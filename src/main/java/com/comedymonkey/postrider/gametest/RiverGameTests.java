@@ -58,11 +58,12 @@ public final class RiverGameTests {
 		BlockState air = Blocks.AIR.defaultBlockState();
 		scene.fill(0, -8, Z0, CHASM - 1, 4, Z1, air);
 		scene.fill(128 - CHASM, -8, Z0, 127, 4, Z1, air);
+		// The rim is a cliff to the long-range plan (more than twelve high), so it never routes over it and out
 		BlockState rim = Blocks.STONE.defaultBlockState();
-		scene.fill(X0, -2, Z0, X0, 4, Z1, rim);
-		scene.fill(X1, -2, Z0, X1, 4, Z1, rim);
-		scene.fill(X0, -2, Z0, X1, 4, Z0, rim);
-		scene.fill(X0, -2, Z1, X1, 4, Z1, rim);
+		scene.fill(X0, -2, Z0, X0, 13, Z1, rim);
+		scene.fill(X1, -2, Z0, X1, 13, Z1, rim);
+		scene.fill(X0, -2, Z0, X1, 13, Z0, rim);
+		scene.fill(X0, -2, Z1, X1, 13, Z1, rim);
 	}
 
 	/** Two blocks of water between the rows, from one column to another (inside the rim). */
