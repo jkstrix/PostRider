@@ -420,4 +420,11 @@ class NavigatorTest {
 		CoarsePlanner.Cells lakeOnTheWay = (cx, cz) -> new CoarsePlanner.Cell(64, cx >= 5 && cx <= 7 ? 4 : 0, 0, false);
 		assertNotNull(Navigator.misfit(List.of(land), 0, lakeOnTheWay, null, Double.MAX_VALUE, true), "water on the way is still a misfit");
 	}
+
+	@Test
+	void heIsAshoreAMomentBeforePuttingOutAgain() {
+		assertFalse(Navigator.ashoreLongEnough(1005, 1000), "the tick after stepping ashore");
+		assertTrue(Navigator.ashoreLongEnough(1000 + Navigator.ASHORE_TICKS, 1000), "a second ashore");
+		assertTrue(Navigator.ashoreLongEnough(5000, 0), "never landed this trip: the launch is from the start");
+	}
 }

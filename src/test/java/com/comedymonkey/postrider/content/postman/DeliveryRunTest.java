@@ -219,4 +219,11 @@ class DeliveryRunTest {
 			"within the ticking square: put down beyond it he'd never tick again");
 		assertTrue(DeliveryRun.MAX_STRIKES >= 10, "the map is corrected many times before he's ever jumped");
 	}
+
+	@Test
+	void aSandbarIsntSteppedOnto() {
+		assertTrue(DeliveryRun.isScrapOfShore(false, 20), "a sandbar: twenty blocks to get about on and no way on");
+		assertFalse(DeliveryRun.isScrapOfShore(false, 4000), "a proper shore, the way on just not found within the search");
+		assertFalse(DeliveryRun.isScrapOfShore(true, 12), "a scrap the way on is found from (the box on an islet)");
+	}
 }

@@ -592,8 +592,9 @@ public final class Navigator {
 		if (checkPlanAhead(level, here, target, now))
 			return Action.GOING;
 		CoarsePlanner.Leg current = currentLeg();
-		if (current != null && current.kind() == CoarsePlanner.LegKind.WATER && now % 10 == 0) {
-			// At the shore he calls up the barge, once there's open water towards the first stretch of it
+		if (current != null && current.kind() == CoarsePlanner.LegKind.WATER && now % 10 == 0 && ashoreLongEnough(now, landedAt)) {
+			// At the shore he calls up the barge, once there's open water towards the first stretch of it (never the
+			// instant he's stepped ashore: across an islet he'd be back in the barge in the tick he landed)
 			Vec3 water = current.points().get(0);
 			if (launchable(level, rider, water)) {
 				launchAim = water;
@@ -1479,6 +1480,13 @@ public final class Navigator {
 	}
 
 	/** Ashore again: on to the leg after the water. */
+	/** How long he's ashore at least before putting out again (a second): a landing and a launch in one tick is a blink across an islet. */
+	public static final int ASHORE_TICKS = 20;
+
+	public static boolean ashoreLongEnough(long now, long landedAt) {
+		return now - landedAt >= ASHORE_TICKS;
+	}
+
 	public void landed(Vec3 at, long now) {
 		lastLanding = at;
 		landedAt = now;

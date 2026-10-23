@@ -444,6 +444,6 @@ class LocalPlannerTest {
 		assertEquals(Status.FOUND, planner.finishNow(), "a two-wide ledge: a step on it between the drops");
 		List<Step> steps = planner.steps();
 		for (int i = 2; i < steps.size(); i++)
-			assertFalse(steps.get(i - 2).y() - steps.get(i - 1).y() >= 2 && steps.get(i - 1).y() - steps.get(i).y() >= 2, "no two big drops in a row");
+			assertFalse(steps.get(i - 2).y() - steps.get(i - 1).y() >= 1 && steps.get(i - 1).y() - steps.get(i).y() >= 2, "no big drop straight after any drop");
 	}
 }

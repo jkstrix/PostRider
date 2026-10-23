@@ -736,6 +736,11 @@ public class DeliveryRun {
 	/** A shore he can reach no more blocks of than this leads nowhere: back into the barge. */
 	public static final int TINY_SHORE = 64;
 
+	/** Whether a shore, searched from its landing place, is a scrap with no way on: hardly any of it to get about on, and the way not found. */
+	public static boolean isScrapOfShore(boolean wayFound, int blocksReached) {
+		return !wayFound && blocksReached <= TINY_SHORE;
+	}
+
 	private boolean land(PostmanEntity rider, ServerLevel level, BargeEntity barge, Vec3 target, int reach) {
 		PostmanHorse horse = null;
 		for (Entity passenger : barge.getPassengers())
@@ -749,6 +754,18 @@ public class DeliveryRun {
 		if (spot == null)
 			return false;
 		Vec3 ground = Vec3.atBottomCenterOf(spot);
+		// A scrap of shore (a sandbar, an islet) isn't stepped onto at all: looked at from the barge, if he could get
+		// about on hardly any of it and no way on is found, it's noted as leading nowhere and he rows on
+		if (Journey.horizontalDistance(ground, target) > Journey.DISMOUNT_DISTANCE) {
+			Navigator.Probe way = navigator.probe(level, spot.getX(), spot.getY(), spot.getZ(), false, false, target, JUMP_PROBE_BUDGET);
+			if (isScrapOfShore(way.found(), way.expanded())) {
+				logRoute(rider, "the shore at " + Navigator.spot(ground) + " is a scrap with no way on (" + way.expanded() + " blocks of it): he rows on");
+				navigator.blockShore(level, ground);
+				navigator.replan(level, barge.position(), target, true);
+				aimCooldown = 0;
+				return false;
+			}
+		}
 		float yaw = yawToward(ground, target);
 		rider.stopRiding();
 		rider.setActivity(PostmanEntity.Activity.NONE);
