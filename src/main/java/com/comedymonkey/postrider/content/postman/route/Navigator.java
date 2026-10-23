@@ -577,10 +577,41 @@ public final class Navigator {
 			rider.getNavigation().setSpeedModifier(descending ? DeliveryRun.WALK_SPEED : DeliveryRun.RUN_SPEED);
 		}
 		nudgeIntoClimb(rider, level);
+		nudgeOffTheLip(rider);
 		if (tickColumn(rider, level))
 			return Action.GOING;
 		follow(rider);
 		return Action.GOING;
+	}
+
+	/** Standing this near, across, the edge the way drops off is standing on its lip. */
+	public static final double LIP_REACH = 0.7;
+	/** How hard he's nudged off a lip, a tick. */
+	public static final double LIP_PUSH = 0.12;
+
+	/**
+	 * Whether he's standing on the lip of a drop of two or more that the way goes straight down: the path follower
+	 * never counts a step that far under its feet as reached, and with nowhere to go across it stands there.
+	 */
+	public static boolean onTheLip(double bodyY, boolean onGround, int stepY, double across) {
+		return onGround && stepY <= bodyY - 2 && across <= LIP_REACH;
+	}
+
+	/** On the lip of a drop the way goes straight down, on foot, he's nudged off it the way the step goes. */
+	private void nudgeOffTheLip(PostmanEntity rider) {
+		Path path = rider.getNavigation().getPath();
+		if (steps.isEmpty() || path == null || path.isDone() || rider.getVehicle() != null || columnEnd >= 0)
+			return;
+		int next = segmentStart + path.getNextNodeIndex();
+		if (next <= 0 || next > segmentEnd || next >= steps.size() || isColumn(steps.get(next).move()))
+			return;
+		LocalPlanner.Step step = steps.get(next), before = steps.get(next - 1);
+		if (!onTheLip(rider.getY(), rider.onGround(), step.y(), Math.hypot(step.centreX() - rider.getX(), step.centreZ() - rider.getZ())))
+			return;
+		double dx = step.centreX() - before.centreX(), dz = step.centreZ() - before.centreZ(), length = Math.hypot(dx, dz);
+		if (length < 1e-6)
+			return;
+		rider.setDeltaMovement(dx / length * LIP_PUSH, rider.getDeltaMovement().y, dz / length * LIP_PUSH);
 	}
 
 	// ---------------------------------------------------------------- doors
@@ -626,6 +657,16 @@ public final class Navigator {
 	public static final double PUSH_OUT = 0.4;
 	/** Longer than this up or down one column means something's wrong. */
 	public static final int COLUMN_TICKS = 400;
+
+	/**
+	 * How high up a column he climbs: level with its last step, or, where the way goes on up onto a ledge above the
+	 * last rung (or vine), to the top of that block, as at the top of a ladder; stepping off level with the rung he'd
+	 * step into the air beside the ledge and fall.
+	 */
+	public static double columnTop(List<LocalPlanner.Step> steps, int columnEnd) {
+		LocalPlanner.Step end = steps.get(columnEnd);
+		return columnEnd + 1 < steps.size() && steps.get(columnEnd + 1).y() > end.y() ? end.y() + 1 : end.y();
+	}
 
 	/** Whether a step is one of a column: a ladder, or a bubble column, straight up or down. */
 	public static boolean isColumn(LocalPlanner.Move move) {
@@ -682,7 +723,7 @@ public final class Navigator {
 			boolean up = end.y() > rider.getY();
 			if (up && rider.onClimbable())
 				rider.getJumpControl().jump();
-			boolean there = up ? rider.getY() >= end.y() - 0.05 : rider.getY() <= end.y() + 0.05 && (rider.onGround() || rider.onClimbable());
+			boolean there = up ? rider.getY() >= columnTop(steps, columnEnd) - 0.05 : rider.getY() <= end.y() + 0.05 && (rider.onGround() || rider.onClimbable());
 			// The water of a rising column throws him up and would hold him bobbing there, and the magma at the foot
 			// of a whirlpool burns: from the top of the one, and just above the foot of the other, he's pushed across
 			// onto the ledge beside it, which the next step is
@@ -855,6 +896,16 @@ public final class Navigator {
 		if (columnEnd >= 0)
 			return Action.GOING;
 		stepsAreFinal = localIsFinal && status == LocalPlanner.Status.FOUND;
+		if (status == LocalPlanner.Status.PARTIAL) {
+			// Not all the way: taken only as far as the first drop he couldn't climb back up, and if that's nowhere
+			// it's no way at all
+			found = upToTheFirstDrop(found);
+			if (found.size() < 2) {
+				stretchesFailed++;
+				retryAt = now + RETRY_TICKS;
+				return stretchFailed(rider, level, target);
+			}
+		}
 		if (found.size() < 2) {
 			steps = List.of();
 			return Action.GOING;
@@ -868,6 +919,18 @@ public final class Navigator {
 		detouring = DeliveryRun.isDetour(rider.position(), ahead, target);
 		startSegment(rider);
 		return Action.GOING;
+	}
+
+	/**
+	 * A stretch that doesn't reach its goal (the best the search could do) is taken only as far as its first drop of
+	 * more than a block: a basin got down into on a guess has no way back up it, and no way out but a jump. Once
+	 * nearer, the next search either reaches the goal through it or goes another way.
+	 */
+	static List<LocalPlanner.Step> upToTheFirstDrop(List<LocalPlanner.Step> steps) {
+		for (int i = 1; i < steps.size(); i++)
+			if (steps.get(i - 1).y() - steps.get(i).y() > 1)
+				return steps.subList(0, i);
+		return steps;
 	}
 
 	/** No way through the blocks ahead: the barge, the plan redone round it, or carry on (see {@link #whenStretchFails}). */

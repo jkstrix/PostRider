@@ -347,4 +347,34 @@ class NavigatorTest {
 		assertFalse(Navigator.settledToDismount(false, 0.6), "just taken off");
 		assertFalse(Navigator.settledToDismount(true, 0.6), "the tick the horse pushes off");
 	}
+
+	@Test
+	void aStretchThatFallsShortStopsBeforeADropHeCouldntClimbBackUp() {
+		List<Step> steps = List.of(new Step(0, 64, 0, false, Move.START), new Step(0, 64, 1, false, Move.WALK), new Step(0, 63, 2, false, Move.WALK),
+			new Step(0, 61, 3, false, Move.WALK), new Step(0, 60, 4, false, Move.WALK));
+		List<Step> taken = Navigator.upToTheFirstDrop(steps);
+		assertEquals(3, taken.size(), "a block down is climbed back; two down isn't");
+		assertEquals(63, taken.get(2).y());
+		assertEquals(steps.subList(0, 3), Navigator.upToTheFirstDrop(steps.subList(0, 3)), "no big drop: the whole stretch");
+		assertEquals(1, Navigator.upToTheFirstDrop(List.of(new Step(0, 64, 0, false, Move.START), new Step(0, 61, 1, false, Move.WALK))).size(), "nothing safe in it");
+	}
+
+	@Test
+	void heClimbsToTheTopOfTheLastRungWhenTheWayGoesOnUpOntoALedge() {
+		List<Step> ladderToLedge = List.of(new Step(0, 64, 0, false, Move.START), new Step(0, 65, 0, false, Move.CLIMB), new Step(0, 66, 0, false, Move.CLIMB),
+			new Step(0, 67, 1, false, Move.WALK));
+		assertEquals(67, Navigator.columnTop(ladderToLedge, 2), "the ledge is a block above the last rung: up to the top of it");
+		List<Step> ladderToLevel = List.of(new Step(0, 64, 0, false, Move.START), new Step(0, 65, 0, false, Move.CLIMB), new Step(0, 66, 0, false, Move.CLIMB),
+			new Step(0, 66, 1, false, Move.WALK));
+		assertEquals(66, Navigator.columnTop(ladderToLevel, 2), "stepping off level with the rung");
+		assertEquals(66, Navigator.columnTop(ladderToLevel.subList(0, 3), 2), "the column is the end of the way");
+	}
+
+	@Test
+	void onTheLipOfADropHeIsNudgedOff() {
+		assertTrue(Navigator.onTheLip(112, true, 110, 0.3), "two down, right under him");
+		assertFalse(Navigator.onTheLip(112, true, 111, 0.3), "a block down is just walked off");
+		assertFalse(Navigator.onTheLip(112, true, 110, 1.5), "still some way to walk to the edge");
+		assertFalse(Navigator.onTheLip(112, false, 110, 0.3), "already in the air");
+	}
 }
