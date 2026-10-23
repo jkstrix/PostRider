@@ -1013,7 +1013,14 @@ public final class Navigator {
 		double radius;
 		boolean landing;
 		double stretch = Journey.stretch();
-		if (current != null && current.kind() == CoarsePlanner.LegKind.WATER) {
+		if (coarse != null) {
+			// Still working the route out (the sea ahead being surveyed, a chunk at a time): the plan so far ends
+			// where what's known ends, which may be mid-ocean, and it changes as the survey comes in; so until it's
+			// done he rows straight for the box, round what's in the way, and the plan catches up with him
+			landing = false;
+			goal = here.add(new Vec3(target.x - here.x, 0, target.z - here.z).normalize().scale(stretch));
+			radius = WAYPOINT_RADIUS + 2;
+		} else if (current != null && current.kind() == CoarsePlanner.LegKind.WATER) {
 			Vec3 ashore = leg + 1 < plan.legs().size() ? plan.legs().get(leg + 1).points().get(0) : current.last();
 			landing = Journey.horizontalDistance(here, ashore) <= stretch;
 			if (landing) {
@@ -1037,6 +1044,12 @@ public final class Navigator {
 		}
 		if (waterPath.isEmpty())
 			return null;
+		// A way across that only gets as far as the next block or two (the water the plan expected isn't there, or is
+		// closed off) is no way: the old straight swerves take over
+		if (!waterPathFinal && Journey.horizontalDistance(here, waterPath.get(waterPath.size() - 1)) <= WATER_LOOKAHEAD / 2) {
+			waterPath = List.of();
+			return null;
+		}
 		Vec3 point = steerFor(waterPath, waterPathFinal, goal, here);
 		return new Vec3(point.x, here.y, point.z);
 	}
@@ -1049,6 +1062,36 @@ public final class Navigator {
 		if (landing && Journey.horizontalDistance(here, path.get(path.size() - 1)) <= WATER_LOOKAHEAD)
 			return goal;
 		return along(path, here, WATER_LOOKAHEAD);
+	}
+
+	/**
+	 * A chart of the water round a spot for the trace, {@code reach} columns each way, a row a line, north at the
+	 * top: {@code ~} open water, {@code #} anything else, {@code ?} not loaded, {@code @} the spot.
+	 */
+	public static String waterChart(ServerLevel level, Vec3 here, int nearY, int reach, int step) {
+		StringBuilder chart = new StringBuilder();
+		int cx = Mth.floor(here.x), cz = Mth.floor(here.z);
+		for (int z = cz - reach; z <= cz + reach; z += step) {
+			chart.append('\n');
+			for (int x = cx - reach; x <= cx + reach; x += step) {
+				if (Math.abs(x - cx) < step && Math.abs(z - cz) < step)
+					chart.append('@');
+				else if (!level.isLoaded(new BlockPos(x, nearY, z)))
+					chart.append('?');
+				else
+					chart.append(Double.isNaN(Crossing.surfaceIn(level, x, z, nearY)) ? '#' : '~');
+			}
+		}
+		return chart.toString();
+	}
+
+	/** The way across the water as it stands, for the trace. */
+	public String waterState() {
+		if (waterPath.isEmpty())
+			return "no water path";
+		Vec3 end = waterPath.get(waterPath.size() - 1);
+		return "water path of " + waterPath.size() + " to " + Math.round(end.x) + " " + Math.round(end.z) + (waterPathFinal ? " (final)" : "")
+			+ ", planned " + waterPlannedAt;
 	}
 
 	/** Whether a column is water, for finding the bank. */

@@ -132,6 +132,12 @@ public final class Journey {
 		}
 
 		/** He has jumped free once more; the clocks start again from where he lands. */
+		/** How he's doing, for the trace: how long since he last got nearer, and since he last moved. */
+		public String describe(long tick) {
+			return "best " + (bestDistance == Double.MAX_VALUE ? "none" : Math.round(bestDistance) + " " + (tick - bestSince) + " ticks ago")
+				+ ", still " + (Double.isNaN(stallX) ? "unset" : (tick - stallSince) + " ticks") + ", tries " + triesInARow;
+		}
+
 		public void unstuck(double distance, long tick) {
 			triesInARow++;
 			bestDistance = distance;

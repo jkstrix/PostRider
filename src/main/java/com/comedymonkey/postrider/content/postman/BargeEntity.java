@@ -104,6 +104,11 @@ public class BargeEntity extends Entity {
 		this.heading = heading;
 	}
 
+	/** Where it's being steered, for the log. */
+	public String headingSpot(){
+		return heading == null ? "nowhere" : Math.round(heading.x) + " " + Math.round(heading.z);
+	}
+
 	/** Where the bow is: the middle of its leading edge. */
 	public Vec3 bow() {
 		return position().add(Vec3.directionFromRotation(0, getYRot()).scale(BOW_REACH));

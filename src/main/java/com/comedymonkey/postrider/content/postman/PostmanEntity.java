@@ -556,6 +556,9 @@ public class PostmanEntity extends PathfinderMob {
 			updateAnimations();
 		else if (level() instanceof ServerLevel server) {
 			tickHorse(server);
+			// A horse from before horses knew their riders (an old save) learns whose it is, so its death is noticed
+			if (getVehicle() instanceof PostmanHorse horse && horse.riderId() == null)
+				horse.setRiderId(getUUID());
 			// Carried under a low roof on horseback he'd suffocate: he gets down, and plans on from there on foot
 			if (getVehicle() instanceof PostmanHorse && isInWall()) {
 				PostRider.LOGGER.info("Rider {} gets down from his horse at {} {} {}: no room for him on its back there", getName().getString(), getBlockX(), getBlockY(), getBlockZ());

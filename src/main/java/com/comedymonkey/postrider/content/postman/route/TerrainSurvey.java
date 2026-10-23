@@ -84,6 +84,15 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 				survey.tick();
 	}
 
+	/** How the survey stands, for the log: tiles read, tiles still waiting on chunks, chunks queued and being generated. */
+	public String describe() {
+		int waiting = 0;
+		for (Tile tile : tiles.values())
+			if (!tile.isDone())
+				waiting++;
+		return tiles.size() + " tiles, " + waiting + " waiting on chunks, " + toGenerate.size() + " chunks queued to generate, " + generatingSince.size() + " generating";
+	}
+
 	/** Forgets everything (the server is stopping). */
 	public static void clear() {
 		SURVEYS.clear();

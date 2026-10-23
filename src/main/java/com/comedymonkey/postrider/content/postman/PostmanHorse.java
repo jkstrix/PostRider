@@ -100,6 +100,11 @@ public class PostmanHorse extends Horse {
 		this.riderId = riderId;
 	}
 
+	@Nullable
+	public UUID riderId() {
+		return riderId;
+	}
+
 	@Override
 	public void die(DamageSource source) {
 		super.die(source);

@@ -45,7 +45,10 @@ neoForge {
             gameDirectory = project.file('run-headless')
             programArgument '--nogui'
             systemProperty 'postrider.post', "${project.findProperty('from') ?: 'Testing'}|${project.findProperty('to') ?: 'Smelly'}"
+            systemProperty 'postrider.sprint', "${project.findProperty('sprint') ?: 'true'}"
+            systemProperty 'postrider.timeout', "${project.findProperty('timeout') ?: '30'}"
             systemProperty 'postrider.trace', 'true'
+            systemProperty 'postrider.traceAll', 'true'
         }
         // Opens the screens with awkward contents, saves screenshots to run-screenshots/screenshots/postrider, and quits
         screenshots {

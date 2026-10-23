@@ -15,6 +15,7 @@ import com.comedymonkey.postrider.content.mailbox.MailboxBlockEntity;
 import com.comedymonkey.postrider.content.postman.route.LevelTerrain;
 import com.comedymonkey.postrider.content.postman.route.LocalPlanner;
 import com.comedymonkey.postrider.content.postman.route.Navigator;
+import com.comedymonkey.postrider.content.postman.route.TerrainSurvey;
 import com.comedymonkey.postrider.post.JourneyNotes;
 import com.comedymonkey.postrider.post.Mail;
 import com.comedymonkey.postrider.post.MailboxDirectory;
@@ -251,7 +252,7 @@ public class DeliveryRun {
 		logChanges(rider);
 		navigator.logTo(message -> logRoute(rider, message));
 		navigator.onModeChange(() -> traceUntil = level.getGameTime() + 80);
-		if (TRACE && level.getGameTime() < traceUntil && level.getGameTime() % 5 == 0)
+		if (TRACE && (TRACE_ALL || level.getGameTime() < traceUntil) && level.getGameTime() % 5 == 0)
 			logRoute(rider, trace(rider));
 		stageTicks++;
 		// No address to go to (it went while a vanished rider was being brought back, say): undeliverable, right here
@@ -1141,6 +1142,7 @@ public class DeliveryRun {
 			free = freeSpot(level, rider.position(), target, rider.level().canSeeSky(rider.blockPosition()));
 		// Nowhere safe to jump to this time (lava all round, say); it still counts as a try
 		if (free == null) {
+			logRoute(rider, stuck + "; " + found + "; nowhere to jump to");
 			progress.unstuck(distance, level.getGameTime());
 			return true;
 		}
@@ -1165,6 +1167,8 @@ public class DeliveryRun {
 
 	/** With -Dpostrider.trace, a stuck rider's body and path follower are traced for a few seconds afterwards. */
 	public static final boolean TRACE = Boolean.getBoolean("postrider.trace");
+	/** With -Dpostrider.traceAll as well, he's traced the whole way (a headless trip across a real world). */
+	public static final boolean TRACE_ALL = Boolean.getBoolean("postrider.traceAll");
 	private long traceUntil;
 
 	private String trace(PostmanEntity rider) {
@@ -1178,7 +1182,12 @@ public class DeliveryRun {
 			body.onGround() ? "on ground" : "in air", body.horizontalCollision ? "colliding" : "clear", next,
 			control.getWantedX(), control.getWantedY(), control.getWantedZ(), (body instanceof net.minecraft.world.entity.LivingEntity l ? l.zza : 0f),
 			(body instanceof net.minecraft.world.entity.LivingEntity l2 ? l2.getSpeed() : 0f), rider.isGesturing() ? "gesturing" : "no gesture",
-			rider.getVehicle() == null ? (rider.isHorseOnTheWay() ? "on foot, horse on the way" : "on foot") : "on " + rider.getVehicle().getType().toShortString(), rider.getActivity());
+			rider.getVehicle() == null ? (rider.isHorseOnTheWay() ? "on foot, horse on the way" : "on foot") : "on " + rider.getVehicle().getType().toShortString(), rider.getActivity())
+			+ (body instanceof BargeEntity barge ? String.format(", barge %s, heading %s, aground %d, %s", barge.isBlockedAhead() ? "blocked ahead" : "open ahead",
+				barge.headingSpot(), aground, bodyState(barge, (ServerLevel) rider.level())) + ", " + navigator.state() + ", " + navigator.waterState() : "")
+			+ ", stage " + stage + " " + stageTicks + ", progress " + progress.describe(rider.level().getGameTime())
+			+ (body instanceof BargeEntity && stageTicks % 100 < 5 ? ", survey " + TerrainSurvey.of((ServerLevel) rider.level()).describe()
+				+ Navigator.waterChart((ServerLevel) rider.level(), body.position(), body.getBlockY(), 48, 4) : "");
 	}
 
 	/** How the body that's stuck is doing, for the log: on the ground or not, what it's standing in and on, pushing or not. */
@@ -1291,6 +1300,7 @@ public class DeliveryRun {
 
 	private void fail(PostmanEntity rider, ServerLevel level, LostCause cause, String reason, @Nullable UUID killer,
 			String killerName, BlockPos near) {
+		logRoute(rider, "the delivery is lost (" + cause + ") at " + Navigator.spot(rider.position()) + ": " + reason);
 		MailboxDirectory.Entry entry = MailboxDirectory.get(level.getServer()).find(delivery.toName());
 		UUID recipient = entry != null ? entry.owner() : null;
 		putOutFire(level);
