@@ -158,4 +158,20 @@ class JourneyTest {
 		progress.isStuck(495, 2 * Journey.Progress.PATIENCE + 1);
 		assertEquals(0, progress.triesInARow(), "past where he was stuck: that's getting on");
 	}
+
+	@Test
+	void routesRedoneOverAndOverWithoutGettingNearerIsBeingStuck() {
+		Journey.Progress progress = new Journey.Progress();
+		progress.isStuck(500, 0);
+		for (int i = 1; i <= Journey.Progress.MAX_REDOS; i++) {
+			progress.rebase(500, i * 40L);
+			assertEquals(i == Journey.Progress.MAX_REDOS, progress.isStuck(500, i * 40L + 1), "redo " + i);
+		}
+		progress.unstuck(500, 1000);
+		assertFalse(progress.isStuck(500, 1001), "jumped free: the count starts again");
+		progress.rebase(600, 1100);
+		assertFalse(progress.isStuck(590, 1101), "nearer along a route redone longer: not stuck");
+		progress.isStuck(580, 1102);
+		assertEquals(0, progress.triesInARow(), "and getting on past where he was stuck clears the tries");
+	}
 }

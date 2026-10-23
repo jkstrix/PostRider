@@ -100,10 +100,13 @@ public final class Journey {
 		/** Not moving this far in this long means he's wedged somewhere, however close he is. */
 		public static final double STALL_DISTANCE = 2.0;
 		public static final int STALL_TICKS = 5 * 20;
+		/** This many routes redone without his getting any nearer is being stuck too, however busy the map is. */
+		public static final int MAX_REDOS = 6;
 
 		private double bestDistance = Double.MAX_VALUE;
 		private long bestSince;
 		private int triesInARow;
+		private int redosWithoutProgress;
 		private double stallX = Double.NaN, stallY, stallZ;
 		private long stallSince;
 
@@ -114,9 +117,10 @@ public final class Journey {
 					triesInARow = 0;
 				bestDistance = distance;
 				bestSince = tick;
+				redosWithoutProgress = 0;
 				return false;
 			}
-			return tick - bestSince >= PATIENCE;
+			return tick - bestSince >= PATIENCE || redosWithoutProgress >= MAX_REDOS;
 		}
 
 		/** Records where he is now; true if he's hardly moved, up or down included, for {@link #STALL_TICKS}. */
@@ -147,12 +151,14 @@ public final class Journey {
 			bestDistance = Math.min(bestDistance, distance);
 			bestSince = tick;
 			stallX = Double.NaN;
+			redosWithoutProgress = 0;
 		}
 
 		/** The way has changed (the route redone): what counts as nearer is measured afresh from here, and no try is counted. */
 		public void rebase(double distance, long tick) {
 			bestDistance = distance;
 			bestSince = tick;
+			redosWithoutProgress++;
 		}
 
 		/** Time didn't pass for him (camping at night), so don't count it. */

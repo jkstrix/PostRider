@@ -274,4 +274,20 @@ class CoarsePlannerTest {
 			: cx >= 4 && cx <= 6 ? WATER : cx == 7 ? cliffCoast : LAND;
 		assertEquals(Status.FAILED, new CoarsePlanner(cliffAll, 2, 2, 10, 2, Set.of()).finishNow(), "a cliff coast the whole way: nowhere to land");
 	}
+
+	@Test
+	void theCellsNextToTheStartAreNeverBlocked() {
+		// Everything round the start struck off (strikes from every side of a spot he's stuck at): the plan still leaves it
+		Set<Long> ring = new HashSet<>();
+		for (int dx = -1; dx <= 1; dx++)
+			for (int dz = -1; dz <= 1; dz++)
+				if (dx != 0 || dz != 0)
+					ring.add(CoarsePlanner.key(2 + dx, 2 + dz));
+		CoarsePlanner.Cells plain = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : LAND;
+		assertEquals(Status.DONE, new CoarsePlanner(plain, 2, 2, 18, 2, ring).finishNow(), "boxed in by strikes, he still gets out");
+		Set<Long> wall = new HashSet<>();
+		for (int cz = 0; cz <= 4; cz++)
+			wall.add(CoarsePlanner.key(10, cz));
+		assertEquals(Status.FAILED, new CoarsePlanner(plain, 2, 2, 18, 2, wall).finishNow(), "a wall of strikes further off still stops him");
+	}
 }

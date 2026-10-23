@@ -442,9 +442,12 @@ public final class CoarsePlanner {
 			return cell == null || cell.isVoid() || isBlocked(x, z) || !barge && cell.water();
 		}
 
-		/** Whether a cell was found impassable this trip; never the goal, or the plan could never end. */
+		/**
+		 * Whether a cell was found impassable this trip; never the goal, or the plan could never end, and never one
+		 * next to the start, or it could never begin (he's there: what's struck off is what lies beyond).
+		 */
 		boolean isBlocked(int x, int z) {
-			return (x != goalX || z != goalZ) && blocked.contains(key(x, z));
+			return (x != goalX || z != goalZ) && (Math.abs(x - startX) > 1 || Math.abs(z - startZ) > 1) && blocked.contains(key(x, z));
 		}
 
 		void push(Node node) {

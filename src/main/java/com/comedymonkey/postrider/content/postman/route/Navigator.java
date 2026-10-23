@@ -88,6 +88,8 @@ public final class Navigator {
 	private CoarsePlanner.Plan plan;
 	private int leg;
 	private final Set<Long> blocked = new HashSet<>();
+	/** The cells of shore that led nowhere: the barge's way across the water keeps clear of the water in them. */
+	private final Set<Long> noShore = new HashSet<>();
 	/** A route redone takes a while; after this long he goes by the best of it so far. */
 	public static final int REPLAN_PATIENCE = 1200;
 	private int replanTicks;
@@ -1764,8 +1766,10 @@ public final class Navigator {
 
 	/** Notes the shore round a spot as leading nowhere (the barge hard against it with nowhere to step off), for the plan to avoid. */
 	public void blockShore(ServerLevel level, Vec3 at) {
-		for (long cell : shoreAround(at, TerrainSurvey.of(level)))
+		for (long cell : shoreAround(at, TerrainSurvey.of(level))) {
 			blocked.add(cell);
+			noShore.add(cell);
+		}
 		noLandings.add(at);
 	}
 
@@ -1777,6 +1781,8 @@ public final class Navigator {
 	/**
 	 * Open water in loaded chunks, each column looked at once per plan. The water in a cell of shore that led nowhere
 	 * is kept clear of (the water by a scrap of such shore is not: he puts out again from it, and must row away).
+	 * Cells struck off the long-range map for the plan's sake are not: the water in them is still rowed through, or
+	 * each strike would box the barge in a little more until no way across was left.
 	 */
 	private WaterPlanner.Water water(ServerLevel level, int nearY) {
 		Long2ByteOpenHashMap known = new Long2ByteOpenHashMap();
@@ -1784,7 +1790,7 @@ public final class Navigator {
 			long key = ChunkPos.asLong(x, z);
 			byte open = known.getOrDefault(key, (byte) -1);
 			if (open < 0) {
-				boolean blockedCell = blocked.contains(CoarsePlanner.key(CoarsePlanner.cellOf(x), CoarsePlanner.cellOf(z)));
+				boolean blockedCell = noShore.contains(CoarsePlanner.key(CoarsePlanner.cellOf(x), CoarsePlanner.cellOf(z)));
 				open = (byte) (level.isLoaded(new BlockPos(x, nearY, z)) && !blockedCell && !Double.isNaN(Crossing.surfaceIn(level, x, z, nearY)) ? 1 : 0);
 				known.put(key, open);
 			}
