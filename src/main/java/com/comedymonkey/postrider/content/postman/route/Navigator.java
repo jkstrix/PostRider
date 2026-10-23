@@ -1169,6 +1169,11 @@ public final class Navigator {
 		rider.getNavigation().moveTo(path, mounted ? 1.0 : DeliveryRun.RUN_SPEED);
 	}
 
+	/** Whether the horse is on the ground and not rising or falling, so he can get down from it. */
+	public static boolean settledToDismount(boolean onGround, double verticalSpeed) {
+		return onGround && Math.abs(verticalSpeed) < 0.2;
+	}
+
 	/** At the end of a piece of the way: on to the next, getting down from the horse or calling it back first. */
 	private void follow(PostmanEntity rider) {
 		if (steps.isEmpty() || !rider.getNavigation().isDone() || segmentEnd >= steps.size() - 1)
@@ -1180,6 +1185,9 @@ public final class Navigator {
 			return;
 		}
 		LocalPlanner.Step change = steps.get(segmentEnd + 1);
+		// Never off the horse while it's in the air (landing a leap, say): got off over a gap he'd fall into it
+		if (change.move() == LocalPlanner.Move.DISMOUNT && !settledToDismount(body.onGround(), body.getDeltaMovement().y))
+			return;
 		segmentStart = segmentEnd + 1;
 		segmentEnd = segmentEnd(steps, segmentStart);
 		if (change.move() == LocalPlanner.Move.DISMOUNT) {

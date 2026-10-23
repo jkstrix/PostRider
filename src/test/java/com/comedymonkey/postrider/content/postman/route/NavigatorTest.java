@@ -339,4 +339,12 @@ class NavigatorTest {
 		assertEquals(Journey.horizontalDistance(new Vec3(0, 64, 0), box), Navigator.alongToGo(List.of(), 0, new Vec3(0, 64, 0), box), 1e-6, "no plan: straight there");
 		assertEquals(0, Navigator.alongToGo(List.of(round), 0, box, box), 1e-6);
 	}
+
+	@Test
+	void heNeverGetsDownFromAHorseInTheAir() {
+		assertTrue(Navigator.settledToDismount(true, -0.078), "standing on the ground (resting fall speed)");
+		assertFalse(Navigator.settledToDismount(false, -0.5), "mid-leap, falling: got off here he'd fall into the gap");
+		assertFalse(Navigator.settledToDismount(false, 0.6), "just taken off");
+		assertFalse(Navigator.settledToDismount(true, 0.6), "the tick the horse pushes off");
+	}
 }
