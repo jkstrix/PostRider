@@ -27,6 +27,16 @@ neoForge {
             server()
             programArgument '--nogui'
         }
+        // Opens a flat creative world of its own and runs the in-world tests in front of the player, to be watched:
+        // all of them, or one with -Ptests=<name> (./gradlew runWatch -Ptests=heopensthedoorsonhiswayandleavesthemashefoundthem)
+        watch {
+            client()
+            gameDirectory = project.file('run-watch')
+            systemProperty 'neoforge.enableGameTest', 'true'
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            systemProperty 'postrider.trace', 'true'
+            systemProperty 'postrider.watch', project.findProperty('tests') ?: 'all'
+        }
         // Opens the screens with awkward contents, saves screenshots to run-screenshots/screenshots/postrider, and quits
         screenshots {
             client()

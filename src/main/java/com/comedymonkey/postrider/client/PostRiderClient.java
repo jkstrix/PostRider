@@ -49,6 +49,7 @@ public class PostRiderClient {
 		});
 		NeoForge.EVENT_BUS.addListener(HarmonicaSound::onEntityTick);
 		DevScreenshots.registerIfWanted();
+		DevWatch.registerIfWanted();
 		modBus.addListener(this::registerScreens);
 		modBus.addListener(this::registerLayers);
 		modBus.addListener(this::registerRenderers);
