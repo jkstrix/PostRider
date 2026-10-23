@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.2.0
+
+- New: the Ice Hopper, a boat for players with an upturned, iron-shod bow. Row it at sea ice and it hops up onto the
+  ice and slides on without stopping, up a block of ice too, and drops back into the water off the edge. Craft it from
+  any boat and two packed ice.
+- Riders cross frozen oceans: the barge slides from open water onto sea ice and off again, climbs a block of ice, and
+  treats higher ice as a bank. A rider camped on ice lights no fire and sits shivering instead.
+- Long trips: routes over a few thousand blocks are planned in stages, ground nobody has explored yet is worked out
+  from the world generator without generating it, and the chunks just ahead of the rider are kept loaded.
+- Riders get about far better: they keep off cliff edges, never take two big drops in a row, leap only where there's
+  headroom for the horse, climb ladders and vines to the top, open doors on foot, ride bubble columns, and take caves,
+  mines and tight spiral stairs in their stride.
+- Riders get unstuck far better: the way ahead is struck off the map and the route redone before anyone is
+  teleported, a rider cut off on an island or an ice floe takes the barge, and the barge backs off a corner it's caught
+  on and keeps to roomy water in tight leads.
+- A rider whose spot in front of the sender's mailbox is blocked sets out from the nearest place he can stand.
+- His hat sways as he walks and bobs as he rides, and now and then he eats a hunk of bread.
+- Works alongside the Concurrent Chunk Management Engine and Distant Horizons.
+- New operator commands: `/postrider watch` follows the riders as a spectator (`/postrider watch stop` to end it),
+  and `/postrider post <from> <to>` posts a parcel between two named mailboxes.
+
 ## 1.1.2
 
 - Fixed: a rider could row back and forth to the same stretch of shore, or turn back to the water chunks after
