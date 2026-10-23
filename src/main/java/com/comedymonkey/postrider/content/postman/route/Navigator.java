@@ -1113,7 +1113,8 @@ public final class Navigator {
 		// His horse (or his legs) gave up following the way before the end of it, a snag on a corner, say: plan it
 		// again from here, the last stretch to the mailbox too, rather than standing there
 		if (navigation.isDone() && segmentEnd >= steps.size() - 1
-				&& stalledShort(stepsAreFinal, Journey.horizontalDistance(here, new Vec3(last.centreX(), here.y, last.centreZ()))))
+				&& stalledShort(stepsAreFinal, Journey.horizontalDistance(here, new Vec3(last.centreX(), here.y, last.centreZ())),
+					localGoal != null ? Journey.horizontalDistance(here, localGoal) : 0))
 			return true;
 		if (offPath(here))
 			return true;
@@ -1122,10 +1123,11 @@ public final class Navigator {
 
 	/**
 	 * Whether, his path follower having stopped, he's short of where this stretch ends: any stretch on the way, or
-	 * the last one if he's still well off the mailbox.
+	 * the last one if he's still well off the end of it or further from the mailbox than he gets down from his horse
+	 * (the way to the box ending a few blocks short of it, he'd stand there).
 	 */
-	public static boolean stalledShort(boolean toMailbox, double fromEnd) {
-		return !toMailbox || fromEnd > MAILBOX_RADIUS + 1;
+	public static boolean stalledShort(boolean toMailbox, double fromEnd, double fromBox) {
+		return !toMailbox || fromEnd > MAILBOX_RADIUS + 1 || fromBox > Journey.DISMOUNT_DISTANCE;
 	}
 
 	private boolean offPath(Vec3 here) {

@@ -146,9 +146,10 @@ class NavigatorTest {
 
 	@Test
 	void ifHisHorseGivesUpFollowingTheWayHePlansItAgainRatherThanStandThere() {
-		assertTrue(Navigator.stalledShort(false, 20), "a stretch on the way");
-		assertTrue(Navigator.stalledShort(true, 20), "the last stretch, still well off the mailbox");
-		assertFalse(Navigator.stalledShort(true, 2), "at the mailbox: nothing to plan");
+		assertTrue(Navigator.stalledShort(false, 20, 60), "a stretch on the way");
+		assertTrue(Navigator.stalledShort(true, 20, 24), "the last stretch, still well off the mailbox");
+		assertFalse(Navigator.stalledShort(true, 2, 3), "at the mailbox: nothing to plan");
+		assertTrue(Navigator.stalledShort(true, 3, 6.5), "at the end of the way to the box but still too far from it to walk up: planned again");
 	}
 
 	@Test
