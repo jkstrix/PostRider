@@ -62,6 +62,7 @@ public class PostRider {
 		NeoForge.EVENT_BUS.addListener(PlanningBudget::onServerStopped);
 		NeoForge.EVENT_BUS.addListener(RiderHunting::onJoin);
 		NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> PostRiderCommand.register(event.getDispatcher()));
+		DevHeadless.registerIfWanted();
 	}
 
 	public static ResourceLocation asResource(String path) {

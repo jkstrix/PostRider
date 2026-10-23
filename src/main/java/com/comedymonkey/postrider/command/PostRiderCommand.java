@@ -8,9 +8,12 @@ import org.jetbrains.annotations.Nullable;
 
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.Roster;
+import com.comedymonkey.postrider.post.PendingDelivery;
 import com.comedymonkey.postrider.post.PostDispatcher;
+import com.comedymonkey.postrider.post.Posting;
 import com.comedymonkey.postrider.registry.ModEntities;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
@@ -41,6 +44,19 @@ public final class PostRiderCommand {
 		root.then(Commands.literal("whistle").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::whistleForHorse)));
 		root.then(Commands.literal("dismount").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::dismissHorse)));
 		root.then(Commands.literal("vanish").executes(ctx -> withNearest(ctx.getSource(), PostmanEntity::vanish)));
+		// Mail from one box to another by name (quoted if there are spaces): /postrider post "My Post" "Beach House"
+		root.then(Commands.literal("post")
+			.then(Commands.argument("from", StringArgumentType.string())
+				.then(Commands.argument("to", StringArgumentType.string()).executes(ctx -> {
+					try {
+						PendingDelivery delivery = Posting.post(ctx.getSource().getServer(), StringArgumentType.getString(ctx, "from"), StringArgumentType.getString(ctx, "to"));
+						ctx.getSource().sendSuccess(() -> Component.literal("Posted from " + delivery.fromName() + " to " + delivery.toName()), true);
+						return 1;
+					} catch (IllegalArgumentException e) {
+						ctx.getSource().sendFailure(Component.literal(e.getMessage()));
+						return 0;
+					}
+				}))));
 		root.then(Commands.literal("dispatch").executes(ctx -> {
 			int sent = PostDispatcher.dispatch(ctx.getSource().getServer());
 			ctx.getSource().sendSuccess(() -> Component.translatable("command.postrider.dispatched", sent), true);

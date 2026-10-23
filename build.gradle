@@ -37,6 +37,16 @@ neoForge {
             systemProperty 'postrider.trace', 'true'
             systemProperty 'postrider.watch', project.findProperty('tests') ?: 'all'
         }
+        // A headless trip across one of the client's worlds (run/saves/<world>, copied to run-headless/world): the server
+        // starts on it, posts a parcel from one box to the other, logs the rider's progress, and stops once it's delivered
+        // or lost. ./gradlew runHeadless -Pworld="New World (1)" -Pfrom=Testing -Pto=Smelly
+        headless {
+            server()
+            gameDirectory = project.file('run-headless')
+            programArgument '--nogui'
+            systemProperty 'postrider.post', "${project.findProperty('from') ?: 'Testing'}|${project.findProperty('to') ?: 'Smelly'}"
+            systemProperty 'postrider.trace', 'true'
+        }
         // Opens the screens with awkward contents, saves screenshots to run-screenshots/screenshots/postrider, and quits
         screenshots {
             client()
@@ -88,6 +98,26 @@ dependencies {
 // Each run of the in-world tests starts from a fresh world, so nothing is left over from the last
 tasks.matching { it.name == 'runGameTestServer' }.configureEach {
     doFirst { delete file('run-gametest/world') }
+}
+
+// The headless trip runs on a fresh copy of the chosen client world, so the client's own save is never touched
+tasks.matching { it.name == 'runHeadless' }.configureEach {
+    doFirst {
+        def world = project.findProperty('world') ?: 'New World (1)'
+        def dir = file('run-headless')
+        def source = file("run/saves/${world}")
+        if (!source.isDirectory())
+            throw new GradleException("No world at ${source}: pass -Pworld=<name of a world in run/saves>")
+        delete file("${dir}/world")
+        copy {
+            from source
+            into file("${dir}/world")
+        }
+        dir.mkdirs()
+        file("${dir}/eula.txt").text = "eula=true\n"
+        file("${dir}/server.properties").text = ["level-name=world", "online-mode=false", "spawn-protection=0",
+            "max-tick-time=-1", "view-distance=10", "simulation-distance=10"].join("\n") + "\n"
+    }
 }
 
 tasks.named('test', Test) {
