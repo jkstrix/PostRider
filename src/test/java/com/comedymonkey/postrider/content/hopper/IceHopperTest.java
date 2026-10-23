@@ -73,14 +73,18 @@ class IceHopperTest {
 	}
 
 	@Test
-	void itsModelBakesWithTheHullBowAndOarsAndItsSkinsAreThere() {
+	void itsModelBakesWithTheHullBowAndOarsAndItsSkinsAreThere() throws java.io.IOException {
 		ModelPart root = IceHopperModel.createBodyLayer().bakeRoot();
 		ModelPart boat = root.getChild("boat");
 		for (String part : Set.of("hull", "bow", "oar_left", "oar_right"))
 			assertTrue(boat.hasChild(part), part);
 		assertNotNull(ModResourceFiles.find("assets", "postrider", "textures", "entity", "ice_hopper.png"), "the boat's skin");
-		assertNotNull(ModResourceFiles.find("assets", "postrider", "textures", "item", "ice_hopper.png"), "the item's icon");
-		assertNotNull(ModResourceFiles.find("assets", "postrider", "models", "item", "ice_hopper.json"));
+		// The item is the boat itself in miniature (a 3D model skinned with the entity's texture), not a flat icon
+		java.nio.file.Path item = ModResourceFiles.find("assets", "postrider", "models", "item", "ice_hopper.json");
+		assertNotNull(item);
+		String json = java.nio.file.Files.readString(item);
+		assertTrue(json.contains("\"elements\"") && json.contains("postrider:entity/ice_hopper"), "a 3D model skinned with the boat's own texture");
+		assertTrue(json.contains("\"gui\"") && json.contains("firstperson_righthand"), "placed in the hotbar and the hand");
 		assertNotNull(ModResourceFiles.find("data", "postrider", "recipe", "ice_hopper.json"), "any boat and two packed ice");
 	}
 
