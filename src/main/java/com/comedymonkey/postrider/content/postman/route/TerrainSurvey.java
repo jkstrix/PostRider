@@ -1,7 +1,9 @@
 package com.comedymonkey.postrider.content.postman.route;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import com.comedymonkey.postrider.PostRider;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -137,11 +139,11 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 
 	private void readSaved(ChunkPos pos) {
 		int minY = level.getMinBuildHeight();
-		ChunkGenerator generator = level.getChunkSource().getGenerator();
-		RandomState random = level.getChunkSource().randomState();
+		// Read off disk on the disk thread; a chunk that was never generated comes back without heights and is
+		// estimated on the server thread (the generator's noise is sampled there, and nothing can go missing)
 		level.getChunkSource().chunkMap.read(pos).whenComplete((saved, error) -> {
 			Arrival arrival = fromSaved(pos, saved, error, heightBits, minY);
-			arrivals.add(arrival != null ? arrival : estimated(pos, generator, random, level));
+			arrivals.add(arrival != null ? arrival : new Arrival(pos, null, null));
 		});
 	}
 
@@ -188,8 +190,19 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	}
 
 	private void tick() {
-		for (Arrival arrival; (arrival = arrivals.poll()) != null; )
+		for (Arrival arrival; (arrival = arrivals.poll()) != null; ) {
+			if (arrival.floors() == null) {
+				try {
+					arrival = estimated(arrival.pos(), level.getChunkSource().getGenerator(), level.getChunkSource().randomState(), level);
+				} catch (RuntimeException e) {
+					PostRider.LOGGER.warn("Route survey couldn't estimate chunk {}: taken as plain ground at sea level", arrival.pos(), e);
+					int[] plain = new int[256];
+					Arrays.fill(plain, level.getSeaLevel() + 1);
+					arrival = new Arrival(arrival.pos(), plain, plain);
+				}
+			}
 			fill(arrival.pos(), arrival.floors(), arrival.tops());
+		}
 	}
 
 	private void fill(ChunkPos pos, int[] floors, int[] tops) {
@@ -256,7 +269,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		return cells;
 	}
 
-	private record Arrival(ChunkPos pos, int[] floors, int[] tops) {}
+	private record Arrival(ChunkPos pos, int @Nullable [] floors, int @Nullable [] tops) {}
 
 	private static final class Tile {
 		final CoarsePlanner.Cell[] cells = new CoarsePlanner.Cell[TILE_CELLS * TILE_CELLS];

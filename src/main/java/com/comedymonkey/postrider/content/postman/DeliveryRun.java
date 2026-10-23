@@ -251,6 +251,7 @@ public class DeliveryRun {
 	public void tick(PostmanEntity rider, ServerLevel level) {
 		if (stage == Stage.DONE)
 			return;
+		navigator.setOwner(rider.getUUID());
 		keepChunksLoaded(rider, level);
 		logChanges(rider);
 		navigator.logTo(message -> logRoute(rider, message));
@@ -626,8 +627,18 @@ public class DeliveryRun {
 		}
 		if (checkStuck(rider, level, distance, target))
 			return;
-		if (ashore(level, barge, distance) && land(rider, level, barge, target))
-			return;
+		if (ashore(level, barge, distance)) {
+			if (land(rider, level, barge, target))
+				return;
+			// Hard against a shore for a while with nowhere to step off (a cliff, a wall): that shore is no landing, and
+			// the way across the water is worked out again round it
+			if (aground >= AGROUND_TICKS) {
+				logRoute(rider, "hard against the shore at " + Navigator.spot(barge.bow()) + " with nowhere to step off: the route is redone round it");
+				navigator.blockShore(level, barge.bow());
+				navigator.replan(level, barge.position(), target, true);
+				aground = 0;
+			}
+		}
 		if (--aimCooldown <= 0) {
 			aimCooldown = BARGE_AIM_INTERVAL;
 			int nearY = barge.getBlockY();
@@ -1375,6 +1386,7 @@ public class DeliveryRun {
 	private void finish(PostmanEntity rider, ServerLevel level) {
 		enter(Stage.DONE);
 		navigator.putDoorsBack(level);
+		navigator.releaseAhead(level);
 		PostOffice.get(level.getServer()).finish(delivery.id());
 		if (loadedChunk != null)
 			RiderChunks.release(level, rider.getUUID(), loadedChunk);

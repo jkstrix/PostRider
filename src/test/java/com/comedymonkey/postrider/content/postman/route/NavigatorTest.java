@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.comedymonkey.postrider.content.postman.Journey;
 import com.comedymonkey.postrider.content.postman.route.LocalPlanner.Move;
 import com.comedymonkey.postrider.content.postman.route.LocalPlanner.Step;
 
@@ -240,5 +241,43 @@ class NavigatorTest {
 		assertFalse(Navigator.descends(down, 0, 2, 70), "level so far");
 		assertFalse(Navigator.descends(down, 5, 5, 68), "a step up isn't a descent");
 		assertTrue(Navigator.descends(down, 3, 3, 70), "the first step against where he stands");
+	}
+
+	@Test
+	void aLongTripIsPlannedAStageAtATime() {
+		Vec3 from = new Vec3(0, 64, 0), target = new Vec3(3000, 64, 0);
+		Vec3 stage = Navigator.stagePoint(from, target, Navigator.STAGE);
+		assertEquals(Navigator.STAGE, stage.x, 1e-9, "a stage along the straight line");
+		assertEquals(0, stage.z, 1e-9);
+		assertEquals(new Vec3(500, 64, 0), Navigator.stagePoint(from, new Vec3(500, 64, 0), Navigator.STAGE), "a shorter trip is planned whole");
+		// The stage point is in a lake: the nearest land cell is made for instead
+		CoarsePlanner.Cells lake = (cx, cz) -> cx >= 124 && cx <= 126 && cz >= -1 && cz <= 1 ? new CoarsePlanner.Cell(62, 4, 0, false) : new CoarsePlanner.Cell(64, 0, 0, false);
+		Vec3 land = Navigator.nearestLand(lake, stage);
+		assertTrue(CoarsePlanner.cellOf(land.x) < 124 || CoarsePlanner.cellOf(land.x) > 126 || Math.abs(CoarsePlanner.cellOf(land.z)) > 1, "out of the lake: " + land);
+		assertTrue(Journey.horizontalDistance(land, stage) <= 2 * CoarsePlanner.CELL * 1.5, "but close by it");
+	}
+
+	@Test
+	void aPlanNoLongerFittingTheGroundIsNoticed() {
+		CoarsePlanner.Leg land = new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(4, 64, 4), new Vec3(92, 64, 4)));
+		CoarsePlanner.Leg water = new CoarsePlanner.Leg(CoarsePlanner.LegKind.WATER, List.of(new Vec3(100, 62, 4), new Vec3(140, 62, 4)));
+		CoarsePlanner.Cells asPlanned = (cx, cz) -> cx >= 12 ? new CoarsePlanner.Cell(62, 4, 0, false) : new CoarsePlanner.Cell(64, 0, 0, false);
+		assertTrue(Navigator.legsFit(List.of(land, water), 0, asPlanned));
+		CoarsePlanner.Cells lakeTurnedUp = (cx, cz) -> cx == 6 || cx >= 12 ? new CoarsePlanner.Cell(62, 4, 0, false) : new CoarsePlanner.Cell(64, 0, 0, false);
+		assertFalse(Navigator.legsFit(List.of(land, water), 0, lakeTurnedUp), "water across the land leg");
+		CoarsePlanner.Cells unknown = (cx, cz) -> null;
+		assertTrue(Navigator.legsFit(List.of(land, water), 0, unknown), "what isn't known yet is trusted");
+		assertTrue(Navigator.legsFit(List.of(land, water), 1, lakeTurnedUp), "the leg he's past doesn't matter");
+	}
+
+	@Test
+	void theChunksAheadFollowThePlanForAFewHundredBlocks() {
+		CoarsePlanner.Leg leg = new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(4, 64, 4), new Vec3(804, 64, 4)));
+		List<Vec3> points = Navigator.pointsAhead(List.of(leg), 0, new Vec3(100, 64, 4), Navigator.AHEAD_BLOCKS, CoarsePlanner.CELL);
+		assertEquals(Navigator.AHEAD_BLOCKS / CoarsePlanner.CELL + 1, points.size(), "a point every cell along");
+		assertEquals(100, points.get(0).x, 1e-9, "from where he is");
+		assertEquals(100 + Navigator.AHEAD_BLOCKS, points.get(points.size() - 1).x, 1e-9, "to the window's end");
+		List<Vec3> nearEnd = Navigator.pointsAhead(List.of(leg), 0, new Vec3(790, 64, 4), Navigator.AHEAD_BLOCKS, CoarsePlanner.CELL);
+		assertTrue(nearEnd.size() < 5, "the plan ends sooner: " + nearEnd.size());
 	}
 }

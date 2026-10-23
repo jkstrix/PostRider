@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
@@ -13,6 +14,7 @@ import com.comedymonkey.postrider.content.postman.DeliveryRun;
 import com.comedymonkey.postrider.content.postman.Journey;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.PostmanHorse;
+import com.comedymonkey.postrider.content.postman.PostmanHorseChunks;
 
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 
@@ -121,9 +123,17 @@ public final class Navigator {
 		plannedAfloat = afloat;
 		landedSincePlanned = false;
 		lastHere = from;
+		// A long trip is planned a stage at a time, to the nearest land to a point a stage along the straight line
+		Vec3 goal = target;
+		stageTarget = null;
+		if (Journey.horizontalDistance(from, target) > STAGE) {
+			stageTarget = nearestLand(TerrainSurvey.of(level), stagePoint(from, target, STAGE));
+			goal = stageTarget;
+			log.accept("a long trip: the route is planned as far as " + spot(goal) + " for now");
+		}
 		coarse = level.dimensionType().hasCeiling() ? null
 			: new CoarsePlanner(TerrainSurvey.of(level), CoarsePlanner.cellOf(from.x), CoarsePlanner.cellOf(from.z),
-				CoarsePlanner.cellOf(target.x), CoarsePlanner.cellOf(target.z), blocked, afloat);
+				CoarsePlanner.cellOf(goal.x), CoarsePlanner.cellOf(goal.z), blocked, afloat);
 		if (coarse == null)
 			plan = null;
 	}
@@ -192,6 +202,130 @@ public final class Navigator {
 	@Nullable
 	private Vec3 lastHere;
 	private boolean plannedAfloat, landedSincePlanned;
+	// A long trip is planned a stage at a time: this stage's end, or null when the plan runs to the box
+	@Nullable
+	private Vec3 stageTarget;
+	/** A trip further than this is planned in stages this long, each to the nearest land to a point that far along the straight line. */
+	public static final double STAGE = 1000;
+	/** This near the end of a stage, the next is planned from where he is. */
+	public static final double STAGE_REACHED = 48;
+	/** How many cells each way round a stage point are looked at for land to make for. */
+	public static final int STAGE_LAND_REACH = 6;
+	// The chunks along the plan ahead of him, kept loaded (and so generated) so the map ahead is the real ground
+	@Nullable
+	private UUID owner;
+	private final Set<Long> ahead = new HashSet<>();
+	/** How far along the plan ahead of him chunks are kept loaded, and how wide (chunks each side of the way). */
+	public static final double AHEAD_BLOCKS = 400;
+	public static final int AHEAD_WIDTH = 1;
+	/** How often (ticks) the plan is checked against the ground as it's now known, and the chunks ahead are moved on. */
+	public static final int CHECK_INTERVAL = 100;
+
+	/** Whose chunks the ones ahead are held as (the rider's), so they're let go with his if he's ever lost. */
+	public void setOwner(UUID owner) {
+		this.owner = owner;
+	}
+
+	/** The point {@code stage} blocks along the straight line from here to the target (the target, if that's nearer). */
+	public static Vec3 stagePoint(Vec3 from, Vec3 target, double stage) {
+		double distance = Journey.horizontalDistance(from, target);
+		if (distance <= stage)
+			return target;
+		return from.add(new Vec3(target.x - from.x, 0, target.z - from.z).scale(stage / distance));
+	}
+
+	/** The middle of the nearest cell of land (as far as it's known) to a point, within {@link #STAGE_LAND_REACH} cells; the point itself if none. */
+	public static Vec3 nearestLand(CoarsePlanner.Cells cells, Vec3 point) {
+		int cx = CoarsePlanner.cellOf(point.x), cz = CoarsePlanner.cellOf(point.z);
+		for (int radius = 0; radius <= STAGE_LAND_REACH; radius++)
+			for (int dx = -radius; dx <= radius; dx++)
+				for (int dz = -radius; dz <= radius; dz++) {
+					if (Math.max(Math.abs(dx), Math.abs(dz)) != radius)
+						continue;
+					CoarsePlanner.Cell cell = cells.cell(cx + dx, cz + dz);
+					if (cell != null && !cell.isVoid() && !cell.water())
+						return new Vec3((cx + dx) * CoarsePlanner.CELL + CoarsePlanner.CELL / 2.0, point.y, (cz + dz) * CoarsePlanner.CELL + CoarsePlanner.CELL / 2.0);
+				}
+		return point;
+	}
+
+	/**
+	 * Whether the plan's legs from {@code fromLeg} on still fit the ground as it's now known: no land leg over what
+	 * has turned out to be water or the void, no water leg over what's turned out to be dry land. Unknown cells
+	 * are given the benefit of the doubt.
+	 */
+	public static boolean legsFit(List<CoarsePlanner.Leg> legs, int fromLeg, CoarsePlanner.Cells cells) {
+		for (int i = Math.max(0, fromLeg); i < legs.size(); i++) {
+			CoarsePlanner.Leg leg = legs.get(i);
+			for (Vec3 point : sampled(leg.points(), CoarsePlanner.CELL)) {
+				CoarsePlanner.Cell cell = cells.cell(CoarsePlanner.cellOf(point.x), CoarsePlanner.cellOf(point.z));
+				if (cell == null)
+					continue;
+				if (cell.isVoid())
+					return false;
+				if (leg.kind() == CoarsePlanner.LegKind.LAND ? cell.water() : !cell.water() && !cell.shore())
+					return false;
+			}
+		}
+		return true;
+	}
+
+	/** The points of a line, and points every {@code step} blocks along it between them. */
+	static List<Vec3> sampled(List<Vec3> line, double step) {
+		List<Vec3> points = new ArrayList<>();
+		for (int i = 0; i < line.size(); i++) {
+			if (i > 0) {
+				Vec3 a = line.get(i - 1), b = line.get(i);
+				int steps = (int) Math.ceil(Journey.horizontalDistance(a, b) / step);
+				for (int s = 1; s < steps; s++)
+					points.add(a.lerp(b, (double) s / steps));
+			}
+			points.add(line.get(i));
+		}
+		return points;
+	}
+
+	/** Points every {@code step} blocks along the plan ahead of {@code here}, up to {@code distance} along it. */
+	public static List<Vec3> pointsAhead(List<CoarsePlanner.Leg> legs, int fromLeg, Vec3 here, double distance, double step) {
+		List<Vec3> line = new ArrayList<>();
+		for (int i = Math.max(0, fromLeg); i < legs.size(); i++)
+			line.addAll(legs.get(i).points());
+		List<Vec3> points = new ArrayList<>();
+		if (line.isEmpty())
+			return points;
+		for (double d = 0; d <= distance; d += step) {
+			Vec3 point = along(line, here, d);
+			if (!points.isEmpty() && Journey.horizontalDistance(points.get(points.size() - 1), point) < 1e-6)
+				break;
+			points.add(point);
+		}
+		return points;
+	}
+
+	/** Keeps the chunks along the plan ahead loaded (and so generated), a window moved on as he goes. */
+	private void keepAheadLoaded(ServerLevel level, Vec3 here) {
+		Set<Long> wanted = new HashSet<>();
+		if (owner != null && plan != null)
+			for (Vec3 point : pointsAhead(plan.legs(), leg, here, AHEAD_BLOCKS, CoarsePlanner.CELL))
+				for (int dx = -AHEAD_WIDTH; dx <= AHEAD_WIDTH; dx++)
+					for (int dz = -AHEAD_WIDTH; dz <= AHEAD_WIDTH; dz++)
+						wanted.add(ChunkPos.asLong((Mth.floor(point.x) >> 4) + dx, (Mth.floor(point.z) >> 4) + dz));
+		for (long chunk : new ArrayList<>(ahead))
+			if (!wanted.contains(chunk)) {
+				PostmanHorseChunks.hold(level, owner, chunk, false);
+				ahead.remove(chunk);
+			}
+		for (long chunk : wanted)
+			if (ahead.add(chunk))
+				PostmanHorseChunks.hold(level, owner, chunk, true);
+	}
+
+	/** Lets go of the chunks held ahead (the trip is over, or the plan is gone). */
+	public void releaseAhead(ServerLevel level) {
+		for (long chunk : ahead)
+			PostmanHorseChunks.hold(level, owner, chunk, false);
+		ahead.clear();
+	}
 
 	private void adopt(@Nullable CoarsePlanner.Plan found) {
 		if (found != null)
@@ -218,6 +352,30 @@ public final class Navigator {
 				return point;
 		}
 		return target;
+	}
+
+	/**
+	 * Now and then: the next stage is planned once this one's end is near, the plan is checked against the ground as
+	 * it's now known (and redone if it no longer fits), and the chunks ahead along it are moved on. True if a new
+	 * plan was asked for.
+	 */
+	private boolean checkPlanAhead(ServerLevel level, Vec3 here, Vec3 target, long now) {
+		if (coarse != null)
+			return false;
+		if (stageTarget != null && Journey.horizontalDistance(here, stageTarget) <= STAGE_REACHED) {
+			log.accept("at the end of this stage of the trip: the next is planned from here");
+			replan(level, here, target, plannedAfloat);
+			return true;
+		}
+		if (now % CHECK_INTERVAL != 0)
+			return false;
+		if (plan != null && !legsFit(plan.legs(), leg, TerrainSurvey.of(level))) {
+			log.accept("the ground ahead isn't as the map had it: the route is redone");
+			replan(level, here, target, plannedAfloat);
+			return true;
+		}
+		keepAheadLoaded(level, here);
+		return false;
 	}
 
 	/** Forgets the stretch ahead (he's been moved: teleported free, camped, fled). */
@@ -248,6 +406,8 @@ public final class Navigator {
 		long now = level.getGameTime();
 		Vec3 here = rider.position();
 		advanceLegs(here);
+		if (checkPlanAhead(level, here, target, now))
+			return Action.GOING;
 		CoarsePlanner.Leg current = currentLeg();
 		if (current != null && current.kind() == CoarsePlanner.LegKind.WATER && now % 10 == 0) {
 			// At the shore he calls up the barge, once there's open water towards the first stretch of it
@@ -1046,6 +1206,7 @@ public final class Navigator {
 	public Vec3 bargeAim(ServerLevel level, Vec3 here, int nearY, Vec3 target, List<Vec3> drowned, long now) {
 		lastHere = here;
 		tickPlanning();
+		checkPlanAhead(level, here, target, now);
 		CoarsePlanner.Leg current = currentLeg();
 		// Launched from a cell that counts as land: the water leg starts here
 		if (current != null && current.kind() == CoarsePlanner.LegKind.LAND && leg + 1 < plan.legs().size()
@@ -1212,6 +1373,13 @@ public final class Navigator {
 			return true;
 		Vec3 nearest = along(waterPath, here, 0);
 		return Journey.horizontalDistance(here, nearest) > OFF_PATH + 1;
+	}
+
+	/** Notes the shore round a spot as leading nowhere (the barge hard against it with nowhere to step off), for the plan to avoid. */
+	public void blockShore(ServerLevel level, Vec3 at) {
+		for (long cell : shoreAround(at, TerrainSurvey.of(level)))
+			blocked.add(cell);
+		noLandings.add(at);
 	}
 
 	/** Whether a column is in a cell, or by a spot, he's found leads nowhere (a shore he put out from again straight away). */
