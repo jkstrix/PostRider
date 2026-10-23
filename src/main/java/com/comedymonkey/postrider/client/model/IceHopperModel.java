@@ -75,6 +75,7 @@ public class IceHopperModel extends HierarchicalModel<IceHopperEntity> {
 	/** An oar's dip and sweep at a point in the stroke, as a vanilla paddle's. */
 	public static void swing(ModelPart oar, float time, int side) {
 		oar.xRot = Mth.clampedLerp(-(float) Math.PI / 3, -(float) Math.PI / 12, (Mth.sin(-time) + 1) / 2) + (float) Math.PI / 3;
-		oar.yRot = side * Mth.clampedLerp(-(float) Math.PI / 4, (float) Math.PI / 4, (Mth.sin(-time + 1) + 1) / 2);
+		// (Swept the other way from a vanilla paddle: these oars lie along the hull, blades aft)
+		oar.yRot = -side * Mth.clampedLerp(-(float) Math.PI / 4, (float) Math.PI / 4, (Mth.sin(-time + 1) + 1) / 2);
 	}
 }

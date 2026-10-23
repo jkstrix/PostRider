@@ -29,7 +29,8 @@ public class IceHopperRenderer extends EntityRenderer<IceHopperEntity> {
 	@Override
 	public void render(IceHopperEntity hopper, float yaw, float partialTick, PoseStack poseStack, MultiBufferSource buffers, int light) {
 		poseStack.pushPose();
-		poseStack.translate(0.0F, 0.375F, 0.0F);
+		// Afloat the hull is drawn up at the waterline; on ice it sits where it is
+		poseStack.translate(0.0F, (float) hopper.hullLift(), 0.0F);
 		poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - yaw));
 		float hurt = hopper.getHurtTime() - partialTick;
 		float damage = hopper.getDamage() - partialTick;

@@ -5,6 +5,8 @@ import com.comedymonkey.postrider.registry.ModEntities;
 import com.comedymonkey.postrider.registry.ModItems;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.vehicle.Boat;
 import net.minecraft.world.item.Item;
@@ -40,6 +42,36 @@ public class IceHopperEntity extends Boat {
 	@Override
 	public Item getDropItem() {
 		return ModItems.ICE_HOPPER.get();
+	}
+
+	/**
+	 * How far above where it sits the hull is drawn afloat: a boat's box floats mostly under the water, so its hull
+	 * is drawn this much higher to ride at the waterline (as a vanilla boat's is); on ice it sits where it is.
+	 */
+	public static final double AFLOAT_LIFT = 0.375;
+	/** Where a passenger's seat is above the hull's bottom: the seats are drawn 4 to 6 pixels up, and he sits into them a little. */
+	public static final double SEAT_HEIGHT = 0.3;
+	/** Where the seats are fore and aft of the middle: the front seat for a lone rower, the back one for the passenger. */
+	public static final double FRONT_SEAT = 0.25, BACK_SEAT = -0.5;
+
+	/** How far above where it sits the hull is drawn now. */
+	public double hullLift() {
+		return hullLift(isInWater());
+	}
+
+	public static double hullLift(boolean afloat) {
+		return afloat ? AFLOAT_LIFT : 0.0;
+	}
+
+	/** How far fore or aft of the middle a passenger sits: the first in the front seat, the second in the back. */
+	public static double seatOffset(int passengers, int index) {
+		return passengers > 1 && index > 0 ? BACK_SEAT : FRONT_SEAT;
+	}
+
+	@Override
+	protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float scale) {
+		double seat = seatOffset(getPassengers().size(), getPassengers().indexOf(passenger));
+		return new Vec3(0.0, hullLift() + SEAT_HEIGHT, seat).yRot(-getYRot() * (float) (Math.PI / 180.0));
 	}
 
 	@Override

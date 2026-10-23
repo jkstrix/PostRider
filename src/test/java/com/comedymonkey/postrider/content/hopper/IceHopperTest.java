@@ -91,4 +91,14 @@ class IceHopperTest {
 		IceHopperModel.swing(oar, (float) Math.PI / 2, 1);
 		assertTrue(oar.xRot != restX || oar.yRot != restY, "an oar mid-stroke isn't where it was at rest");
 	}
+
+	@Test
+	void theHullRidesAtTheWaterlineAfloatAndSitsOnTheIceAndTheRowerSitsInTheFrontSeat() {
+		assertEquals(IceHopperEntity.AFLOAT_LIFT, IceHopperEntity.hullLift(true), 1e-9, "afloat, drawn up to the waterline like any boat");
+		assertEquals(0.0, IceHopperEntity.hullLift(false), 1e-9, "on ice, where it sits");
+		assertEquals(IceHopperEntity.FRONT_SEAT, IceHopperEntity.seatOffset(1, 0), 1e-9, "a lone rower takes the front seat");
+		assertEquals(IceHopperEntity.FRONT_SEAT, IceHopperEntity.seatOffset(2, 0), 1e-9);
+		assertEquals(IceHopperEntity.BACK_SEAT, IceHopperEntity.seatOffset(2, 1), 1e-9, "the passenger the back one");
+		assertTrue(IceHopperEntity.SEAT_HEIGHT > 0.2 && IceHopperEntity.SEAT_HEIGHT <= 0.375, "sat on the seats, not through the hull");
+	}
 }
