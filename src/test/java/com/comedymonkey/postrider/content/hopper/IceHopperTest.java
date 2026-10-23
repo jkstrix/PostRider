@@ -128,4 +128,9 @@ class IceHopperTest {
 		assertNotNull(rowed, "stopped dead against the ice but rowing forward: the way it's facing");
 		assertEquals(1.0, rowed.x, 1e-6, "facing east (yaw -90)");
 	}
+
+	@Test
+	void itLandsAHairOverTheIceSoTheServerAllowsTheStepOntoIt() {
+		assertTrue(IceHopperEntity.HOP_CLEARANCE > 1e-6 && IceHopperEntity.HOP_CLEARANCE < 0.05, "clear of the ice's row by more than the server's millionth, and no visible float");
+	}
 }

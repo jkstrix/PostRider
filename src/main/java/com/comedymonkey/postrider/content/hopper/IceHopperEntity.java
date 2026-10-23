@@ -124,7 +124,7 @@ public class IceHopperEntity extends Boat {
 			if (Double.isNaN(top))
 				continue;
 			// Up onto the ice's top, and a little way onto it, so the hull has ice under it to slide on (not just in front)
-			Vec3 up = new Vec3(getX() + dx * ONTO, top, getZ() + dz * ONTO);
+			Vec3 up = new Vec3(getX() + dx * ONTO, top + HOP_CLEARANCE, getZ() + dz * ONTO);
 			if (!level().noCollision(this, getBoundingBox().move(up.subtract(position()))))
 				continue;
 			setPos(up.x, up.y, up.z);
@@ -154,6 +154,12 @@ public class IceHopperEntity extends Boat {
 
 	/** How far onto the ice the hull is carried as it hops up, so there's ice under it. */
 	public static final double ONTO = 0.4;
+	/**
+	 * How far over the ice's top it lands: the server checks a rider's vehicle move by redoing it a millionth lower,
+	 * and landed exactly on the top that puts the hull a hair inside the ice's row, the step onto it is blocked and
+	 * the move thrown out ("moved wrongly"), snapping the boat back every tick.
+	 */
+	public static final double HOP_CLEARANCE = 0.01;
 
 	/** Whether the block is ice with room over it for the boat and its passengers. */
 	public static boolean canHopOnto(BlockGetter level, BlockPos pos) {
