@@ -446,4 +446,20 @@ class LocalPlannerTest {
 		for (int i = 2; i < steps.size(); i++)
 			assertFalse(steps.get(i - 2).y() - steps.get(i - 1).y() >= 1 && steps.get(i - 1).y() - steps.get(i).y() >= 2, "no big drop straight after any drop");
 	}
+
+	@Test
+	void anIceShelfRoundAnInletIsNoScrapOfShoreHoweverTheStretchGoalLiesOnTheWater() {
+		// Sea ice at ground level with an inlet of open water in it (down to y 50); he's landing on the ice beside it
+		GridTerrain ice = new GridTerrain().fill(40, 50, -70, 46, Y - 1, -62, Kind.LIQUID);
+		int x = 47, z = -61;
+		// Looked at towards the mailbox far off, the ice goes on and on
+		Navigator.Probe shore = Navigator.probeShore(ice, x, Y, z, new net.minecraft.world.phys.Vec3(2000, 64, 600), 300);
+		assertTrue(shore.expanded() >= 300, "the budget runs out before the ice does: " + shore.expanded());
+		assertFalse(com.comedymonkey.postrider.content.postman.DeliveryRun.isScrapOfShore(shore.found(), shore.expanded()));
+		// An islet in open water really is a scrap
+		GridTerrain islet = new GridTerrain().fill(-100, 50, -200, 200, Y - 1, 100, Kind.LIQUID).fill(44, 50, -64, 50, Y - 1, -58, Kind.SOLID);
+		Navigator.Probe scrap = Navigator.probeShore(islet, x, Y, z, new net.minecraft.world.phys.Vec3(2000, 64, 600), 300);
+		assertFalse(scrap.found());
+		assertTrue(com.comedymonkey.postrider.content.postman.DeliveryRun.isScrapOfShore(scrap.found(), scrap.expanded()), "all of it seen: " + scrap.expanded());
+	}
 }

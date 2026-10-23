@@ -38,6 +38,7 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 	private final ModelPart rightArm;
 	private final ModelPart potion;
 	private final ModelPart canteen;
+	private final ModelPart food;
 	private final ModelPart pocketWatch;
 	private final ModelPart letter;
 	private final ModelPart striker;
@@ -58,6 +59,7 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		this.hammer = rightArm.getChild("hammer");
 		this.potion = rightArm.getChild("potion");
 		this.canteen = rightArm.getChild("canteen");
+		this.food = rightArm.getChild("food");
 		ModelPart leftArm = body.getChild("left_arm");
 		this.pocketWatch = leftArm.getChild("pocket_watch");
 		this.letter = leftArm.getChild("letter");
@@ -118,6 +120,9 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		rightArm.addOrReplaceChild("canteen", CubeListBuilder.create().texOffs(56, 0).addBox(-0.5F, -1.5F, -5.0F, 1.0F, 3.0F, 3.0F, new CubeDeformation(0.0F))
 			.texOffs(48, 5).addBox(-0.5F, -0.5F, -6.0F, 1.0F, 1.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(handOffset, 9.5F, 0.0F));
 		rightArm.addOrReplaceChild("striker", CubeListBuilder.create().texOffs(48, 36).addBox(-0.5F, 0.0F, -5.0F, 1.0F, 1.0F, 3.0F, new CubeDeformation(0.0F)),
+			PartPose.offset(handOffset, 9.5F, 0.0F));
+		// A hunk of bread, poking out below his fist so it reaches his mouth when his arm comes up
+		rightArm.addOrReplaceChild("food", CubeListBuilder.create().texOffs(54, 6).addBox(-1.0F, 0.0F, -4.0F, 2.0F, 3.0F, 2.0F, new CubeDeformation(0.0F)),
 			PartPose.offset(handOffset, 9.5F, 0.0F));
 		PartDefinition leftArm = body.addOrReplaceChild("left_arm", CubeListBuilder.create().texOffs(32, 48).addBox(slim ? -2.0F : -3.0F, -2.0F, -2.0F, armWidth, 12.0F, 4.0F, new CubeDeformation(0.0F)), PartPose.offset(-5.0F, -10.0F, 0.0F));
 		leftArm.addOrReplaceChild("pocket_watch", CubeListBuilder.create().texOffs(58, 11).addBox(-1.0F, -1.0F, -3.0F, 2.0F, 2.0F, 1.0F, new CubeDeformation(0.0F)), PartPose.offset(-handOffset, 9.5F, 0.0F));
@@ -196,6 +201,7 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		hammer.visible = entity.getActivity() == PostmanEntity.Activity.CAMP_HAMMER;
 		potion.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.DRINK).isStarted();
 		canteen.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.SWIG).isStarted();
+		food.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.EAT).isStarted();
 		pocketWatch.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.POCKET_WATCH).isStarted();
 		letter.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.READ_LETTER).isStarted();
 		boolean lighting = entity.gestureAnimations.get(PostmanEntity.Gesture.LIGHT_FIRE).isStarted();
@@ -249,6 +255,7 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 			case HUM -> PostmanAnimations.HUM;
 			case NECK_ROLL -> PostmanAnimations.NECK_ROLL;
 			case CRACK_KNUCKLES -> PostmanAnimations.CRACK_KNUCKLES;
+			case EAT -> PostmanAnimations.EAT;
 		};
 	}
 }

@@ -67,7 +67,7 @@ class MannerismsTest {
 		for (Gesture gesture : Gesture.values())
 			if (Mannerisms.weight(gesture, anything) > 0)
 				assertTrue(seen.containsKey(gesture), gesture.name());
-		assertEquals(17, seen.size(), "every random mannerism (all but greetings and the address check)");
+		assertEquals(18, seen.size(), "every random mannerism (all but greetings and the address check)");
 	}
 
 	@Test
@@ -131,5 +131,12 @@ class MannerismsTest {
 		assertFalse(DeliveryRun.isDetour(from, Journey.nextAim(from, target), target), "straight ahead");
 		Vec3 swerve = Journey.aims(from, target).get(3);
 		assertTrue(DeliveryRun.isDetour(from, swerve, target), "swerving 50 degrees");
+	}
+
+	@Test
+	void heEatsNowAndThenWhereverHeIs() {
+		assertTrue(Mannerisms.weight(Gesture.EAT, ORDINARY) > 0, "a bite on an ordinary ride");
+		assertTrue(Mannerisms.weight(Gesture.EAT, with(false, false, false, false, false, false, false, 300)) > 0, "and on foot");
+		assertTrue(Mannerisms.weight(Gesture.EAT, ORDINARY) < Mannerisms.weight(Gesture.CHECK_SATCHEL, ORDINARY), "but only now and then");
 	}
 }

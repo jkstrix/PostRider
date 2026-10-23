@@ -125,6 +125,11 @@ public final class Journey {
 
 		/** Records where he is now; true if he's hardly moved, up or down included, for {@link #STALL_TICKS}. */
 		public boolean isStalled(double x, double y, double z, long tick) {
+			return isStalled(x, y, z, tick, STALL_TICKS);
+		}
+
+		/** As above, with a patience of its own (a barge pressed against a bank takes a while to back off and turn). */
+		public boolean isStalled(double x, double y, double z, long tick, int patience) {
 			if (Double.isNaN(stallX) || Math.sqrt((x - stallX) * (x - stallX) + (y - stallY) * (y - stallY) + (z - stallZ) * (z - stallZ)) > STALL_DISTANCE) {
 				stallX = x;
 				stallY = y;
@@ -132,7 +137,7 @@ public final class Journey {
 				stallSince = tick;
 				return false;
 			}
-			return tick - stallSince >= STALL_TICKS;
+			return tick - stallSince >= patience;
 		}
 
 		/** He has jumped free once more; the clocks start again from where he lands. */
@@ -165,6 +170,13 @@ public final class Journey {
 		public void pause(long tick) {
 			bestSince = tick;
 			stallX = Double.NaN;
+		}
+
+		/** This many ticks were spent busy (the route being redone, say): they don't count, but the clocks keep what they had. */
+		public void excuse(int ticks) {
+			bestSince += ticks;
+			if (!Double.isNaN(stallX))
+				stallSince += ticks;
 		}
 
 		public boolean outOfTries() {

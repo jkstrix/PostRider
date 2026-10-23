@@ -35,7 +35,7 @@ class DevWatchTest {
 		assertEquals(false, run.fresh());
 		DevWatch.WorldRun fresh = DevWatch.worldRun("new|spawn|random:3000");
 		assertEquals(true, fresh.fresh());
-		assertEquals("postrider_watch_postrider12", fresh.folder("postrider12"), "a fresh world is kept by its seed, for the same world again");
+		assertEquals("postrider_watch_postrider12", fresh.folder("postrider12"), "a fresh world's folder is by its seed (and one left from an earlier run goes first)");
 		assertEquals("postrider_watch_random", fresh.folder(""), "no seed: a random one each time");
 		assertEquals(null, DevWatch.worldRun(""), "unset: the tests run instead");
 		assertEquals(null, DevWatch.worldRun("new|spawn"), "a name missing");

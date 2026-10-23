@@ -37,6 +37,7 @@ class PostmanAnimationsTest {
 		Map.entry("study_map", PostmanAnimations.STUDY_MAP),
 		Map.entry("climb", PostmanAnimations.CLIMB),
 		Map.entry("drift", PostmanAnimations.DRIFT),
+		Map.entry("eat", PostmanAnimations.EAT),
 		Map.entry("wipe_brow", PostmanAnimations.WIPE_BROW),
 		Map.entry("tip_hat", PostmanAnimations.TIP_HAT),
 		Map.entry("pat_horse", PostmanAnimations.PAT_HORSE),
@@ -66,7 +67,7 @@ class PostmanAnimationsTest {
 
 	private static void collect(ModelPart part, Set<String> names) {
 		for (String child : new String[] {"root", "body", "head", "right_arm", "left_arm", "satchel", "satchel_flat", "satchel_full",
-			"right_leg", "left_leg", "hat", "hat_brim_right_r1", "hat_brim_left_r1", "harmonica", "hammer", "potion", "canteen", "pocket_watch", "letter", "striker", "flint", "map", "map_right"})
+			"right_leg", "left_leg", "hat", "hat_brim_right_r1", "hat_brim_left_r1", "harmonica", "hammer", "potion", "canteen", "food", "pocket_watch", "letter", "striker", "flint", "map", "map_right"})
 			if (part.hasChild(child)) {
 				names.add(child);
 				collect(part.getChild(child), names);
@@ -74,8 +75,8 @@ class PostmanAnimationsTest {
 	}
 
 	@Test
-	void allThirtyEightApprovedAnimationsAreThere() {
-		assertEquals(38, ALL.size());
+	void allThirtyNineApprovedAnimationsAreThere() {
+		assertEquals(39, ALL.size());
 	}
 
 	@Test
@@ -282,5 +283,35 @@ class PostmanAnimationsTest {
 		Set<String> parts = partNames();
 		assertTrue(parts.contains("satchel_flat"));
 		assertTrue(parts.contains("satchel_full"));
+	}
+
+	@Test
+	void heEatsABiteOfBreadFromHisRightHand() throws IOException {
+		assertTrue(PostmanModel.createBodyLayer().bakeRoot().getChild("root").getChild("body").getChild("right_arm").hasChild("food"));
+		assertTrue(PostmanModel.createSlimBodyLayer().bakeRoot().getChild("root").getChild("body").getChild("right_arm").hasChild("food"), "the women eat too");
+		assertTrue(PostmanModel.overridesUpperBody(PostmanEntity.Gesture.EAT), "his arm leaves the reins for a bite");
+		assertFalse(PostmanAnimations.EAT.looping());
+		assertEquals(2.6F, PostmanAnimations.EAT.lengthInSeconds(), 1e-4);
+		assertTrue(PostmanAnimations.EAT.boneAnimations().containsKey("right_arm"));
+		assertTrue(PostmanAnimations.EAT.boneAnimations().containsKey("head"), "he chews");
+		assertFalse(PostmanAnimations.EAT.boneAnimations().containsKey("root"), "a bite mustn't move his legs: it comes on horseback too");
+		// The bread's net (ends 4x2 at 56,6 and sides 8x3 at 54,8): unpainted pixels are see-through
+		Path skin = ModResourceFiles.find("assets", "postrider", "textures", "entity", "postman.png");
+		BufferedImage image;
+		try (InputStream in = Files.newInputStream(skin)) {
+			image = ImageIO.read(in);
+		}
+		int[][] areas = {{56, 6, 4, 2}, {54, 8, 8, 3}};
+		for (int[] area : areas)
+			for (int x = area[0]; x < area[0] + area[2]; x++)
+				for (int y = area[1]; y < area[1] + area[3]; y++)
+					assertEquals(255, image.getRGB(x, y) >>> 24, "bread pixel " + x + "," + y);
+	}
+
+	@Test
+	void hisHatSwaysWithHisStepAndBobsWithTheGallop() {
+		assertTrue(PostmanAnimations.WALK.boneAnimations().containsKey("hat"), "a little side to side on foot");
+		assertTrue(PostmanAnimations.RIDE.boneAnimations().containsKey("hat"), "and a bob in the saddle");
+		assertFalse(PostmanAnimations.IDLE.boneAnimations().containsKey("hat"), "still when he is");
 	}
 }

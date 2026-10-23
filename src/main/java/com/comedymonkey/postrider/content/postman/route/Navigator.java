@@ -91,7 +91,7 @@ public final class Navigator {
 	/** The cells of shore that led nowhere: the barge's way across the water keeps clear of the water in them. */
 	private final Set<Long> noShore = new HashSet<>();
 	/** The strikes were forgiven for the plan now being worked out (so a second failure stands). */
-	private boolean strikesForgivenForThisPlan;
+	private boolean strikesForgivenForThisPlan, shoresForgivenForThisPlan;
 	private int strikesForgiven;
 	@Nullable
 	private Vec3 lastTarget;
@@ -100,14 +100,33 @@ public final class Navigator {
 
 	/** Forgives the cells struck off this trip (bar shores that led nowhere), once per failed plan; false if there were none to forgive, or they just were. */
 	private boolean forgiveStrikes() {
-		if (strikesForgivenForThisPlan || lastTarget == null || lastLevel == null)
+		if (lastTarget == null || lastLevel == null)
 			return false;
-		int before = blocked.size();
-		blocked.retainAll(noShore);
-		strikesForgiven = before - blocked.size();
-		if (strikesForgiven == 0)
+		if (!strikesForgivenForThisPlan) {
+			strikesForgivenForThisPlan = true;
+			int before = blocked.size();
+			blocked.retainAll(noShore);
+			strikesForgiven = before - blocked.size();
+			if (strikesForgiven > 0)
+				return true;
+		}
+		// Afloat with the shores struck off round him and still no route: the barge is boxed in by its own strikes
+		// (an inlet in sea ice whose shore was taken for a scrap), so they go too, and he lands where he can
+		if (plannedAfloat && !shoresForgivenForThisPlan && forgiveShores(blocked, noShore, noLandings)) {
+			shoresForgivenForThisPlan = true;
+			strikesForgiven = 0;
+			return true;
+		}
+		return false;
+	}
+
+	/** Forgets every shore that led nowhere; false if there were none to forget. */
+	static boolean forgiveShores(Set<Long> blocked, Set<Long> noShore, List<Vec3> noLandings) {
+		if (noShore.isEmpty() && noLandings.isEmpty())
 			return false;
-		strikesForgivenForThisPlan = true;
+		blocked.removeAll(noShore);
+		noShore.clear();
+		noLandings.clear();
 		return true;
 	}
 
@@ -204,7 +223,8 @@ public final class Navigator {
 			if (forgiveStrikes()) {
 				// No route at all, with cells struck off: more likely the strikes have walled him in than the world
 				// has, so they're forgiven (bar shores that led nowhere) and the map is tried afresh, once
-				log.accept("no long-range route with " + strikesForgiven + " cells struck off: they're forgiven and the map is tried afresh");
+				log.accept(strikesForgiven > 0 ? "no long-range route with " + strikesForgiven + " cells struck off: they're forgiven and the map is tried afresh"
+					: "no long-range route afloat with the shores round him struck off: they're forgiven too, and he lands where he can");
 				replan(lastLevel, lastHere, lastTarget, plannedAfloat);
 				return;
 			}
@@ -504,6 +524,7 @@ public final class Navigator {
 		plan = found;
 		planStruck = false;
 		strikesForgivenForThisPlan = false;
+		shoresForgivenForThisPlan = false;
 		// A plan takes a while to work out: he picks it up where he is now, not where he was when he asked for it
 		leg = found == null ? 0 : startingLeg(found.legs(), lastHere, plannedAfloat && landedSincePlanned);
 		// What he's following now was planned for the old route: the next stretch follows the new one
@@ -1226,6 +1247,24 @@ public final class Navigator {
 		while (status == LocalPlanner.Status.RUNNING && search.expanded() < budget)
 			status = search.step(budget - search.expanded());
 		return new Probe(status, search.steps(), search.expanded(), toMailbox, search.report());
+	}
+
+	/**
+	 * How much ground there is to get about on from a spot, on foot: a search from it towards the mailbox itself
+	 * (not the stretch's goal, which from a shore is a point out on the water, with nothing to stand on at it),
+	 * looking at up to {@code budget} places. A scrap of shore runs out of places long before the budget does.
+	 */
+	public Probe probeShore(ServerLevel level, int x, int y, int z, Vec3 target, int budget) {
+		return probeShore(new LevelTerrain(level), x, y, z, target, budget);
+	}
+
+	/** As above, on any terrain. */
+	public static Probe probeShore(Terrain terrain, int x, int y, int z, Vec3 target, int budget) {
+		LocalPlanner search = new LocalPlanner(terrain, x, y, z, false, LocalPlanner.Goal.anyHeight(target.x, target.z, MAILBOX_RADIUS), false);
+		LocalPlanner.Status status = search.step(budget);
+		while (status == LocalPlanner.Status.RUNNING && search.expanded() < budget)
+			status = search.step(budget - search.expanded());
+		return new Probe(status, search.steps(), search.expanded(), true, search.report());
 	}
 
 	/** As {@link #probe}, from where he (or his horse) stands now. */

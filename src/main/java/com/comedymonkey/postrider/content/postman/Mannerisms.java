@@ -77,6 +77,8 @@ public final class Mannerisms {
 			case PAT_HORSE -> s.riding() ? 1.5 : 0;
 			case LOOK_BACK -> s.riding() ? 1 : 0.5;
 			case CHECK_SATCHEL, ADJUST_HAT, HUM, NECK_ROLL, CRACK_KNUCKLES -> 1;
+			// A bite of bread now and then
+			case EAT -> 0.7;
 			// Greetings, the address check and his work have their own moments
 			case WAVE, TIP_HAT, READ_LETTER, PICKUP, DELIVER, WHISTLE, DRINK, LIGHT_FIRE -> 0;
 		};

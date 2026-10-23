@@ -1,6 +1,7 @@
 package com.comedymonkey.postrider.content.postman;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,5 +39,15 @@ class PostmanEntityTest {
 			assertSame(gesture, PostmanEntity.Gesture.byEvent(gesture.eventId));
 		}
 		assertNull(PostmanEntity.Gesture.byEvent((byte) 3));
+	}
+
+	@Test
+	void theBitesComeWhenTheBreadIsAtHisMouth() {
+		assertTrue(PostmanEntity.isBite(14), "0.7 s in: the first bite");
+		assertTrue(PostmanEntity.isBite(31), "1.55 s in: the second");
+		assertFalse(PostmanEntity.isBite(0));
+		assertFalse(PostmanEntity.isBite(20));
+		for (int bite : PostmanEntity.BITE_TICKS)
+			assertTrue(bite < PostmanEntity.Gesture.EAT.seconds * 20, "every bite is within the gesture");
 	}
 }

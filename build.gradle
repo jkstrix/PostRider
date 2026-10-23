@@ -135,6 +135,19 @@ tasks.matching { it.name == 'runWatch' }.configureEach {
     }
 }
 
+// The worlds the runs make are deleted once the run is over, whether it passed or not: they're hundreds of megabytes
+// each, and nothing is ever started on an old one (a watched or headless trip makes its world afresh)
+def runWorlds = ['runWatch': 'run-watch/saves', 'runHeadless': 'run-headless/world', 'runGameTestServer': 'run-gametest/world']
+runWorlds.each { task, worlds ->
+    def cleanup = tasks.register("deleteWorldsAfter${task.capitalize()}", Delete) {
+        delete file(worlds)
+    }
+    tasks.matching { it.name == task }.configureEach {
+        finalizedBy cleanup
+        doFirst { delete file(worlds) }
+    }
+}
+
 // The headless trip runs on a fresh copy of the chosen client world, so the client's own save is never touched
 tasks.matching { it.name == 'runHeadless' }.configureEach {
     doFirst {

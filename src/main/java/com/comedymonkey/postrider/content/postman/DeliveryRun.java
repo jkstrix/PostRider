@@ -751,12 +751,17 @@ public class DeliveryRun {
 	}
 
 	private boolean land(PostmanEntity rider, ServerLevel level, BargeEntity barge, Vec3 target, int reach) {
+		return land(rider, level, barge, target, reach, false);
+	}
+
+	/** As above; {@code anyShore} when he's stuck afloat, so a shore struck off as leading nowhere will do too. */
+	private boolean land(PostmanEntity rider, ServerLevel level, BargeEntity barge, Vec3 target, int reach, boolean anyShore) {
 		PostmanHorse horse = null;
 		for (Entity passenger : barge.getPassengers())
 			if (passenger instanceof PostmanHorse aboard)
 				horse = aboard;
 		EntityType<?> type = horse != null ? horse.getType() : null;
-		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> navigator.isBlockedShore(x, z) ? CampSites.UNUSABLE : CampSites.floorIn(level, x, z, barge.getBlockY()), reach,
+		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> !anyShore && navigator.isBlockedShore(x, z) ? CampSites.UNUSABLE : CampSites.floorIn(level, x, z, barge.getBlockY()), reach,
 			(x, z, y) -> passable(level, new BlockPos(x, y, z)) && passable(level, new BlockPos(x, y + 1, z)),
 			type == null ? Crossing.Roomy.EVERYWHERE : (x, y, z) -> HorseSpots.find(new Vec3(x + 0.5, y, z + 0.5), yawToward(new Vec3(x + 0.5, y, z + 0.5), target),
 				s -> HorseSpots.fits(level, type, s)) != null);
@@ -764,9 +769,10 @@ public class DeliveryRun {
 			return false;
 		Vec3 ground = Vec3.atBottomCenterOf(spot);
 		// A scrap of shore (a sandbar, an islet) isn't stepped onto at all: looked at from the barge, if he could get
-		// about on hardly any of it and no way on is found, it's noted as leading nowhere and he rows on
-		if (Journey.horizontalDistance(ground, target) > Journey.DISMOUNT_DISTANCE) {
-			Navigator.Probe way = navigator.probe(level, spot.getX(), spot.getY(), spot.getZ(), false, false, target, JUMP_PROBE_BUDGET);
+		// about on hardly any of it and no way on is found, it's noted as leading nowhere and he rows on (unless
+		// he's stuck afloat, when any shore will do)
+		if (!anyShore && Journey.horizontalDistance(ground, target) > Journey.DISMOUNT_DISTANCE) {
+			Navigator.Probe way = navigator.probeShore(level, spot.getX(), spot.getY(), spot.getZ(), target, JUMP_PROBE_BUDGET);
 			if (isScrapOfShore(way.found(), way.expanded())) {
 				logRoute(rider, "the shore at " + Navigator.spot(ground) + " is a scrap with no way on (" + way.expanded() + " blocks of it): he rows on");
 				navigator.blockShore(level, ground);
@@ -1188,14 +1194,20 @@ public class DeliveryRun {
 
 	// ---------------------------------------------------------------- getting stuck
 
+	/** How often (in ticks) he's checked for being stuck. */
+	public static final int STUCK_CHECK_TICKS = 20;
+	/** Not moving this long in the barge is being stuck: longer than on land, as a barge pressed against a bank takes a while to back off and turn. */
+	public static final int BARGE_STALL_TICKS = 15 * 20;
+
 	private boolean checkStuck(PostmanEntity rider, ServerLevel level, double distance, Vec3 target) {
-		if (stageTicks % 20 != 0)
+		if (stageTicks % STUCK_CHECK_TICKS != 0)
 			return false;
 		long now = level.getGameTime();
 		// Standing while the route is worked out again, or for his horse to come to his whistle, isn't being stuck:
-		// the clocks wait
+		// that time is excused (not the clocks reset: a route redone every few seconds, each time the same, is
+		// being stuck, and the clocks must still get there)
 		if (navigator.isReplanning() || navigator.isWaitingForHorse()) {
-			progress.pause(now);
+			progress.excuse(STUCK_CHECK_TICKS);
 			return false;
 		}
 		// Progress is how far he has to go along the route: the route redone, it's measured afresh from here
@@ -1204,17 +1216,20 @@ public class DeliveryRun {
 			progress.rebase(distance, now);
 		}
 		boolean noProgress = progress.isStuck(distance, now);
-		boolean stalled = progress.isStalled(rider.getX(), rider.getY(), rider.getZ(), now);
+		int stallPatience = stage == Stage.BARGING ? BARGE_STALL_TICKS : Journey.Progress.STALL_TICKS;
+		boolean stalled = progress.isStalled(rider.getX(), rider.getY(), rider.getZ(), now, stallPatience);
 		if (!noProgress && !stalled)
 			return false;
-		String why = noProgress ? "no nearer in " + Journey.Progress.PATIENCE / 20 + " s" : "not moved in " + Journey.Progress.STALL_TICKS / 20 + " s";
+		String why = noProgress ? "no nearer in " + Journey.Progress.PATIENCE / 20 + " s" : "not moved in " + stallPatience / 20 + " s";
 		if (progress.outOfTries()) {
 			fail(rider, level, LostCause.STUCK, rider.getName().getString()
 				+ " lost " + rider.possessive() + " way in the wilds and had to turn back.", null, rider.blockPosition());
 			return true;
 		}
-		// Stuck in the barge with land at hand: he steps ashore there rather than being jumped somewhere inland
-		if (stage == Stage.BARGING && rider.getVehicle() instanceof BargeEntity barge && land(rider, level, barge, target, STUCK_LANDING_REACH)) {
+		// Stuck in the barge with land at hand: he steps ashore there rather than being jumped somewhere inland; with
+		// no route left at all, even onto a shore struck off as leading nowhere (boxed in by his own strikes, that's
+		// the way out)
+		if (stage == Stage.BARGING && rider.getVehicle() instanceof BargeEntity barge && land(rider, level, barge, target, STUCK_LANDING_REACH, navigator.plan() == null)) {
 			progress.pause(now);
 			return true;
 		}
@@ -1237,8 +1252,10 @@ public class DeliveryRun {
 			Navigator.Probe here = navigator.probeFromHere(rider, level, target, LocalPlanner.MAX_NODES);
 			wayFromHere = here.found();
 			// On a scrap of shore with no way on at all (a ledge under a cliff, an islet): back into the barge, whichever
-			// way the water lies, and on to the next bit of coast; this shore is noted as leading nowhere
-			if (!wayFromHere && here.expanded() <= TINY_SHORE) {
+			// way the water lies, and on to the next bit of coast; this shore is noted as leading nowhere. (Looked at
+			// towards the mailbox too: the stretch's goal may be out on the water, with nothing to stand on at it)
+			if (!wayFromHere && here.expanded() <= TINY_SHORE
+					&& navigator.probeShore(level, Mth.floor(mover.getX()), Mth.floor(mover.getY() + 1e-3), Mth.floor(mover.getZ()), target, JUMP_PROBE_BUDGET).expanded() <= TINY_SHORE) {
 				int nearY = rider.getBlockY();
 				Vec3 water = Crossing.launchSpotAround(rider.position(), (x, z) -> Crossing.surfaceIn(level, x, z, nearY, Crossing.LAUNCH_DROP));
 				if (water != null) {

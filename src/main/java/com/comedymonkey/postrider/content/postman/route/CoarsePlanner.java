@@ -233,8 +233,9 @@ public final class CoarsePlanner {
 	private double cost(Cell from, Cell to, double length, boolean barge, double rowing, boolean toGoal, boolean fromStart) {
 		if (to.isVoid())
 			return -1;
-		// Standing at the start on a wet cell is still standing on land, unless he's afloat there
-		boolean fromWater = from.water() && (!fromStart || afloat), toWater = to.water() && !toGoal;
+		// Standing at the start on a wet cell is still standing on land, unless he's afloat there; and afloat, the
+		// start is water whatever its columns say (an inlet in sea ice reads as land, and he's in the barge in it)
+		boolean fromWater = fromStart ? afloat : from.water(), toWater = to.water() && !toGoal;
 		if (toWater) {
 			if (!barge)
 				return -1;
@@ -270,7 +271,7 @@ public final class CoarsePlanner {
 		for (int i = 0; i < path.size(); i++) {
 			Node node = path.get(i);
 			boolean ends = i == 0 && !afloat || i == path.size() - 1;
-			LegKind here = node.cell.water() && !ends ? LegKind.WATER : LegKind.LAND;
+			LegKind here = (node.cell.water() || i == 0 && afloat) && !ends ? LegKind.WATER : LegKind.LAND;
 			if (kind != null && here != kind) {
 				legs.add(new Leg(kind, pull(run, kind)));
 				run = new ArrayList<>();
@@ -451,11 +452,16 @@ public final class CoarsePlanner {
 		}
 
 		/**
-		 * Whether a cell was found impassable this trip; never the goal, or the plan could never end, and never one
-		 * next to the start, or it could never begin (he's there: what's struck off is what lies beyond).
+		 * Whether a cell was found impassable this trip; never the goal, or the plan could never end, and on land
+		 * never one next to the start, or it could never begin (he's there: what's struck off is what lies beyond).
+		 * Afloat, only the start itself is spared: the shore struck off round the barge is the shore he can't land
+		 * on, and the way begins over the water.
 		 */
 		boolean isBlocked(int x, int z) {
-			return (x != goalX || z != goalZ) && (Math.abs(x - startX) > 1 || Math.abs(z - startZ) > 1) && blocked.contains(key(x, z));
+			if (x == goalX && z == goalZ)
+				return false;
+			boolean nearStart = afloat ? x == startX && z == startZ : Math.abs(x - startX) <= 1 && Math.abs(z - startZ) <= 1;
+			return !nearStart && blocked.contains(key(x, z));
 		}
 
 		void push(Node node) {

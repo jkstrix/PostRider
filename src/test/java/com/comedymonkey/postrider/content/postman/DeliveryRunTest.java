@@ -226,4 +226,9 @@ class DeliveryRunTest {
 		assertFalse(DeliveryRun.isScrapOfShore(false, 4000), "a proper shore, the way on just not found within the search");
 		assertFalse(DeliveryRun.isScrapOfShore(true, 12), "a scrap the way on is found from (the box on an islet)");
 	}
+
+	@Test
+	void theBargeHasMorePatienceThanAWalkerBeforeItCountsAsStuck() {
+		assertTrue(DeliveryRun.BARGE_STALL_TICKS >= 3 * Journey.Progress.STALL_TICKS, "pressed against a bank it takes a while to back off and turn");
+	}
 }

@@ -144,4 +144,17 @@ class RosterTest {
 			seen.add(Roster.pickFree(Set.of(), random).id());
 		assertEquals(20, seen.size());
 	}
+
+	@Test
+	void everyRidersSkinCarriesThePropsOfTheBase() throws IOException {
+		// The canteen (56,0 8x6) and the bread's net (ends 56,6 4x2, sides 54,8 8x3) are painted on the base skin and stamped onto each rider's
+		int[][] areas = {{56, 0, 8, 6}, {56, 6, 4, 2}, {54, 8, 8, 3}};
+		for (Roster.Rider rider : Roster.ALL) {
+			BufferedImage image = skin(rider);
+			for (int[] area : areas)
+				for (int x = area[0]; x < area[0] + area[2]; x++)
+					for (int y = area[1]; y < area[1] + area[3]; y++)
+						assertTrue(painted(image, x, y), rider.id() + " prop pixel " + x + "," + y);
+		}
+	}
 }

@@ -174,4 +174,26 @@ class JourneyTest {
 		progress.isStuck(580, 1102);
 		assertEquals(0, progress.triesInARow(), "and getting on past where he was stuck clears the tries");
 	}
+
+	@Test
+	void busyTimeIsExcusedWithoutTheClocksStartingAgain() {
+		Journey.Progress progress = new Journey.Progress();
+		progress.isStalled(0, 64, 0, 0);
+		progress.isStuck(1000, 0);
+		// Three seconds standing, then a second's replanning excused, then two more seconds standing: five on the spot
+		assertFalse(progress.isStalled(0, 64, 0, 60));
+		progress.excuse(20);
+		assertFalse(progress.isStalled(0, 64, 0, 100), "four seconds of standing so far");
+		assertTrue(progress.isStalled(0, 64, 0, 120), "five seconds standing, however often the route was redone between");
+		assertFalse(progress.isStuck(1000, Journey.Progress.PATIENCE), "the patience clock was excused a second too");
+		assertTrue(progress.isStuck(1000, Journey.Progress.PATIENCE + 20));
+	}
+
+	@Test
+	void aBargeIsGivenLongerToBackOffABankBeforeItCountsAsStuck() {
+		Journey.Progress progress = new Journey.Progress();
+		progress.isStalled(0, 62, 0, 0, 300);
+		assertFalse(progress.isStalled(0, 62, 0, Journey.Progress.STALL_TICKS, 300), "five seconds pressed against the bank is nothing for a barge");
+		assertTrue(progress.isStalled(0, 62, 0, 300, 300));
+	}
 }

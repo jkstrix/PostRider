@@ -435,4 +435,15 @@ class NavigatorTest {
 		assertFalse(Navigator.mayPassOnTo(87.0, 83), "four down: the step between is the landing he mustn't miss");
 		assertTrue(Navigator.mayPassOnTo(87.0, 87));
 	}
+
+	@Test
+	void boxedInAfloatByHisOwnStrikesTheShoresAreForgivenToo() {
+		java.util.Set<Long> blocked = new java.util.HashSet<>(java.util.List.of(1L, 2L, 3L));
+		java.util.Set<Long> noShore = new java.util.HashSet<>(java.util.List.of(2L, 3L));
+		java.util.List<Vec3> noLandings = new java.util.ArrayList<>(java.util.List.of(new Vec3(50, 62, -61)));
+		assertTrue(Navigator.forgiveShores(blocked, noShore, noLandings));
+		assertEquals(java.util.Set.of(1L), blocked, "the shores go; an ordinary strike stays");
+		assertTrue(noShore.isEmpty() && noLandings.isEmpty());
+		assertFalse(Navigator.forgiveShores(blocked, noShore, noLandings), "nothing left to forgive");
+	}
 }

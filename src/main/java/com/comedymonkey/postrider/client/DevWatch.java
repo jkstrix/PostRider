@@ -1,5 +1,6 @@
 package com.comedymonkey.postrider.client;
 
+import java.io.IOException;
 import java.util.Locale;
 import java.util.function.Consumer;
 
@@ -26,6 +27,7 @@ import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
+import net.minecraft.world.level.storage.LevelStorageSource;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
@@ -39,7 +41,7 @@ import net.neoforged.neoforge.common.NeoForge;
  * <p>
  * With {@code postrider.watchWorld} set to {@code "<world>|<from>|<to>"} instead ({@code runWatch -Pworld=...}), a
  * trip across a real world is watched: one of the player's worlds (copied into the run's saves by Gradle), or a
- * fresh ordinary one for {@code new} ({@code postrider.watchSeed} for the same one again); a parcel is posted from
+ * fresh ordinary one for {@code new} ({@code postrider.watchSeed} for the same ground again); a parcel is posted from
  * the one box to the other as the headless run posts ({@code spawn}, {@code random:<blocks>}, {@code at:<x>,<z>}),
  * and the player follows the rider the same way, at the game's own pace, day and night.
  */
@@ -55,7 +57,7 @@ public final class DevWatch {
 			return world.equals("new");
 		}
 
-		/** The fresh world's folder name, by its seed, so the same seed opens the same world again. */
+		/** The fresh world's folder name, by its seed (a world left from an earlier run on that seed is deleted first: its boxes hold the names). */
 		public String folder(@Nullable String seed) {
 			return "postrider_watch_" + (seed == null || seed.isBlank() ? "random" : seed.trim().replaceAll("[^A-Za-z0-9_-]", "_"));
 		}
@@ -198,9 +200,15 @@ public final class DevWatch {
 			return;
 		}
 		String folder = run.folder(System.getProperty(SEED_PROPERTY));
+		// Gradle deletes the run's worlds after it, but one left from a run that was killed would have boxes holding
+		// the names already: the same ground comes again from the seed, so it goes
 		if (minecraft.getLevelSource().levelExists(folder)) {
-			minecraft.createWorldOpenFlows().openWorld(folder, () -> minecraft.setScreen(new TitleScreen()));
-			return;
+			try (LevelStorageSource.LevelStorageAccess old = minecraft.getLevelSource().createAccess(folder)) {
+				old.deleteLevel();
+			} catch (IOException e) {
+				PostRider.LOGGER.error("Post Rider watch run: couldn't delete the world {} left from an earlier run", folder, e);
+				return;
+			}
 		}
 		LevelSettings settings = new LevelSettings(folder, GameType.CREATIVE, false, Difficulty.EASY, true, new GameRules(), WorldDataConfiguration.DEFAULT);
 		minecraft.createWorldOpenFlows().createFreshLevel(folder, settings, new WorldOptions(seed(System.getProperty(SEED_PROPERTY)), true, false),

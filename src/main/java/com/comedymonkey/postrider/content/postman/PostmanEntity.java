@@ -15,6 +15,7 @@ import com.comedymonkey.postrider.registry.ModEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ColorParticleOption;
+import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -24,6 +25,8 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
@@ -87,7 +90,8 @@ public class PostmanEntity extends PathfinderMob {
 		READ_LETTER(120, 2.8F),
 		HUM(121, 3.0F),
 		NECK_ROLL(122, 2.2F),
-		CRACK_KNUCKLES(123, 1.6F);
+		CRACK_KNUCKLES(123, 1.6F),
+		EAT(125, 2.6F);
 
 		public final byte eventId;
 		public final float seconds;
@@ -226,7 +230,28 @@ public class PostmanEntity extends PathfinderMob {
 	/** Plays a one-off movement for everyone watching. */
 	public void playGesture(Gesture gesture) {
 		level().broadcastEntityEvent(this, gesture.eventId);
+		this.gesture = gesture;
+		gestureStartedAt = tickCount;
 		gestureEndsAt = tickCount + Mth.ceil(gesture.seconds * 20);
+	}
+
+	/** When, in ticks from the start of the eat gesture, the bread reaches his mouth: a bite each time, with the sound and crumbs of it. */
+	public static final int[] BITE_TICKS = {14, 31};
+
+	/** Whether this many ticks into eating is one of the bites. */
+	public static boolean isBite(int ticksIn) {
+		for (int bite : BITE_TICKS)
+			if (bite == ticksIn)
+				return true;
+		return false;
+	}
+
+	/** Server side: a bite of bread, heard and seen (crumbs) by everyone near. */
+	private void bite(ServerLevel server) {
+		server.playSound(null, getX(), getY(), getZ(), SoundEvents.GENERIC_EAT, SoundSource.NEUTRAL, 0.5F, 0.9F + getRandom().nextFloat() * 0.2F);
+		Vec3 look = getLookAngle();
+		server.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.BREAD)),
+			getX() + look.x * 0.3, getEyeY() - 0.15, getZ() + look.z * 0.3, 5, 0.1, 0.05, 0.1, 0.02);
 	}
 
 	/** Server side: whether he's in the middle of a gesture or a drink, so nothing else should start. */
@@ -450,6 +475,10 @@ public class PostmanEntity extends PathfinderMob {
 	private long potionDay = -1;
 	private int drinkTicks;
 	private int gestureEndsAt;
+	/** The gesture last played (server side), and when, for the bites of the eat gesture. */
+	@Nullable
+	private Gesture gesture;
+	private int gestureStartedAt;
 	private final Mannerisms mannerisms = new Mannerisms();
 
 	public int getPotions() {
@@ -593,6 +622,8 @@ public class PostmanEntity extends PathfinderMob {
 				RiderHunting.startleCreepers(this, server);
 			if (getActivity() == Activity.CAMP_HAMMER && tickCount % HAMMER_BLOW_TICKS == 0)
 				server.playSound(null, getX(), getY(), getZ(), SoundEvents.WOOD_HIT, SoundSource.NEUTRAL, 0.8F, 0.9F + getRandom().nextFloat() * 0.2F);
+			if (gesture == Gesture.EAT && isBite(tickCount - gestureStartedAt))
+				bite(server);
 			if (run != null && tickCount % WITHDRAWN_CHECK == 0 && !PostOffice.get(server.getServer()).isCarrying(run.delivery().id(), getUUID())) {
 				// Gone missing a while (and his mail sent with someone else), or left over from a muddle: he leaves quietly
 				run.withdraw(this, server);

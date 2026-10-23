@@ -301,4 +301,26 @@ class CoarsePlannerTest {
 		CoarsePlanner.Cells one = (cx, cz) -> cx < 0 || cz < 0 || cx > 1 || cz > 1 ? VOID : cx == 1 && cz == 0 ? cliff : LAND;
 		assertEquals(Status.DONE, new CoarsePlanner(one, 0, 0, 1, 1, Set.of()).finishNow(), "round by the slope");
 	}
+
+	@Test
+	void afloatTheWayBeginsOverTheWaterAndKeepsOffTheShoreStruckRoundHim() {
+		// An inlet in sea ice: the cells round the barge read as land (ice), and the shore was struck off as leading
+		// nowhere; the way on is east over open water to a landing beyond the strikes, never a land leg from his cell
+		CoarsePlanner.Cells inlet = (cx, cz) -> cx < 0 || cz < 0 || cx > 12 || cz > 4 ? VOID : cx >= 3 && cx <= 8 && cz == 2 ? WATER : LAND;
+		Set<Long> struck = new HashSet<>();
+		for (int dx = -1; dx <= 1; dx++)
+			for (int dz = -1; dz <= 1; dz++)
+				if (!(dx == 0 && dz == 0) && !inlet.cell(2 + dx, 2 + dz).water())
+					struck.add(CoarsePlanner.key(2 + dx, 2 + dz));
+		CoarsePlanner afloat = new CoarsePlanner(inlet, 2, 2, 11, 2, struck, true);
+		assertEquals(Status.DONE, afloat.finishNow());
+		Plan plan = afloat.plan();
+		assertEquals(CoarsePlanner.LegKind.WATER, plan.legs().get(0).kind(), "afloat, the way begins over the water: " + plan.legs());
+		for (int dx = -1; dx <= 1; dx++)
+			for (int dz = -1; dz <= 1; dz++)
+				if (struck.contains(CoarsePlanner.key(2 + dx, 2 + dz)))
+					assertFalse(passesThrough(plan, 2 + dx, 2 + dz), "the struck shore is kept off: " + plan.legs());
+		// On land the same strikes next to the start are spared, or the way could never begin
+		assertEquals(Status.DONE, new CoarsePlanner(inlet, 2, 2, 11, 2, struck, false).finishNow());
+	}
 }
