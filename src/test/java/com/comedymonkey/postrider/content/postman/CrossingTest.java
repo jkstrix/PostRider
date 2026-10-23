@@ -223,9 +223,11 @@ class CrossingTest {
 		var seaIce = column(java.util.Map.of(62, ice, 61, water, 60, stone));
 		assertEquals(63.0, Crossing.surfaceIn(seaIce, 0, 0, 62), 1e-9, "the top of the ice is the surface, from the water's level");
 		assertEquals(63.0, Crossing.surfaceIn(seaIce, 0, 0, BargeEntity.levelBelow(63.0)), 1e-9, "and from on the ice itself");
-		assertTrue(Double.isNaN(Crossing.surfaceIn(seaIce, 0, 0, 60)), "ice two above is a bank");
-		var berg = column(java.util.Map.of(63, ice, 62, ice, 61, water));
-		assertTrue(Double.isNaN(Crossing.surfaceIn(berg, 0, 0, 62)), "an iceberg a block up is a bank, not a step");
+		assertTrue(Double.isNaN(Crossing.surfaceIn(seaIce, 0, 0, 59)), "ice three above is a bank");
+		var step = column(java.util.Map.of(63, ice, 62, ice, 61, water));
+		assertEquals(64.0, Crossing.surfaceIn(step, 0, 0, 62), 1e-9, "a block of ice on the sheet is climbed");
+		var berg = column(java.util.Map.of(64, ice, 63, ice, 62, ice, 61, water));
+		assertTrue(Double.isNaN(Crossing.surfaceIn(berg, 0, 0, 62)), "an iceberg two blocks up is a bank, not a step");
 		assertTrue(Crossing.isIceSurface(seaIce, 0, 0, 63.0));
 		assertEquals(63.0, Crossing.restHeight(seaIce, 0, 0, 63.0), 1e-9, "the hull sits on top of the ice");
 		var open = column(java.util.Map.of(62, water, 61, stone));

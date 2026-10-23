@@ -260,12 +260,15 @@ public final class Crossing {
 				return y + fluid.getHeight(level, pos);
 			BlockState state = level.getBlockState(pos);
 			if (isIce(state))
-				return y + 1 <= nearY + 1 && headroomOver(level, pos) ? y + 1 : Double.NaN;
+				return y + 1 <= nearY + 1 + ICE_STEP && headroomOver(level, pos) ? y + 1 : Double.NaN;
 			if (!clear(state) && !isWater(fluid))
 				return Double.NaN;
 		}
 		return Double.NaN;
 	}
+
+	/** How many blocks of ice above its own level the barge climbs (a block of ice standing on the sheet, the foot of a berg); more is a bank. */
+	public static final int ICE_STEP = 1;
 
 	/** Ice of any kind: the barge slides over it, no fire is lit on it, and a camp on it is a cold one. */
 	public static boolean isIce(BlockState state) {

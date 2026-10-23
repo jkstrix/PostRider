@@ -720,9 +720,9 @@ public class DeliveryRun {
 		return Crossing.isIce(level.getBlockState(new BlockPos(x, floor - 1, z))) && isSlidableIce(floor, nearY) ? CampSites.UNUSABLE : floor;
 	}
 
-	/** Whether ice he'd stand on at {@code floor} is at the barge's level (its top no more than a block over the water's block), so the barge slides onto it instead. */
+	/** Whether ice he'd stand on at {@code floor} is within the barge's reach (its top no more than a block over the barge's own level), so the barge slides or climbs onto it instead. */
 	public static boolean isSlidableIce(int floor, int nearY) {
-		return floor <= nearY + 1;
+		return floor <= nearY + 1 + Crossing.ICE_STEP;
 	}
 
 	/** How long after launching before the bank behind it counts as reaching shore. */

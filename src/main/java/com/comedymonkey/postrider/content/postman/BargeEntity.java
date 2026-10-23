@@ -41,6 +41,10 @@ public class BargeEntity extends Entity {
 	private static final double ACCELERATION = 0.02;
 	/** How much faster it goes sliding on ice than rowing on water. */
 	public static final double ICE_GLIDE = 1.5;
+	/** How far beyond the bow it looks for ice to rise onto, and how far in from the hull's sides its corners look. */
+	public static final double ICE_LOOKAHEAD = 3.0, CORNER_INSET = 0.2;
+	/** How fast at most the hull rises to ice ahead, a block up at most, in blocks a tick. */
+	public static final double RISE_PER_TICK = 0.25;
 	/** Whether the hull is on ice this tick (sliding, not rowing). */
 	private boolean onIce;
 	public static final float TURN_PER_TICK = 4.0F;
@@ -249,11 +253,20 @@ public class BargeEntity extends Entity {
 		Vec3 forward = Vec3.directionFromRotation(0, getYRot()).scale(speed);
 		// Ice ahead at the water's level: the hull rises to the ice's top before it gets there, so it slides up onto
 		// it rather than bump against its edge (afloat its hull sits a pixel lower than the ice)
-		double aheadSurface = Crossing.surfaceIn(level, Mth.floor(ahead.x), Mth.floor(ahead.z), nearY);
-		double iceAhead = !Double.isNaN(aheadSurface) && Crossing.isIceSurface(level, Mth.floor(ahead.x), Mth.floor(ahead.z), aheadSurface) ? aheadSurface : Double.NaN;
+		// Looked for at the bow's middle and both its corners, so a sheet met at an angle is climbed as well as one
+		// met square on (the hull is wide, and a corner meets the ice first)
+		double iceAhead = Double.NaN;
+		Vec3 forwards = Vec3.directionFromRotation(0, getYRot());
+		for (double side : new double[] {0, BOX_WIDTH / 2 - CORNER_INSET, -(BOX_WIDTH / 2 - CORNER_INSET)}) {
+			Vec3 look = position().add(forwards.scale(BOW_REACH + ICE_LOOKAHEAD)).add(-forwards.z * side, 0, forwards.x * side);
+			double there = Crossing.surfaceIn(level, Mth.floor(look.x), Mth.floor(look.z), nearY);
+			if (!Double.isNaN(there) && Crossing.isIceSurface(level, Mth.floor(look.x), Mth.floor(look.z), there))
+				iceAhead = Double.isNaN(iceAhead) ? there : Math.max(iceAhead, there);
+		}
 		double rest = restHeight(onIce ? iceHeight(surface) : floatHeight(surface), iceAhead);
 		// Eased towards where it rests, and set there once it's close (eased only, it never quite gets there)
-		double dy = Double.isNaN(surface) ? Math.max(motion.y - 0.04, -0.5) : Math.abs(rest - getY()) < 0.1 ? rest - getY() : Mth.clamp((rest - getY()) * 0.3, -0.1, 0.1);
+		// (Rising to ice a block up takes a few ticks at most, or the hull meets the step before it's up)
+		double dy = Double.isNaN(surface) ? Math.max(motion.y - 0.04, -0.5) : Math.abs(rest - getY()) < 0.1 ? rest - getY() : Mth.clamp((rest - getY()) * 0.3, -0.1, RISE_PER_TICK);
 		setDeltaMovement(forward.x, dy, forward.z);
 		move(MoverType.SELF, getDeltaMovement());
 		boolean rowing = speed > 0.02;

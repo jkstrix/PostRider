@@ -255,8 +255,10 @@ class DeliveryRunTest {
 	void iceAtTheBargesLevelIsSlidOntoNotSteppedOntoButAStepOfIceIsABank() {
 		// Sea ice at 62 (stood on at 63) by water at 62: the barge slides onto it
 		assertTrue(DeliveryRun.isSlidableIce(63, 62));
-		// Ice a block higher (stood on at 64): a bank, and he steps ashore onto it
-		assertFalse(DeliveryRun.isSlidableIce(64, 62));
+		// Ice a block higher (stood on at 64): climbed by the barge too
+		assertTrue(DeliveryRun.isSlidableIce(64, 62));
+		// Two blocks higher: a bank, and he steps ashore onto it
+		assertFalse(DeliveryRun.isSlidableIce(65, 62));
 	}
 
 	@Test

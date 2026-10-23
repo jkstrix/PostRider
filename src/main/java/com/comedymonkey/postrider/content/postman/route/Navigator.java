@@ -1565,7 +1565,7 @@ public final class Navigator {
 	 * (water to the map, but a step the barge can't slide up onto, so a wall to it like any bank).
 	 */
 	public static boolean isShoreTo(CoarsePlanner.Cell cell, double bargeY) {
-		return !cell.water() || cell.ice() && cell.height() > Math.floor(bargeY) + 1;
+		return !cell.water() || cell.ice() && cell.height() > Math.floor(bargeY) + 1 + Crossing.ICE_STEP;
 	}
 
 	/** Ashore again: on to the leg after the water. */

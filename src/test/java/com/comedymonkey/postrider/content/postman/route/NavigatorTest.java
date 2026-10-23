@@ -460,11 +460,12 @@ class NavigatorTest {
 
 	@Test
 	void anIceFieldStandingAboveTheBargeIsShoreToItAndStruckOffLikeABank() {
-		CoarsePlanner.Cell seaIce = new CoarsePlanner.Cell(63, 0, 0, false, 4), iceStep = new CoarsePlanner.Cell(65, 0, 0, false, 4);
+		CoarsePlanner.Cell seaIce = new CoarsePlanner.Cell(63, 0, 0, false, 4), iceStep = new CoarsePlanner.Cell(66, 0, 0, false, 4);
+		assertFalse(Navigator.isShoreTo(new CoarsePlanner.Cell(64, 0, 0, false, 4), 62.9), "a block of ice on the sheet: climbed, no shore");
 		CoarsePlanner.Cell water = new CoarsePlanner.Cell(62, 4, 0, false), land = new CoarsePlanner.Cell(64, 0, 0, false);
 		double barge = 62.9;
 		assertFalse(Navigator.isShoreTo(seaIce, barge), "sea ice at its level: slid over");
-		assertTrue(Navigator.isShoreTo(iceStep, barge), "ice two up: a wall to the barge");
+		assertTrue(Navigator.isShoreTo(iceStep, barge), "ice three up: a wall to the barge");
 		assertFalse(Navigator.isShoreTo(water, barge));
 		assertTrue(Navigator.isShoreTo(land, barge));
 		List<Long> struck = Navigator.shoreAround(new Vec3(4, barge, 4), (cx, cz) -> cx > 0 ? iceStep : seaIce);
