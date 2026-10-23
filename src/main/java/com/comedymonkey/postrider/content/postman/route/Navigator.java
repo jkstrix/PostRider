@@ -88,6 +88,11 @@ public final class Navigator {
 	private CoarsePlanner.Plan plan;
 	private int leg;
 	private final Set<Long> blocked = new HashSet<>();
+	/** A route redone takes a while; after this long he goes by the best of it so far. */
+	public static final int REPLAN_PATIENCE = 1200;
+	private int replanTicks;
+	/** The plan he has was struck off (the way ahead on it found impassable): no stretch follows it while the new one is worked out. */
+	private boolean planStruck;
 
 	// The stretch ahead
 	@Nullable
@@ -119,6 +124,7 @@ public final class Navigator {
 	/** As above; {@code afloat} on the barge, the plan heads for the nearest land that takes him on. */
 	public void replan(ServerLevel level, Vec3 from, Vec3 target, boolean afloat) {
 		routesAsked++;
+		replanTicks = 0;
 		clearStretch();
 		plannedAfloat = afloat;
 		landedSincePlanned = false;
@@ -143,6 +149,16 @@ public final class Navigator {
 		return coarse == null;
 	}
 
+	/** Whether a long-range plan is still being worked out (standing still meanwhile isn't being stuck). */
+	public boolean isReplanning() {
+		return coarse != null;
+	}
+
+	/** Whether a stretch may be planned now: not along a plan that's been struck off while its replacement is worked out. */
+	static boolean mayPlanStretch(boolean planStruck, boolean replanning) {
+		return !(planStruck && replanning);
+	}
+
 	/** Works on the long-range plan with this tick's share of the planning budget. */
 	public void tickPlanning() {
 		if (coarse == null)
@@ -154,6 +170,11 @@ public final class Navigator {
 			adopt(coarse.plan());
 			coarse = null;
 		} else if (status == CoarsePlanner.Status.FAILED) {
+			coarse = null;
+			planStruck = false;
+		} else if (++replanTicks > REPLAN_PATIENCE) {
+			log.accept("the route is taking too long to work out: he goes by the best of it so far");
+			adopt(coarse.bestSoFar());
 			coarse = null;
 		}
 	}
@@ -432,6 +453,7 @@ public final class Navigator {
 			routesFound++;
 		log.accept(found == null ? "no long-range route; heading straight there" : "route planned: " + describe(found));
 		plan = found;
+		planStruck = false;
 		// A plan takes a while to work out: he picks it up where he is now, not where he was when he asked for it
 		leg = found == null ? 0 : startingLeg(found.legs(), lastHere, plannedAfloat && landedSincePlanned);
 		// What he's following now was planned for the old route: the next stretch follows the new one
@@ -445,14 +467,22 @@ public final class Navigator {
 
 	/**
 	 * How far he has to go from here: to the nearest point of the way ahead, along it to its end, and on to the
-	 * target (straight there if there's no plan). Measured this way a detour round a hill, which takes him further
-	 * from the box as the crow flies, still counts as getting on.
+	 * target (straight there if there's no plan), and half the height still to climb or drop to it. Measured this way
+	 * a detour round a hill, which takes him further from the box as the crow flies, still counts as getting on, and
+	 * so does winding up a stair to a box on a tower, which gets him no nearer across.
 	 */
 	public double distanceToGo(Vec3 here, Vec3 target) {
-		return plan == null ? Journey.horizontalDistance(here, target) : alongToGo(plan.legs(), leg, here, target);
+		return plan == null ? Journey.horizontalDistance(here, target) + CLIMB_COUNTS * Math.abs(here.y - target.y) : alongToGo(plan.legs(), leg, here, target);
 	}
 
+	/** How much of the height still to climb or drop to the box counts towards how far he has to go. */
+	public static final double CLIMB_COUNTS = 0.5;
+
 	static double alongToGo(List<CoarsePlanner.Leg> legs, int fromLeg, Vec3 here, Vec3 target) {
+		return alongAcross(legs, fromLeg, here, target) + CLIMB_COUNTS * Math.abs(here.y - target.y);
+	}
+
+	private static double alongAcross(List<CoarsePlanner.Leg> legs, int fromLeg, Vec3 here, Vec3 target) {
 		List<Vec3> line = new ArrayList<>();
 		for (int i = Math.max(0, fromLeg); i < legs.size(); i++)
 			line.addAll(legs.get(i).points());
@@ -959,6 +989,7 @@ public final class Navigator {
 				for (long cell : cellsBetween(rider.position(), localGoal))
 					if (cell != own)
 						blocked.add(cell);
+				planStruck = true;
 				return Action.REPLAN;
 			}
 			case DROP_PLAN -> plan = null;
@@ -1056,6 +1087,8 @@ public final class Navigator {
 
 	/** Whether it's time to plan the next stretch: nothing to follow, near the end of it, off it, or it's gone bad. */
 	private boolean wantsStretch(PostmanEntity rider, ServerLevel level, long now) {
+		if (!mayPlanStretch(planStruck, coarse != null))
+			return false;
 		if (steps.isEmpty())
 			return true;
 		// Being taken up or down a column: the path is stopped on purpose
@@ -1663,6 +1696,7 @@ public final class Navigator {
 		}
 		if (!struck)
 			return false;
+		planStruck = true;
 		replan(level, here, target, plannedAfloat);
 		return true;
 	}

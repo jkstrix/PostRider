@@ -1166,6 +1166,11 @@ public class DeliveryRun {
 		if (stageTicks % 20 != 0)
 			return false;
 		long now = level.getGameTime();
+		// Standing while the route is worked out again isn't being stuck: the clocks wait for the new route
+		if (navigator.isReplanning()) {
+			progress.pause(now);
+			return false;
+		}
 		// Progress is how far he has to go along the route: the route redone, it's measured afresh from here
 		if (navigator.plan() != progressPlan) {
 			progressPlan = navigator.plan();
@@ -1221,7 +1226,11 @@ public class DeliveryRun {
 				lastFollowSpot = mover.position();
 				waysFollowed++;
 				// Set square in his block first: wedged against a block's edge he'd not get going however good the way
-				mover.setPos(Math.floor(mover.getX()) + (rider.getHorse() != null ? 1.0 : 0.5), mover.getY(), Math.floor(mover.getZ()) + (rider.getHorse() != null ? 1.0 : 0.5));
+				// (only onto standing ground: on the edge of a stair a block wide, the middle of his block may be air)
+				boolean mounted = rider.getHorse() != null;
+				int bx = Mth.floor(mover.getX() - (mounted ? 0.5 : 0)), bz = Mth.floor(mover.getZ() - (mounted ? 0.5 : 0));
+				if (LocalPlanner.stands(new LevelTerrain(level), mounted, bx, Mth.floor(mover.getY() + 1e-3), bz))
+					mover.setPos(bx + (mounted ? 1.0 : 0.5), mover.getY(), bz + (mounted ? 1.0 : 0.5));
 				logRoute(rider, stuck + "; a way through the blocks existed (" + here.steps().size() + " steps, starting " + Navigator.describe(here.steps(), 6)
 					+ "): following it rather than jumping");
 				traceUntil = now + 60;
@@ -1238,6 +1247,13 @@ public class DeliveryRun {
 				rider.getNavigation().stop();
 				navigator.clearStretch();
 				progress.pause(now);
+				// The map comes out while the new route is worked out (the route's already asked for), and it's
+				// checked against the ground before he sets off again
+				lastMapStop = now;
+				afterPlanning = Stage.RIDING;
+				steppingAway = false;
+				alreadyPlanning = true;
+				enter(Stage.PLANNING);
 				return true;
 			}
 			// Failing that, the nearest safe spot a way does lead on from: a hop of a few blocks, usually

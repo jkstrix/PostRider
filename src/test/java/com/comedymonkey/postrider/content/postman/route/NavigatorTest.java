@@ -377,4 +377,22 @@ class NavigatorTest {
 		assertFalse(Navigator.onTheLip(112, true, 110, 1.5), "still some way to walk to the edge");
 		assertFalse(Navigator.onTheLip(112, false, 110, 0.3), "already in the air");
 	}
+
+	@Test
+	void noStretchFollowsAPlanThatsBeenStruckOffWhileTheNewOneIsWorkedOut() {
+		assertFalse(Navigator.mayPlanStretch(true, true), "struck off, and the new route still being worked out: he waits");
+		assertTrue(Navigator.mayPlanStretch(true, false), "the new route is in (or there isn't going to be one)");
+		assertTrue(Navigator.mayPlanStretch(false, true), "a route being redone for any other reason: he keeps to the way he's on");
+		assertTrue(Navigator.REPLAN_PATIENCE >= 20 * 30 && Navigator.REPLAN_PATIENCE <= 20 * 120, "a route redone is waited for about a minute, then he goes by the best of it");
+	}
+
+	@Test
+	void windingUpAStairToABoxOnATowerCountsAsGettingOn() {
+		Vec3 boxOnTheTower = new Vec3(32, 314, 32);
+		CoarsePlanner.Leg toTheFoot = new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(4, 64, 4), new Vec3(32, 64, 32)));
+		double atTheFoot = Navigator.alongToGo(List.of(toTheFoot), 0, new Vec3(32, 64, 32), boxOnTheTower);
+		double halfwayUp = Navigator.alongToGo(List.of(toTheFoot), 0, new Vec3(30, 189, 34), boxOnTheTower);
+		assertTrue(halfwayUp < atTheFoot - 50, "no nearer across, but a long way up (half of it counts): " + atTheFoot + " to " + halfwayUp);
+		assertEquals(0, Navigator.alongToGo(List.of(toTheFoot), 0, boxOnTheTower, boxOnTheTower), 1e-6);
+	}
 }
