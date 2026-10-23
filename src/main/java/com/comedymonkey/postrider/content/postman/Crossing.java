@@ -177,17 +177,32 @@ public final class Crossing {
 		return state.isAir() || isWaterPlant(state);
 	}
 
-	/** The water's surface in a column near a height, if it's open to the sky above; NaN otherwise. */
+	/** How much clear air the barge needs over the water: the barge, the horse on its deck and the rider on it. */
+	public static final int HEADROOM = 3;
+
+	/**
+	 * The water's surface in a column near a height, if it's open above: nothing but air (or water plants) for
+	 * {@link #HEADROOM} blocks over it, so the barge passes under no bridge, overhanging tree or cave roof that would
+	 * crush him and his horse against it. NaN otherwise.
+	 */
 	public static double surfaceIn(BlockGetter level, int x, int z, int nearY) {
 		for (int y = nearY + 2; y >= nearY - 4; y--) {
 			BlockPos pos = new BlockPos(x, y, z);
 			FluidState fluid = level.getFluidState(pos);
-			if (isWater(fluid) && level.getFluidState(pos.above()).isEmpty() && clear(level.getBlockState(pos.above())))
+			if (isWater(fluid) && level.getFluidState(pos.above()).isEmpty() && headroomOver(level, pos))
 				return y + fluid.getHeight(level, pos);
 			if (!clear(level.getBlockState(pos)) && !isWater(fluid))
 				return Double.NaN;
 		}
 		return Double.NaN;
+	}
+
+	/** Whether the {@link #HEADROOM} blocks over a water block are clear. */
+	public static boolean headroomOver(BlockGetter level, BlockPos water) {
+		for (int up = 1; up <= HEADROOM; up++)
+			if (!clear(level.getBlockState(water.above(up))))
+				return false;
+		return true;
 	}
 
 	/** Whether a spot is within {@link #MONUMENT_BERTH} blocks of an ocean monument (as far as loaded chunks tell). */

@@ -5,6 +5,7 @@ import java.util.function.DoubleSupplier;
 import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
@@ -102,8 +103,25 @@ public class PostmanHorse extends Horse {
 	@Override
 	public void die(DamageSource source) {
 		super.die(source);
-		if (riderId != null && level() instanceof ServerLevel server && server.getEntity(riderId) instanceof PostmanEntity rider)
+		if (!(level() instanceof ServerLevel server))
+			return;
+		PostmanEntity rider = riderId != null && server.getEntity(riderId) instanceof PostmanEntity his ? his
+			: getFirstPassenger() instanceof PostmanEntity aboard ? aboard : null;
+		if (rider != null)
 			rider.horseKilled(server, source);
+	}
+
+	@Override
+	public void addAdditionalSaveData(CompoundTag tag) {
+		super.addAdditionalSaveData(tag);
+		if (riderId != null)
+			tag.putUUID("postrider_rider", riderId);
+	}
+
+	@Override
+	public void readAdditionalSaveData(CompoundTag tag) {
+		super.readAdditionalSaveData(tag);
+		riderId = tag.hasUUID("postrider_rider") ? tag.getUUID("postrider_rider") : null;
 	}
 
 	@Override

@@ -35,6 +35,11 @@ public final class CoarsePlanner {
 	public static final double ROWING_RELUCTANCE = 4.0;
 	public static final double LAUNCH_COST = 24;
 	public static final double LANDING_COST = 16;
+	/**
+	 * More than this many blocks up or down from one cell to the next (straight or corner to corner) is a cliff, or a
+	 * chasm's wall, not a slope anyone rides or walks. Not crossed at all.
+	 */
+	public static final int MAX_RISE = 6;
 	/** Half-water ground (a marsh, a river bank) is slow going. */
 	public static final double SHORE_COST = 1.25;
 	public static final int MAX_NODES = 60_000;
@@ -231,7 +236,10 @@ public final class CoarsePlanner {
 		}
 		if (fromWater)
 			return length * rowing + LANDING_COST;
-		double slope = Math.abs(to.height() - from.height()) / length;
+		int rise = Math.abs(to.height() - from.height());
+		if (rise > MAX_RISE)
+			return -1;
+		double slope = rise / length;
 		double steep = slope <= 0.25 ? slope : 0.25 + (slope - 0.25) * 6;
 		double rough = Math.min(to.rough(), 16) / 32.0;
 		return length * (1 + steep + rough) * (to.shore() ? SHORE_COST : 1);

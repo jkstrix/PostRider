@@ -120,4 +120,46 @@ class CrossingTest {
 		assertFalse(Crossing.wayClear(18, 0, 24, 0, 64, wall));
 		assertTrue(Crossing.wayClear(18, 0, 19, 0, 64, (x, z, y) -> false), "next door: nothing between");
 	}
+
+	/** A column of blocks for the water tests: what's at each height, air everywhere else. */
+	private static net.minecraft.world.level.BlockGetter column(java.util.Map<Integer, net.minecraft.world.level.block.state.BlockState> blocks) {
+		return new net.minecraft.world.level.BlockGetter() {
+			@Override
+			public net.minecraft.world.level.block.state.BlockState getBlockState(BlockPos pos) {
+				return blocks.getOrDefault(pos.getY(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+			}
+
+			@Override
+			public net.minecraft.world.level.material.FluidState getFluidState(BlockPos pos) {
+				return getBlockState(pos).getFluidState();
+			}
+
+			@Override
+			public net.minecraft.world.level.block.entity.BlockEntity getBlockEntity(BlockPos pos) {
+				return null;
+			}
+
+			@Override
+			public int getHeight() {
+				return 384;
+			}
+
+			@Override
+			public int getMinBuildHeight() {
+				return -64;
+			}
+		};
+	}
+
+	@Test
+	void waterUnderABridgeOrATreeIsNotOpenWater() {
+		var water = net.minecraft.world.level.block.Blocks.WATER.defaultBlockState();
+		var stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+		var leaves = net.minecraft.world.level.block.Blocks.OAK_LEAVES.defaultBlockState();
+		assertEquals(63.0, Crossing.surfaceIn(column(java.util.Map.of(62, water, 61, stone)), 0, 0, 62), 0.2, "open to the sky");
+		assertTrue(Double.isNaN(Crossing.surfaceIn(column(java.util.Map.of(62, water, 61, stone, 65, stone)), 0, 0, 62)), "a bridge three over it");
+		assertTrue(Double.isNaN(Crossing.surfaceIn(column(java.util.Map.of(62, water, 61, stone, 64, leaves)), 0, 0, 62)), "a branch over it");
+		assertEquals(63.0, Crossing.surfaceIn(column(java.util.Map.of(62, water, 61, stone, 66, stone)), 0, 0, 62), 0.2, "four over it is room enough");
+		assertEquals(3, Crossing.HEADROOM, "the barge, the horse on its deck and the rider on it");
+	}
 }

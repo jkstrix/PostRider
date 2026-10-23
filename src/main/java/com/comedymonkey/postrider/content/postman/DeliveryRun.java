@@ -594,6 +594,11 @@ public class DeliveryRun {
 		if (target == null)
 			return;
 		double distance = Journey.horizontalDistance(rider.position(), target);
+		// Pushed into something all the same (a bank that gave, a block someone placed): a block back, before it crushes him
+		if (rider.isInWall()) {
+			logRoute(rider, "the barge backs off a block at " + Navigator.spot(barge.position()) + ": he was being crushed in its bow");
+			barge.backOff();
+		}
 		if (checkStuck(rider, level, distance, target))
 			return;
 		if (ashore(level, barge, distance) && land(rider, level, barge, target))
@@ -626,9 +631,10 @@ public class DeliveryRun {
 			return true;
 		if (stageTicks < PUSH_OFF_TICKS)
 			return false;
-		aground = barge.horizontalCollision ? aground + 1 : 0;
+		boolean against = barge.horizontalCollision || barge.isBlockedAhead();
+		aground = against ? aground + 1 : 0;
 		Vec3 bow = barge.bow();
-		boolean land = barge.horizontalCollision || Double.isNaN(Crossing.surfaceIn(level, Mth.floor(bow.x), Mth.floor(bow.z), barge.getBlockY()));
+		boolean land = against || Double.isNaN(Crossing.surfaceIn(level, Mth.floor(bow.x), Mth.floor(bow.z), barge.getBlockY()));
 		return landsHere(land, navigator.nearLanding(barge.position()), navigator.atEndOfWater(barge.position()), aground);
 	}
 
@@ -775,9 +781,10 @@ public class DeliveryRun {
 		if (stepTicks % 20 == 0)
 			tendFire(level);
 		if (PostOfficeHours.isOpen(level.getDayTime())) {
+			// Up with the sun: out comes the map and the route is worked out afresh, then he whistles for his horse
 			breakCamp(rider, level);
 			navigator.clearStretch();
-			enter(Stage.CALLING_HORSE);
+			stopToReplan(rider, level, destinationSpot(level), Stage.CALLING_HORSE);
 			return;
 		}
 		stepTicks++;

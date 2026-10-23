@@ -63,6 +63,10 @@ public class BargeEntity extends Entity {
 	public static final double DECK_FORWARD = -5 / 16.0, DECK_HEIGHT = 2 / 16.0;
 	/** How far the bow reaches ahead of the middle. */
 	public static final double BOW_REACH = 2.5;
+	/** It stops with its bow this far short of anything that isn't open water (a bank, a wall, a low roof). */
+	public static final double STOPS_SHORT = 1.0;
+	/** Nothing but open water ahead of the bow this tick; false when it's up against something (land, if he's lucky). */
+	private boolean blockedAhead;
 	/** The rider sits with his hips this high above his feet (the row animation's seated pose). */
 	public static final double HIP_HEIGHT = 12 / 16.0;
 	/** One stroke of the oars, as long as the row animation. */
@@ -103,6 +107,23 @@ public class BargeEntity extends Entity {
 	/** Where the bow is: the middle of its leading edge. */
 	public Vec3 bow() {
 		return position().add(Vec3.directionFromRotation(0, getYRot()).scale(BOW_REACH));
+	}
+
+	/** The spot {@code ahead} blocks beyond the bow of a barge here, facing this way. */
+	public static Vec3 beyondBow(Vec3 position, float yaw, double ahead) {
+		return position.add(Vec3.directionFromRotation(0, yaw).scale(BOW_REACH + ahead));
+	}
+
+	/** Whether the bow is up against something that isn't open water (its hull box is shorter than its hull: it stops short of it). */
+	public boolean isBlockedAhead() {
+		return blockedAhead;
+	}
+
+	/** Backs off a block (his seat is in the bow: pushed into a bank, he'd be crushed). */
+	public void backOff() {
+		Vec3 back = Vec3.directionFromRotation(0, getYRot()).scale(-1.0);
+		setPos(getX() + back.x, getY(), getZ() + back.z);
+		speed = 0;
 	}
 
 	/** The middle of the deck, as drawn: the hull's depth above the barge's position. */
@@ -167,6 +188,12 @@ public class BargeEntity extends Entity {
 		} else {
 			speed *= 0.8;
 		}
+		// The hull is longer than its box: it stops with the bow short of anything that isn't open water ahead, rather
+		// than push its bow (and the rider's seat in it) into a bank, a wall or a low roof
+		Vec3 ahead = beyondBow(position(), getYRot(), STOPS_SHORT);
+		blockedAhead = Double.isNaN(Crossing.surfaceIn(level, Mth.floor(ahead.x), Mth.floor(ahead.z), Mth.floor(getY())));
+		if (blockedAhead && speed > 0)
+			speed = 0;
 		Vec3 forward = Vec3.directionFromRotation(0, getYRot()).scale(speed);
 		// Float: hold the deck just above the water; with no water underneath it settles onto whatever is there
 		double surface = Crossing.surfaceIn(level, Mth.floor(getX()), Mth.floor(getZ()), Mth.floor(getY()));

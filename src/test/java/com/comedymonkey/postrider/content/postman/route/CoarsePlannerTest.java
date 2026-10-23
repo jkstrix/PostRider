@@ -230,4 +230,16 @@ class CoarsePlannerTest {
 		assertTrue(Cell.of(new int[] {60, 60, 64, 64}, new int[] {63, 63, 64, 64}, -64).shore());
 		assertTrue(Cell.of(new int[] {-64, -64, -64, 70}, new int[] {-64, -64, -64, 70}, -64).isVoid());
 	}
+
+	@Test
+	void aCliffIsNoSlopeAndIsntCrossedAtAll() {
+		// A wall of cells seven blocks higher than the ground right across the way (no pass): no way through, and a chasm
+		// seven deep likewise; a rise of five across a cell is just steep
+		CoarsePlanner.Cells cliff = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(71, 0, 0, false) : LAND;
+		assertEquals(Status.FAILED, new CoarsePlanner(cliff, 2, 2, 18, 2, Set.of()).finishNow(), "a cliff of seven");
+		CoarsePlanner.Cells chasm = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(57, 0, 0, false) : LAND;
+		assertEquals(Status.FAILED, new CoarsePlanner(chasm, 2, 2, 18, 2, Set.of()).finishNow(), "a chasm seven deep");
+		CoarsePlanner.Cells steep = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 10 ? new Cell(69, 0, 0, false) : LAND;
+		assertEquals(Status.DONE, new CoarsePlanner(steep, 2, 2, 18, 2, Set.of()).finishNow(), "five up across a cell is a steep slope, taken");
+	}
 }
