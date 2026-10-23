@@ -3,6 +3,7 @@ package com.comedymonkey.postrider.content.hopper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -115,5 +116,16 @@ class IceHopperTest {
 		// Two blocks up is a wall
 		assertTrue(Double.isNaN(IceHopperEntity.hopTop(column(Map.of(62, stone, 63, stone, 64, ice)), new BlockPos(0, 62, 0), 62.5)));
 		assertTrue(IceHopperEntity.MIN_HOP_SPEED <= 0.04, "a single tick of rowing against the ice is enough to hop");
+	}
+
+	@Test
+	void bumpedAgainstTheIceWithNoWayOnItHopsTheWayItsBeingRowed() {
+		net.minecraft.world.phys.Vec3 still = net.minecraft.world.phys.Vec3.ZERO, east = new net.minecraft.world.phys.Vec3(0.3, 0, 0);
+		assertNotNull(IceHopperEntity.hopHeading(east, false, 0), "under way: the way it's moving");
+		assertEquals(1.0, IceHopperEntity.hopHeading(east, false, 0).x, 1e-9);
+		assertNull(IceHopperEntity.hopHeading(still, false, -90), "drifting against the ice, nobody rowing: no hop");
+		net.minecraft.world.phys.Vec3 rowed = IceHopperEntity.hopHeading(still, true, -90);
+		assertNotNull(rowed, "stopped dead against the ice but rowing forward: the way it's facing");
+		assertEquals(1.0, rowed.x, 1e-6, "facing east (yaw -90)");
 	}
 }
