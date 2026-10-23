@@ -217,4 +217,13 @@ class NavigatorTest {
 		assertTrue(Navigator.endsAtTheBox(new Vec3(140, 100, -60), box, 40), "the plan's end is a stretch from the box");
 		assertFalse(Navigator.endsAtTheBox(new Vec3(1105, 87, 4451), box, 40), "the best plan so far ended thousands of blocks short: not the box");
 	}
+
+	@Test
+	void aScrapOfShoreThatLedNowhereIsKeptClearOfByTheBlockNotTheCell() {
+		List<Vec3> noLandings = List.of(new Vec3(-1032.5, 63, 705.5));
+		assertTrue(Navigator.nearNoLanding(noLandings, -1032, 705), "the scrap itself");
+		assertTrue(Navigator.nearNoLanding(noLandings, -1024, 710), "the beach a few blocks along");
+		assertFalse(Navigator.nearNoLanding(noLandings, -1000, 705), "the coast well on from it");
+		assertFalse(Navigator.nearNoLanding(List.of(), -1032, 705));
+	}
 }

@@ -939,6 +939,8 @@ public final class Navigator {
 		if (lastLanding != null && landedBackSoon(lastLanding, landedAt, from, now)) {
 			for (long cell : shoreAround(lastLanding, TerrainSurvey.of(level)))
 				blocked.add(cell);
+			// A scrap of shore in a cell the plan counts as water is no cell to block: the spot itself is remembered
+			noLandings.add(lastLanding);
 			log.accept("the shore at " + spot(lastLanding) + " led nowhere; he won't land there again");
 		}
 		// Nor is the shore he's putting out from any use to land on again
@@ -959,6 +961,17 @@ public final class Navigator {
 	/** Putting out again this soon after landing, this close by, means the shore led nowhere. */
 	public static final int LANDED_BACK_TICKS = 1200;
 	public static final double LANDED_BACK_DISTANCE = 32;
+	/** Shores he's found lead nowhere, each kept clear of to this many blocks (a scrap of shore is smaller than a cell). */
+	private final List<Vec3> noLandings = new ArrayList<>();
+	public static final double NO_LANDING_RADIUS = 12;
+
+	/** Whether a column is within {@link #NO_LANDING_RADIUS} of a shore noted as leading nowhere. */
+	public static boolean nearNoLanding(List<Vec3> noLandings, int x, int z) {
+		for (Vec3 shore : noLandings)
+			if (Journey.horizontalDistance(shore, new Vec3(x + 0.5, shore.y, z + 0.5)) <= NO_LANDING_RADIUS)
+				return true;
+		return false;
+	}
 
 	/** Whether he's putting out again so soon after landing, so near where he landed, that the shore led nowhere. */
 	public static boolean landedBackSoon(Vec3 landing, long landedAt, Vec3 launch, long now) {
@@ -1170,14 +1183,23 @@ public final class Navigator {
 		return Journey.horizontalDistance(here, nearest) > OFF_PATH + 1;
 	}
 
-	/** Open water in loaded chunks, each column looked at once per plan. */
-	private static WaterPlanner.Water water(ServerLevel level, int nearY) {
+	/** Whether a column is in a cell, or by a spot, he's found leads nowhere (a shore he put out from again straight away). */
+	public boolean isBlockedShore(int x, int z) {
+		return blocked.contains(CoarsePlanner.key(CoarsePlanner.cellOf(x), CoarsePlanner.cellOf(z))) || nearNoLanding(noLandings, x, z);
+	}
+
+	/**
+	 * Open water in loaded chunks, each column looked at once per plan. The water in a cell of shore that led nowhere
+	 * is kept clear of (the water by a scrap of such shore is not: he puts out again from it, and must row away).
+	 */
+	private WaterPlanner.Water water(ServerLevel level, int nearY) {
 		Long2ByteOpenHashMap known = new Long2ByteOpenHashMap();
 		return (x, z) -> {
 			long key = ChunkPos.asLong(x, z);
 			byte open = known.getOrDefault(key, (byte) -1);
 			if (open < 0) {
-				open = (byte) (level.isLoaded(new BlockPos(x, nearY, z)) && !Double.isNaN(Crossing.surfaceIn(level, x, z, nearY)) ? 1 : 0);
+				boolean blockedCell = blocked.contains(CoarsePlanner.key(CoarsePlanner.cellOf(x), CoarsePlanner.cellOf(z)));
+				open = (byte) (level.isLoaded(new BlockPos(x, nearY, z)) && !blockedCell && !Double.isNaN(Crossing.surfaceIn(level, x, z, nearY)) ? 1 : 0);
 				known.put(key, open);
 			}
 			return open == 1;

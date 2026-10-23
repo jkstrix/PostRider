@@ -60,6 +60,24 @@ public final class Crossing {
 		return null;
 	}
 
+	/**
+	 * The nearest open water any way round, with room all round for the barge, within {@link #LAUNCH_REACH}: to put
+	 * out again from a shore that leads nowhere, the water being behind him as often as not. Null if there's none.
+	 */
+	@Nullable
+	public static Vec3 launchSpotAround(Vec3 from, Water water) {
+		int fx = Mth.floor(from.x), fz = Mth.floor(from.z);
+		for (int radius = 1; radius <= LAUNCH_REACH; radius++)
+			for (int dx = -radius; dx <= radius; dx++)
+				for (int dz = -radius; dz <= radius; dz++) {
+					if (Math.max(Math.abs(dx), Math.abs(dz)) != radius)
+						continue;
+					if (isOpen(fx + dx, fz + dz, water))
+						return new Vec3(fx + dx + 0.5, water.surface(fx + dx, fz + dz), fz + dz + 0.5);
+				}
+		return null;
+	}
+
 	private static boolean isOpen(int x, int z, Water water) {
 		for (int ox = -LAUNCH_CLEARANCE; ox <= LAUNCH_CLEARANCE; ox++)
 			for (int oz = -LAUNCH_CLEARANCE; oz <= LAUNCH_CLEARANCE; oz++)
@@ -137,14 +155,20 @@ public final class Crossing {
 		return landingSpot(bow, target, floor, reach, way, Roomy.EVERYWHERE);
 	}
 
+	/** Ground with room for the horse this much further from the bow than the nearest usable ground is still preferred to it. */
+	public static final int ROOM_WORTH = 6;
+
 	/**
-	 * As above, preferring ground with room for the horse: as near the bow as any usable ground, but among the
-	 * ground as near as that, a spot with room before one without (put down in a niche the horse is wedged).
+	 * As above, preferring ground with room for the horse: a spot with room up to {@link #ROOM_WORTH} blocks further
+	 * from the bow than the nearest usable ground is taken before that ground (put down in a niche the horse is
+	 * wedged, and on a strip of beach a block wide there's no putting it down at all).
 	 */
 	@Nullable
 	public static BlockPos landingSpot(Vec3 bow, Vec3 target, CampSites.Floor floor, int reach, Way way, Roomy roomy) {
 		int bx = Mth.floor(bow.x), bz = Mth.floor(bow.z);
-		for (int radius = 0; radius <= reach; radius++) {
+		BlockPos nearest = null;
+		int nearestRadius = -1;
+		for (int radius = 0; radius <= reach && (nearest == null || radius <= nearestRadius + ROOM_WORTH); radius++) {
 			BlockPos best = null, bestRoomy = null;
 			double bestDistance = Double.MAX_VALUE, bestRoomyDistance = Double.MAX_VALUE;
 			for (int dx = -radius; dx <= radius; dx++)
@@ -166,10 +190,12 @@ public final class Crossing {
 				}
 			if (bestRoomy != null)
 				return bestRoomy;
-			if (best != null)
-				return best;
+			if (best != null && nearest == null) {
+				nearest = best;
+				nearestRadius = radius;
+			}
 		}
-		return null;
+		return nearest;
 	}
 
 	/** Whether the straight line between two columns is clear at a height, the columns between them inclusive. */

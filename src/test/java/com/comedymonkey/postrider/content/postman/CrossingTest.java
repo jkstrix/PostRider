@@ -174,4 +174,29 @@ class CrossingTest {
 		assertEquals(new BlockPos(20, 64, 0), Crossing.landingSpot(bow, target, bank, Crossing.LANDING_REACH, Crossing.Way.OPEN, (x, y, z) -> false),
 			"with room nowhere, the nearest ground will do");
 	}
+
+	@Test
+	void groundWithRoomForTheHorseAFewBlocksFurtherBeatsAStripOfBeachWithNone() {
+		// A beach a block wide at x 20, then a cliff; room for the horse only from x 24 on (four blocks further)
+		CampSites.Floor bank = (x, z) -> x >= 20 ? 64 : CampSites.UNUSABLE;
+		Crossing.Roomy roomy = (x, y, z) -> x >= 24;
+		Vec3 bow = new Vec3(18.5, 63, 0.5), target = new Vec3(300, 64, 0.5);
+		assertEquals(new BlockPos(24, 64, 0), Crossing.landingSpot(bow, target, bank, DeliveryRun.STUCK_LANDING_REACH, Crossing.Way.OPEN, roomy),
+			"the ground with room, a few blocks on");
+		Crossing.Roomy farOff = (x, y, z) -> x >= 20 + Crossing.ROOM_WORTH + 2;
+		assertEquals(new BlockPos(20, 64, 0), Crossing.landingSpot(bow, target, bank, DeliveryRun.STUCK_LANDING_REACH, Crossing.Way.OPEN, farOff),
+			"room too far off: the nearest ground, and the horse goes for now");
+	}
+
+	@Test
+	void fromAShoreThatLeadsNowhereHePutsOutAgainWhicheverWayTheWaterLies() {
+		// Water everywhere west of x 10, with him on a ledge at x 12 facing east (the destination inland)
+		Crossing.Water sea = (x, z) -> x < 10 ? 63.0 : Double.NaN;
+		Vec3 ledge = new Vec3(12.5, 64, 0.5);
+		assertNull(Crossing.launchSpot(ledge, new Vec3(300, 64, 0.5), sea), "no water ahead of him");
+		Vec3 behind = Crossing.launchSpotAround(ledge, sea);
+		assertNotNull(behind, "but there is behind him");
+		assertTrue(behind.x <= 10 - Crossing.LAUNCH_CLEARANCE + 0.5, "with room round the hull: " + behind);
+		assertNull(Crossing.launchSpotAround(new Vec3(40.5, 64, 0.5), sea), "none within reach from well inland");
+	}
 }

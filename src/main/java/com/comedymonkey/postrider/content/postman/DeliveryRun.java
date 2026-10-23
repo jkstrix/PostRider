@@ -549,9 +549,24 @@ public class DeliveryRun {
 	private boolean launchBarge(PostmanEntity rider, ServerLevel level, Vec3 target) {
 		int nearY = rider.getBlockY();
 		Vec3 spot = Crossing.launchSpot(rider.position(), target, (x, z) -> Crossing.surfaceIn(level, x, z, nearY));
-		BargeEntity barge = spot == null ? null : ModEntities.BARGE.get().create(level);
+		return spot != null && launchBargeAt(rider, level, spot, target);
+	}
+
+	/** Calls up the barge on this open water and sets off towards {@code target}. */
+	private boolean launchBargeAt(PostmanEntity rider, ServerLevel level, Vec3 spot, Vec3 target) {
+		return launchBargeAt(rider, level, spot, target, false);
+	}
+
+	/** How long, after putting out from a shore that led nowhere, the barge rows straight away from it before steering for the box. */
+	public static final int PUSH_OFF_TICKS_AWAY = 60;
+	public static final double PUSH_OFF_DISTANCE = 12;
+
+	/** As above; {@code pushOff} first rows straight out from the shore for a few seconds (out of a cove, say). */
+	private boolean launchBargeAt(PostmanEntity rider, ServerLevel level, Vec3 spot, Vec3 target, boolean pushOff) {
+		BargeEntity barge = ModEntities.BARGE.get().create(level);
 		if (barge == null)
 			return false;
+		Vec3 shore = rider.position();
 		barge.moveTo(spot.x, BargeEntity.floatHeight(spot.y), spot.z, yawToward(spot, target), 0);
 		level.addFreshEntity(barge);
 		PostmanEffects.puff(level, barge);
@@ -579,6 +594,12 @@ public class DeliveryRun {
 		Vec3 destination = destinationSpot(level);
 		logRoute(rider, "launching the barge at " + Navigator.spot(spot) + " towards " + Navigator.spot(target));
 		navigator.launched(level, spot, destination != null ? destination : target);
+		if (pushOff) {
+			Vec3 out = Journey.horizontalDistance(shore, spot) < 1e-6 ? spot : spot.add(spot.subtract(shore).multiply(1, 0, 1).normalize().scale(PUSH_OFF_DISTANCE));
+			barge.moveTo(spot.x, barge.getY(), spot.z, yawToward(spot, out), 0);
+			barge.steer(out);
+			aimCooldown = PUSH_OFF_TICKS_AWAY;
+		}
 		enter(Stage.BARGING);
 		return true;
 	}
@@ -659,6 +680,8 @@ public class DeliveryRun {
 
 	/** Stuck against a bank with nowhere to step off close by, he looks this far for somewhere before being jumped. */
 	public static final int STUCK_LANDING_REACH = 12;
+	/** A shore he can reach no more blocks of than this leads nowhere: back into the barge. */
+	public static final int TINY_SHORE = 64;
 
 	private boolean land(PostmanEntity rider, ServerLevel level, BargeEntity barge, Vec3 target, int reach) {
 		PostmanHorse horse = null;
@@ -666,7 +689,7 @@ public class DeliveryRun {
 			if (passenger instanceof PostmanHorse aboard)
 				horse = aboard;
 		EntityType<?> type = horse != null ? horse.getType() : null;
-		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> CampSites.floorIn(level, x, z, barge.getBlockY()), reach,
+		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> navigator.isBlockedShore(x, z) ? CampSites.UNUSABLE : CampSites.floorIn(level, x, z, barge.getBlockY()), reach,
 			(x, z, y) -> passable(level, new BlockPos(x, y, z)) && passable(level, new BlockPos(x, y + 1, z)),
 			type == null ? Crossing.Roomy.EVERYWHERE : (x, y, z) -> HorseSpots.find(new Vec3(x + 0.5, y, z + 0.5), yawToward(new Vec3(x + 0.5, y, z + 0.5), target),
 				s -> HorseSpots.fits(level, type, s)) != null);
@@ -1122,6 +1145,19 @@ public class DeliveryRun {
 			// Is there a way through the blocks from where he stands? Then he follows it, and nobody is jumped anywhere
 			Navigator.Probe here = navigator.probeFromHere(rider, level, target, LocalPlanner.MAX_NODES);
 			wayFromHere = here.found();
+			// On a scrap of shore with no way on at all (a ledge under a cliff, an islet): back into the barge, whichever
+			// way the water lies, and on to the next bit of coast; this shore is noted as leading nowhere
+			if (!wayFromHere && here.expanded() <= TINY_SHORE) {
+				int nearY = rider.getBlockY();
+				Vec3 water = Crossing.launchSpotAround(rider.position(), (x, z) -> Crossing.surfaceIn(level, x, z, nearY));
+				if (water != null) {
+					logRoute(rider, stuck + "; no way on from this scrap of shore (" + here.expanded() + " blocks to it): back into the barge");
+					if (launchBargeAt(rider, level, water, target, true)) {
+						progress.pause(now);
+						return true;
+					}
+				}
+			}
 			if (wayFromHere && !triedFollowingNear(mover.position())) {
 				lastFollowSpot = mover.position();
 				waysFollowed++;
