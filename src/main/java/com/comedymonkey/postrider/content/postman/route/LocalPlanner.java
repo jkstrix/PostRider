@@ -354,10 +354,13 @@ public final class LocalPlanner {
 							continue;
 						if (fy == to.y - 1 && !headroom(true, to.x, fy, to.z))
 							continue;
+						if (!leapRoom(to.x, to.y, to.z) || !leapRoom(fx, fy, fz))
+							continue;
 						boolean gap = true;
 						for (int k = 1; k < across && gap; k++) {
 							int gx = fx + dx * k, gz = fz + dz * k;
-							gap = !standsSquarely(terrain, true, gx, fy, gz) && !standsSquarely(terrain, true, gx, fy - 1, gz) && fits(terrain, true, gx, fy, gz);
+							gap = !standsSquarely(terrain, true, gx, fy, gz) && !standsSquarely(terrain, true, gx, fy - 1, gz) && fits(terrain, true, gx, fy, gz)
+								&& leapRoom(gx, fy, gz);
 						}
 						if (gap)
 							before(to, fx, fy, fz, true, Move.LEAP, across + LEAP_COST);
@@ -594,8 +597,26 @@ public final class LocalPlanner {
 		}
 	}
 
+	/**
+	 * A leaping horse rises a couple of blocks with the rider on it: this many blocks over the feet must be clear all
+	 * along a leap, take-off and landing included (under a low canopy he'd be smothered in the leaves).
+	 */
+	public static final int LEAP_HEIGHT = 5;
+
+	/** Whether the horse and rider have room to be in the air here, mid-leap. */
+	private boolean leapRoom(int x, int y, int z) {
+		for (int dx = 0; dx <= 1; dx++)
+			for (int dz = 0; dz <= 1; dz++)
+				for (int h = MOUNTED_HEIGHT; h < LEAP_HEIGHT; h++)
+					if (!terrain.kind(x + dx, y + h, z + dz).horseClear())
+						return false;
+		return true;
+	}
+
 	/** A galloping leap over a gap: no ground near his level on the way, safe ground at about his level beyond. */
 	private void leaps(Node from) {
+		if (!leapRoom(from.x, from.y, from.z))
+			return;
 		for (int i = 0; i < 4; i++) {
 			int dx = DIRECTIONS[i][0], dz = DIRECTIONS[i][1];
 			for (int across = 1; across <= GapJump.MAX_GAP + 1; across++) {
@@ -609,13 +630,14 @@ public final class LocalPlanner {
 					else if (landsOn(terrain, x, from.y + 1, z, dx, dz) && headroom(true, x, from.y, z))
 						landing = from.y + 1;
 					if (landing != Integer.MIN_VALUE) {
-						add(from, x, landing, z, true, Move.LEAP, across + LEAP_COST);
+						if (leapRoom(x, landing, z))
+							add(from, x, landing, z, true, Move.LEAP, across + LEAP_COST);
 						break;
 					}
 				}
 				// Over the gap: nothing to walk along near his level (or he'd just walk), and nothing to hit
 				boolean gap = !standsSquarely(terrain, true, x, from.y, z) && !standsSquarely(terrain, true, x, from.y - 1, z)
-					&& fits(terrain, true, x, from.y, z);
+					&& fits(terrain, true, x, from.y, z) && leapRoom(x, from.y, z);
 				if (!gap)
 					break;
 			}

@@ -324,4 +324,19 @@ class NavigatorTest {
 		assertTrue(misfit.contains("a step of 16"), misfit);
 		assertNull(Navigator.misfit(List.of(land), 0, (cx, cz) -> new CoarsePlanner.Cell(64, 0, 0, false), null, Double.MAX_VALUE));
 	}
+
+	@Test
+	void progressIsMeasuredAlongTheRouteNotAsTheCrowFlies() {
+		// A route that goes east then south round a hill, to a box at its end
+		CoarsePlanner.Leg round = new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(0, 64, 0), new Vec3(100, 64, 0), new Vec3(100, 64, 100)));
+		Vec3 box = new Vec3(100, 64, 100);
+		double atTheStart = Navigator.alongToGo(List.of(round), 0, new Vec3(0, 64, 0), box);
+		assertEquals(200, atTheStart, 1e-6);
+		double halfwayAlongTheFirstLeg = Navigator.alongToGo(List.of(round), 0, new Vec3(50, 64, 5), box);
+		assertEquals(5 + 50 + 100, halfwayAlongTheFirstLeg, 1e-6, "five blocks off the line, then along it to the end");
+		double nearTheCorner = Navigator.alongToGo(List.of(round), 0, new Vec3(90, 64, 0), box);
+		assertTrue(nearTheCorner < halfwayAlongTheFirstLeg, "heading east is progress though the box is south-east");
+		assertEquals(Journey.horizontalDistance(new Vec3(0, 64, 0), box), Navigator.alongToGo(List.of(), 0, new Vec3(0, 64, 0), box), 1e-6, "no plan: straight there");
+		assertEquals(0, Navigator.alongToGo(List.of(round), 0, box, box), 1e-6);
+	}
 }

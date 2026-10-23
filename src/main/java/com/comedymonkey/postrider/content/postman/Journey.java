@@ -145,6 +145,12 @@ public final class Journey {
 			stallX = Double.NaN;
 		}
 
+		/** The way has changed (the route redone): what counts as nearer is measured afresh from here, and no try is counted. */
+		public void rebase(double distance, long tick) {
+			bestDistance = distance;
+			bestSince = tick;
+		}
+
 		/** Time didn't pass for him (camping at night), so don't count it. */
 		public void pause(long tick) {
 			bestSince = tick;

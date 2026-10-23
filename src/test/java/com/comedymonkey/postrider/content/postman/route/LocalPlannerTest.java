@@ -419,4 +419,16 @@ class LocalPlannerTest {
 		assertFalse(LocalPlanner.stands(cliff, false, 9, Y + 9, 0), "air over the top of a vine");
 		assertTrue(LocalPlanner.stands(cliff, false, 9, Y + 8, 0), "in the vine, holding on");
 	}
+
+	@Test
+	void aLeapNeedsHeadroomForTheHorseInTheAir() {
+		// The same ravine under a canopy three blocks over the ground: room to ride under, none to leap under (a
+		// leaping horse rises a couple of blocks with him on it)
+		GridTerrain ravine = new GridTerrain().fill(10, Y - 12, -400, 12, Y - 1, 400, Kind.OPEN);
+		GridTerrain canopy = new GridTerrain().fill(10, Y - 12, -400, 12, Y - 1, 400, Kind.OPEN).fill(0, Y + 3, -400, 30, Y + 3, 400, Kind.SOLID);
+		assertEquals(Status.FOUND, riding(ravine, 30, 1).finishNow());
+		assertNotEquals(Status.FOUND, riding(canopy, 30, 1).finishNow(), "no leap under a low canopy");
+		GridTerrain high = new GridTerrain().fill(10, Y - 12, -400, 12, Y - 1, 400, Kind.OPEN).fill(0, Y + LocalPlanner.LEAP_HEIGHT, -400, 30, Y + LocalPlanner.LEAP_HEIGHT, 400, Kind.SOLID);
+		assertEquals(Status.FOUND, riding(high, 30, 1).finishNow(), "a canopy five up is room enough");
+	}
 }

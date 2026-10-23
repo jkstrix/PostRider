@@ -443,6 +443,31 @@ public final class Navigator {
 		return plan;
 	}
 
+	/**
+	 * How far he has to go from here: to the nearest point of the way ahead, along it to its end, and on to the
+	 * target (straight there if there's no plan). Measured this way a detour round a hill, which takes him further
+	 * from the box as the crow flies, still counts as getting on.
+	 */
+	public double distanceToGo(Vec3 here, Vec3 target) {
+		return plan == null ? Journey.horizontalDistance(here, target) : alongToGo(plan.legs(), leg, here, target);
+	}
+
+	static double alongToGo(List<CoarsePlanner.Leg> legs, int fromLeg, Vec3 here, Vec3 target) {
+		List<Vec3> line = new ArrayList<>();
+		for (int i = Math.max(0, fromLeg); i < legs.size(); i++)
+			line.addAll(legs.get(i).points());
+		if (line.isEmpty())
+			return Journey.horizontalDistance(here, target);
+		Nearest nearest = nearestOn(line, here);
+		Vec3 from = line.size() == 1 ? line.get(0) : line.get(nearest.segment()).lerp(line.get(nearest.segment() + 1), nearest.t());
+		double total = Journey.horizontalDistance(here, from);
+		for (int i = nearest.segment() + 1; i < line.size(); i++) {
+			total += Journey.horizontalDistance(from, line.get(i));
+			from = line.get(i);
+		}
+		return total + Journey.horizontalDistance(from, target);
+	}
+
 	/** Roughly which way his route sets off from here: along the plan (or the best so far), else straight there. */
 	public Vec3 heading(Vec3 here, Vec3 target) {
 		CoarsePlanner.Plan known = plan != null ? plan : coarse != null ? coarse.bestSoFar() : null;
@@ -767,6 +792,27 @@ public final class Navigator {
 				break;
 			path.advance();
 		}
+	}
+
+	/** The nearest point of a line to somewhere: which segment, and how far along it (0 to 1). */
+	record Nearest(int segment, double t) {}
+
+	static Nearest nearestOn(List<Vec3> points, Vec3 here) {
+		int segment = 0;
+		double t = 0, best = Double.MAX_VALUE;
+		for (int i = 0; i + 1 < points.size(); i++) {
+			Vec3 a = points.get(i), b = points.get(i + 1);
+			double dx = b.x - a.x, dz = b.z - a.z, length2 = dx * dx + dz * dz;
+			double s = length2 < 1e-9 ? 0 : Mth.clamp(((here.x - a.x) * dx + (here.z - a.z) * dz) / length2, 0, 1);
+			double px = a.x + dx * s, pz = a.z + dz * s;
+			double d = (here.x - px) * (here.x - px) + (here.z - pz) * (here.z - pz);
+			if (d < best) {
+				best = d;
+				segment = i;
+				t = s;
+			}
+		}
+		return new Nearest(segment, t);
 	}
 
 	/** He's this far from a step's level, or from the line of the way, at most, to count as having passed it. */
@@ -1610,22 +1656,10 @@ public final class Navigator {
 	public static Vec3 along(List<Vec3> points, Vec3 here, double ahead) {
 		if (points.size() == 1)
 			return points.get(0);
-		int segment = 0;
-		double t = 0, best = Double.MAX_VALUE;
-		for (int i = 0; i + 1 < points.size(); i++) {
-			Vec3 a = points.get(i), b = points.get(i + 1);
-			double dx = b.x - a.x, dz = b.z - a.z, length2 = dx * dx + dz * dz;
-			double s = length2 < 1e-9 ? 0 : Mth.clamp(((here.x - a.x) * dx + (here.z - a.z) * dz) / length2, 0, 1);
-			double px = a.x + dx * s, pz = a.z + dz * s;
-			double d = (here.x - px) * (here.x - px) + (here.z - pz) * (here.z - pz);
-			if (d < best) {
-				best = d;
-				segment = i;
-				t = s;
-			}
-		}
+		Nearest nearest = nearestOn(points, here);
+		int segment = nearest.segment();
 		double left = ahead;
-		Vec3 from = points.get(segment).lerp(points.get(segment + 1), t);
+		Vec3 from = points.get(segment).lerp(points.get(segment + 1), nearest.t());
 		for (int i = segment + 1; i < points.size(); i++) {
 			Vec3 to = points.get(i);
 			double length = Journey.horizontalDistance(from, to);

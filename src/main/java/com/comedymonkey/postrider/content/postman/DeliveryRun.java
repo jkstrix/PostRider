@@ -14,6 +14,7 @@ import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlockEntity;
 import com.comedymonkey.postrider.content.postman.route.LevelTerrain;
 import com.comedymonkey.postrider.content.postman.route.LocalPlanner;
+import com.comedymonkey.postrider.content.postman.route.CoarsePlanner;
 import com.comedymonkey.postrider.content.postman.route.Navigator;
 import com.comedymonkey.postrider.content.postman.route.TerrainSurvey;
 import com.comedymonkey.postrider.post.JourneyNotes;
@@ -117,6 +118,9 @@ public class DeliveryRun {
 	@Nullable
 	private ChunkPos loadedChunk;
 	private final Journey.Progress progress = new Journey.Progress();
+	/** The plan his progress is measured along: redone, the measure starts afresh. */
+	@Nullable
+	private CoarsePlanner.Plan progressPlan;
 	private int aimCooldown;
 	/** His route: worked out afresh after a restart, so not saved. */
 	private final Navigator navigator = new Navigator();
@@ -535,7 +539,7 @@ public class DeliveryRun {
 			return;
 		}
 		// Progress is judged with height, so a ramp or a ladder up to the box counts
-		if (checkStuck(rider, level, Journey.distance(rider.position(), target), target))
+		if (checkStuck(rider, level, navigator.distanceToGo(rider.position(), target), target))
 			return;
 		// Back on the road after a restart: the route is worked out again as he rides
 		if (!routeStarted) {
@@ -660,7 +664,7 @@ public class DeliveryRun {
 			logRoute(rider, "the barge backs off a block at " + Navigator.spot(barge.position()) + ": he was being crushed in its bow");
 			barge.backOff();
 		}
-		if (checkStuck(rider, level, distance, target))
+		if (checkStuck(rider, level, navigator.distanceToGo(rider.position(), target), target))
 			return;
 		if (ashore(level, barge, distance)) {
 			if (land(rider, level, barge, target))
@@ -1162,6 +1166,11 @@ public class DeliveryRun {
 		if (stageTicks % 20 != 0)
 			return false;
 		long now = level.getGameTime();
+		// Progress is how far he has to go along the route: the route redone, it's measured afresh from here
+		if (navigator.plan() != progressPlan) {
+			progressPlan = navigator.plan();
+			progress.rebase(distance, now);
+		}
 		boolean noProgress = progress.isStuck(distance, now);
 		boolean stalled = progress.isStalled(rider.getX(), rider.getY(), rider.getZ(), now);
 		if (!noProgress && !stalled)
@@ -1249,7 +1258,7 @@ public class DeliveryRun {
 				PostmanEffects.puff(level, barge);
 				jumpsFree++;
 				aimCooldown = 0;
-				progress.unstuck(Journey.horizontalDistance(water, target), now);
+				progress.unstuck(navigator.distanceToGo(water, target), now);
 				return true;
 			}
 			rider.stopRiding();
@@ -1276,7 +1285,7 @@ public class DeliveryRun {
 		PostmanEffects.puff(level, mover);
 		rider.getNavigation().stop();
 		aimCooldown = 0;
-		progress.unstuck(Journey.horizontalDistance(free, target), level.getGameTime());
+		progress.unstuck(navigator.distanceToGo(free, target), level.getGameTime());
 		rider.mannerisms().prompt(PostmanEntity.Gesture.SCRATCH_HEAD);
 		// Somewhere new: on land he gets his map out and works the route out again from here
 		navigator.clearStretch();

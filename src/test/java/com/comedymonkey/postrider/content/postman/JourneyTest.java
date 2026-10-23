@@ -133,4 +133,15 @@ class JourneyTest {
 		for (int tick = 20; tick <= 400; tick += 20)
 			assertFalse(progress.isStalled(10, 64 - tick * 0.15, 10, tick), "going down at tick " + tick);
 	}
+
+	@Test
+	void theRouteRedoneProgressStartsAfreshWithoutATryCounted() {
+		Journey.Progress progress = new Journey.Progress();
+		assertFalse(progress.isStuck(500, 0));
+		// A new, longer way round: further to go than before, but not stuck for it
+		progress.rebase(700, 100);
+		assertFalse(progress.isStuck(700, 100 + Journey.Progress.PATIENCE - 1));
+		assertFalse(progress.isStuck(690, 100 + Journey.Progress.PATIENCE), "nearer along the new way");
+		assertEquals(0, progress.triesInARow());
+	}
 }
