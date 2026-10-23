@@ -1,5 +1,7 @@
 package com.comedymonkey.postrider;
 
+import java.util.UUID;
+
 import org.jetbrains.annotations.Nullable;
 
 import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
@@ -81,6 +83,8 @@ public final class DevHeadless {
 		ServerLevel overworld = server.overworld();
 		overworld.setDayTime(MORNING);
 		try {
+			if (names[0].equals("spawn"))
+				names[0] = putDownSpawnBox(server);
 			if (names[1].startsWith("random:") || names[1].startsWith("at:"))
 				names[1] = putDownFarBox(server, names[0], names[1]);
 			delivery = Posting.post(server, names[0], names[1]);
@@ -105,6 +109,38 @@ public final class DevHeadless {
 	}
 
 	public static final String FAR_BOX = "Far Post";
+	public static final String SPAWN_BOX = "Spawn Post";
+	/** Whose the boxes put down for a run are, with no player about. */
+	public static final UUID TESTER = UUID.nameUUIDFromBytes("postrider headless tester".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+	/** Puts a box down on dry land as near the world's spawn as can be found (a fresh world: {@code -Pfrom=spawn}). The box's name. */
+	static String putDownSpawnBox(MinecraftServer server) {
+		ServerLevel level = server.overworld();
+		BlockPos spawn = level.getSharedSpawnPos();
+		BlockPos spot = null;
+		for (int radius = 0; radius <= 64 && spot == null; radius += 4)
+			for (int dx = -radius; dx <= radius && spot == null; dx += 4)
+				for (int dz = -radius; dz <= radius && spot == null; dz += 4)
+					if (Math.max(Math.abs(dx), Math.abs(dz)) == radius)
+						spot = dryLandAt(level, spawn.getX() + dx, spawn.getZ() + dz);
+		if (spot == null)
+			throw new IllegalArgumentException("No dry land near the spawn at " + spawn.toShortString());
+		putDownBox(level, spot, SPAWN_BOX, TESTER);
+		PostRider.LOGGER.info("Post Rider headless run: put the box {} down at {}", SPAWN_BOX, spot.toShortString());
+		return SPAWN_BOX;
+	}
+
+	/** A mailbox (facing west) in the directory under this name and owner, at a spot on dry land. */
+	static void putDownBox(ServerLevel level, BlockPos spot, String name, UUID owner) {
+		BlockState lower = ModBlocks.mailbox(DyeColor.RED).get().defaultBlockState().setValue(MailboxBlock.FACING, Direction.WEST);
+		level.setBlockAndUpdate(spot, lower);
+		level.setBlockAndUpdate(spot.above(), lower.setValue(MailboxBlock.HALF, DoubleBlockHalf.UPPER));
+		if (!(level.getBlockEntity(spot) instanceof MailboxBlockEntity box))
+			throw new IllegalArgumentException("No mailbox could be put down at " + spot.toShortString());
+		MailboxDirectory.Result named = box.claim(name, owner);
+		if (named != MailboxDirectory.Result.OK)
+			throw new IllegalArgumentException("Couldn't name the box " + name + ": " + named);
+	}
 	/** Looking for dry land for the far box, the direction is turned this much at a time. */
 	private static final double TURN_DEGREES = 10;
 
@@ -137,14 +173,7 @@ public final class DevHeadless {
 			if (spot == null)
 				throw new IllegalArgumentException("No dry land " + distance + " blocks from " + fromName + " any way round");
 		}
-		BlockState lower = ModBlocks.mailbox(DyeColor.RED).get().defaultBlockState().setValue(MailboxBlock.FACING, Direction.WEST);
-		level.setBlockAndUpdate(spot, lower);
-		level.setBlockAndUpdate(spot.above(), lower.setValue(MailboxBlock.HALF, DoubleBlockHalf.UPPER));
-		if (!(level.getBlockEntity(spot) instanceof MailboxBlockEntity box))
-			throw new IllegalArgumentException("No mailbox could be put down at " + spot.toShortString());
-		MailboxDirectory.Result named = box.claim(FAR_BOX, from.owner());
-		if (named != MailboxDirectory.Result.OK)
-			throw new IllegalArgumentException("Couldn't name the far box: " + named);
+		putDownBox(level, spot, FAR_BOX, from.owner());
 		PostRider.LOGGER.info("Post Rider headless run: put the box {} down at {} (-Pto=at:{},{} tries this spot again)", FAR_BOX, spot.toShortString(), spot.getX(), spot.getZ());
 		return FAR_BOX;
 	}
