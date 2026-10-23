@@ -19,6 +19,8 @@ ARENAS = {
     "tower_48x48": (48, 80, 48),
     # As tall as the flat test world allows, for a spire with a stair winding up it
     "spire_64x64": (64, 300, 64),
+    # Deep enough for a mine from the overworld's ground level down to its bedrock
+    "mine_96x96": (96, 140, 96),
 }
 DATA_VERSION = 3955  # Minecraft 1.21.1
 OUT = os.path.join("src", "main", "resources", "data", "postrider", "structure", "gametest")
