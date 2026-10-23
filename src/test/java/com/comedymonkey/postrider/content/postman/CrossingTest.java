@@ -199,4 +199,14 @@ class CrossingTest {
 		assertTrue(behind.x <= 10 - Crossing.LAUNCH_CLEARANCE + 0.5, "with room round the hull: " + behind);
 		assertNull(Crossing.launchSpotAround(new Vec3(40.5, 64, 0.5), sea), "none within reach from well inland");
 	}
+
+	@Test
+	void fromABankWellAboveTheRiverTheWaterStillCountsForALaunch() {
+		var water = net.minecraft.world.level.block.Blocks.WATER.defaultBlockState();
+		var stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+		var river = column(java.util.Map.of(62, water, 61, stone));
+		assertTrue(Double.isNaN(Crossing.surfaceIn(river, 0, 0, 69)), "seven below: not the barge's own level");
+		assertEquals(63.0, Crossing.surfaceIn(river, 0, 0, 69, Crossing.LAUNCH_DROP), 0.2, "but launched on from a bank seven up");
+		assertTrue(Double.isNaN(Crossing.surfaceIn(river, 0, 0, 72, Crossing.LAUNCH_DROP)), "ten up is too far to get down into the barge");
+	}
 }

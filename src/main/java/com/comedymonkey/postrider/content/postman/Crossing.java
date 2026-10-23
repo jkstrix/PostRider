@@ -235,7 +235,20 @@ public final class Crossing {
 	 * crush him and his horse against it. NaN otherwise.
 	 */
 	public static double surfaceIn(BlockGetter level, int x, int z, int nearY) {
-		for (int y = nearY + 2; y >= nearY - 4; y--) {
+		return surfaceIn(level, x, z, nearY, SURFACE_BELOW);
+	}
+
+	/** How far below a height the water's surface is looked for, as a rule (the barge's own level, a bank a step or two up). */
+	public static final int SURFACE_BELOW = 4;
+	/**
+	 * How far below him water is launched on from land: he gets down into the barge, and a drop into water hurts
+	 * nobody, so a bank well above the river is put out from too rather than searched along for a way down.
+	 */
+	public static final int LAUNCH_DROP = 8;
+
+	/** As above, looking this far below the height. */
+	public static double surfaceIn(BlockGetter level, int x, int z, int nearY, int below) {
+		for (int y = nearY + 2; y >= nearY - below; y--) {
 			BlockPos pos = new BlockPos(x, y, z);
 			FluidState fluid = level.getFluidState(pos);
 			if (isWater(fluid) && level.getFluidState(pos.above()).isEmpty() && headroomOver(level, pos))

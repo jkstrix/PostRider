@@ -497,7 +497,7 @@ public class DeliveryRun {
 		int nearY = rider.getBlockY();
 		if (navigator.waterWithin(rider.position(), Navigator.FOOT_TO_WATER)
 				|| target != null && Crossing.waterAhead(rider.position(), navigator.heading(rider.position(), target), Navigator.FOOT_TO_WATER,
-					(x, z) -> Crossing.surfaceIn(level, x, z, nearY))) {
+					(x, z) -> Crossing.surfaceIn(level, x, z, nearY, Crossing.LAUNCH_DROP))) {
 			enter(Stage.RIDING);
 			return;
 		}
@@ -591,7 +591,7 @@ public class DeliveryRun {
 	/** Calls up the barge on the water ahead (towards {@code target}), puts his horse and himself aboard, and pushes off. */
 	private boolean launchBarge(PostmanEntity rider, ServerLevel level, Vec3 target) {
 		int nearY = rider.getBlockY();
-		Vec3 spot = Crossing.launchSpot(rider.position(), target, (x, z) -> Crossing.surfaceIn(level, x, z, nearY));
+		Vec3 spot = Crossing.launchSpot(rider.position(), target, (x, z) -> Crossing.surfaceIn(level, x, z, nearY, Crossing.LAUNCH_DROP));
 		return spot != null && launchBargeAt(rider, level, spot, target);
 	}
 
@@ -1214,7 +1214,7 @@ public class DeliveryRun {
 			// way the water lies, and on to the next bit of coast; this shore is noted as leading nowhere
 			if (!wayFromHere && here.expanded() <= TINY_SHORE) {
 				int nearY = rider.getBlockY();
-				Vec3 water = Crossing.launchSpotAround(rider.position(), (x, z) -> Crossing.surfaceIn(level, x, z, nearY));
+				Vec3 water = Crossing.launchSpotAround(rider.position(), (x, z) -> Crossing.surfaceIn(level, x, z, nearY, Crossing.LAUNCH_DROP));
 				if (water != null) {
 					logRoute(rider, stuck + "; no way on from this scrap of shore (" + here.expanded() + " blocks to it): back into the barge");
 					if (launchBargeAt(rider, level, water, target, true)) {

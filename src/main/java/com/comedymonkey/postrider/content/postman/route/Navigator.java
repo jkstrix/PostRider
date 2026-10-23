@@ -309,6 +309,16 @@ public final class Navigator {
 	/** Where and how the plan's legs don't fit the ground (see {@link #legsFit}), for the log; null if they fit. */
 	@Nullable
 	public static String misfit(List<CoarsePlanner.Leg> legs, int fromLeg, CoarsePlanner.Cells cells, @Nullable Vec3 here, double reach) {
+		return misfit(legs, fromLeg, cells, here, reach, false);
+	}
+
+	/**
+	 * As above; {@code wetGoal} if the plan's goal is a stage point rather than the mailbox, which may turn out to be
+	 * water (a lake the map didn't show): he'd arrive there by barge and plan the next stage afloat, so it's no misfit,
+	 * and redoing the route couldn't move it anyway.
+	 */
+	@Nullable
+	public static String misfit(List<CoarsePlanner.Leg> legs, int fromLeg, CoarsePlanner.Cells cells, @Nullable Vec3 here, double reach, boolean wetGoal) {
 		int first = Math.max(0, fromLeg);
 		long startCell = first < legs.size() ? cellKeyOf(legs.get(first).points().get(0)) : 0;
 		long goalCell = !legs.isEmpty() ? cellKeyOf(legs.get(legs.size() - 1).points().get(legs.get(legs.size() - 1).points().size() - 1)) : 0;
@@ -332,7 +342,7 @@ public final class Navigator {
 				long key = CoarsePlanner.key(cx, cz);
 				boolean anEnd = !legs.isEmpty() && (key == startCell || key == goalCell);
 				String wrong = null;
-				if (land && cell.water())
+				if (land && cell.water() && !(wetGoal && key == goalCell))
 					wrong = "over water";
 				else if (land && !anEnd && cell.rough() > STEEP_WITHIN)
 					wrong = "over a cliff face " + cell.rough() + " high inside a cell";
@@ -420,7 +430,7 @@ public final class Navigator {
 	/** Where and how the plan doesn't fit the ground as the survey now has it, for the log; null if it fits (or there's no plan). */
 	@Nullable
 	public String planMisfit(ServerLevel level) {
-		return plan == null ? null : misfit(plan.legs(), leg, TerrainSurvey.of(level), null, Double.MAX_VALUE);
+		return plan == null ? null : misfit(plan.legs(), leg, TerrainSurvey.of(level), null, Double.MAX_VALUE, stageTarget != null);
 	}
 
 	/** How many chunks are held ahead, for the log. */
@@ -1093,7 +1103,7 @@ public final class Navigator {
 
 	private static boolean launchable(ServerLevel level, PostmanEntity rider, Vec3 toward) {
 		int nearY = rider.getBlockY();
-		return Crossing.launchSpot(rider.position(), toward, (x, z) -> Crossing.surfaceIn(level, x, z, nearY)) != null;
+		return Crossing.launchSpot(rider.position(), toward, (x, z) -> Crossing.surfaceIn(level, x, z, nearY, Crossing.LAUNCH_DROP)) != null;
 	}
 
 	/** Whether it's time to plan the next stretch: nothing to follow, near the end of it, off it, or it's gone bad. */
@@ -1229,7 +1239,7 @@ public final class Navigator {
 			Vec3 water = current.points().get(0);
 			localGoal = water;
 			int nearY = Mth.floor(here.y);
-			Vec3 bank = shore(here, water, (x, z) -> !level.isLoaded(new BlockPos(x, nearY, z)) || !Double.isNaN(Crossing.surfaceIn(level, x, z, nearY)));
+			Vec3 bank = shore(here, water, (x, z) -> !level.isLoaded(new BlockPos(x, nearY, z)) || !Double.isNaN(Crossing.surfaceIn(level, x, z, nearY, Crossing.LAUNCH_DROP)));
 			return LocalPlanner.Goal.anyHeight(bank.x, bank.z, SHORE_RADIUS);
 		}
 		boolean lastLeg = leg >= plan.legs().size() - 1;

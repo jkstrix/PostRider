@@ -410,4 +410,14 @@ class NavigatorTest {
 		assertFalse(nextDoor.contains(CoarsePlanner.key(1, 0)), "a goal in the next cell: that cell is kept");
 		assertTrue(nextDoor.contains(CoarsePlanner.key(2, 0)), "the cells beyond it are struck");
 	}
+
+	@Test
+	void aStagePointThatTurnsOutWetIsNoMisfit() {
+		CoarsePlanner.Leg land = new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(4, 64, 4), new Vec3(92, 64, 4)));
+		CoarsePlanner.Cells lakeAtTheEnd = (cx, cz) -> new CoarsePlanner.Cell(64, cx >= 10 ? 4 : 0, 0, false);
+		assertNotNull(Navigator.misfit(List.of(land), 0, lakeAtTheEnd, null, Double.MAX_VALUE, false), "the mailbox's cell under water: a misfit");
+		assertNull(Navigator.misfit(List.of(land), 0, lakeAtTheEnd, null, Double.MAX_VALUE, true), "a stage point under water: he'll arrive by barge");
+		CoarsePlanner.Cells lakeOnTheWay = (cx, cz) -> new CoarsePlanner.Cell(64, cx >= 5 && cx <= 7 ? 4 : 0, 0, false);
+		assertNotNull(Navigator.misfit(List.of(land), 0, lakeOnTheWay, null, Double.MAX_VALUE, true), "water on the way is still a misfit");
+	}
 }
