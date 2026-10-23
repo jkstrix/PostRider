@@ -427,4 +427,12 @@ class NavigatorTest {
 		assertTrue(Navigator.ashoreLongEnough(1000 + Navigator.ASHORE_TICKS, 1000), "a second ashore");
 		assertTrue(Navigator.ashoreLongEnough(5000, 0), "never landed this trip: the launch is from the start");
 	}
+
+	@Test
+	void aStepIsSkippedOnlyIfTheNextIsAtHisLevel() {
+		assertTrue(Navigator.mayPassOnTo(87.0, 88), "a block up: the next step is a step he can take");
+		assertFalse(Navigator.mayPassOnTo(87.0, 89), "two up: he must climb to the step between first");
+		assertFalse(Navigator.mayPassOnTo(87.0, 83), "four down: the step between is the landing he mustn't miss");
+		assertTrue(Navigator.mayPassOnTo(87.0, 87));
+	}
 }

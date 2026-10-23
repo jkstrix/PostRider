@@ -880,10 +880,18 @@ public final class Navigator {
 			if (next + 1 > segmentEnd)
 				break;
 			LocalPlanner.Step a = steps.get(next), b = steps.get(next + 1);
-			if (!passed(body.getX(), body.getY(), body.getZ(), a.centreX(), a.y(), a.centreZ(), b.centreX(), b.centreZ()))
+			if (!passed(body.getX(), body.getY(), body.getZ(), a.centreX(), a.y(), a.centreZ(), b.centreX(), b.centreZ())
+					|| !mayPassOnTo(body.getY(), b.y()))
 				break;
 			path.advance();
 		}
+	}
+
+	/** A step may be skipped only if the one after it is within a block of his level: skipped on a climb, the horse bounced at a two-block face; on a descent, two drops became one fall. */
+	public static final double PASS_ON_LEVEL = 1.1;
+
+	public static boolean mayPassOnTo(double bodyY, int nextY) {
+		return Math.abs(nextY - bodyY) <= PASS_ON_LEVEL;
 	}
 
 	/** The nearest point of a line to somewhere: which segment, and how far along it (0 to 1). */
