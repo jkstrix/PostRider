@@ -1423,6 +1423,39 @@ public final class Navigator {
 		return Journey.horizontalDistance(here, nearest) > OFF_PATH + 1;
 	}
 
+	/** The long-range plan's cells on the straight line from one spot to another, both ends included. */
+	public static List<Long> cellsBetween(Vec3 from, Vec3 to) {
+		List<Long> cells = new ArrayList<>();
+		double distance = Journey.horizontalDistance(from, to);
+		int steps = Math.max(1, (int) Math.ceil(distance / CoarsePlanner.CELL));
+		for (int i = 0; i <= steps; i++) {
+			Vec3 point = from.lerp(to, (double) i / steps);
+			long cell = CoarsePlanner.key(CoarsePlanner.cellOf(point.x), CoarsePlanner.cellOf(point.z));
+			if (!cells.contains(cell))
+				cells.add(cell);
+		}
+		return cells;
+	}
+
+	/**
+	 * Stuck with no way at all from where he stands towards the stretch's goal: the cells from here to it are struck
+	 * off the map (bar his own) and the route redone round them. False if they were all struck off already (the plan
+	 * has nothing new to go on), or there's no stretch goal to strike off.
+	 */
+	public boolean strikeOffAhead(ServerLevel level, Vec3 here, Vec3 target) {
+		if (localGoal == null)
+			return false;
+		long own = CoarsePlanner.key(CoarsePlanner.cellOf(here.x), CoarsePlanner.cellOf(here.z));
+		boolean struck = false;
+		for (long cell : cellsBetween(here, localGoal))
+			if (cell != own && blocked.add(cell))
+				struck = true;
+		if (!struck)
+			return false;
+		replan(level, here, target, plannedAfloat);
+		return true;
+	}
+
 	/** Notes the shore round a spot as leading nowhere (the barge hard against it with nowhere to step off), for the plan to avoid. */
 	public void blockShore(ServerLevel level, Vec3 at) {
 		for (long cell : shoreAround(at, TerrainSurvey.of(level)))

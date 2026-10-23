@@ -212,4 +212,11 @@ class DeliveryRunTest {
 		assertTrue(DeliveryRun.MAP_CHECK_TICKS >= 20 * 30, "long enough for a stage's chunks to load (half a minute at least)");
 		assertTrue(DeliveryRun.MAP_CHECKS >= 1 && DeliveryRun.MAP_CHECKS <= 3, "a redo or two, then he goes regardless");
 	}
+
+	@Test
+	void heIsNeverJumpedBeyondTheChunksThatTickRoundHim() {
+		assertTrue(DeliveryRun.JUMP_MAX <= 16 * (com.comedymonkey.postrider.content.postman.RiderChunks.TICKING_RADIUS + 1),
+			"within the ticking square: put down beyond it he'd never tick again");
+		assertTrue(DeliveryRun.MAX_STRIKES >= 10, "the map is corrected many times before he's ever jumped");
+	}
 }

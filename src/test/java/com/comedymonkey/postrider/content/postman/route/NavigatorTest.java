@@ -280,4 +280,13 @@ class NavigatorTest {
 		List<Vec3> nearEnd = Navigator.pointsAhead(List.of(leg), 0, new Vec3(790, 64, 4), Navigator.AHEAD_BLOCKS, CoarsePlanner.CELL);
 		assertTrue(nearEnd.size() < 5, "the plan ends sooner: " + nearEnd.size());
 	}
+
+	@Test
+	void theCellsFromHereToTheGoalAreTheOnesStruckOff() {
+		List<Long> cells = Navigator.cellsBetween(new Vec3(4, 64, 4), new Vec3(44, 64, 4));
+		assertEquals(6, cells.size(), "his own cell, four between, and the goal's");
+		assertEquals(CoarsePlanner.key(0, 0), cells.get(0));
+		assertEquals(CoarsePlanner.key(5, 0), cells.get(cells.size() - 1));
+		assertEquals(1, Navigator.cellsBetween(new Vec3(4, 64, 4), new Vec3(5, 64, 5)).size(), "the same cell once");
+	}
 }

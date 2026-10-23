@@ -1216,6 +1216,16 @@ public class DeliveryRun {
 				return true;
 			}
 			found = wayFromHere ? "a way existed from here but following it didn't work" : "no way through from here (" + here.report() + ")";
+			// No way from here at all: the way ahead is struck off the map and the route redone round it, before any
+			// thought of jumping (the plan took a cliff for a slope, say; it won't again). Not a try against him.
+			if (!wayFromHere && strikesOff < MAX_STRIKES && navigator.strikeOffAhead(level, mover.position(), target)) {
+				strikesOff++;
+				logRoute(rider, stuck + "; " + found + "; the way ahead is struck off the map and the route redone (" + strikesOff + ")");
+				rider.getNavigation().stop();
+				navigator.clearStretch();
+				progress.pause(now);
+				return true;
+			}
 			// Failing that, the nearest safe spot a way does lead on from: a hop of a few blocks, usually
 			free = nearestWayOut(rider, level, target);
 		}
@@ -1348,11 +1358,18 @@ public class DeliveryRun {
 	@Nullable
 	/** A spot to be jumped to is taken near his own level if there is one: a mountain top leads only to falls. */
 	public static final int JUMP_LEVEL = 8;
+	/** He's never jumped further than this: within the chunks that tick round him, and no great leap across the map. */
+	public static final double JUMP_MAX = 24;
+	/** How many times a trip the way ahead is struck off the map and the route redone, before he's jumped instead. */
+	public static final int MAX_STRIKES = 24;
+	private int strikesOff;
 
 	static Vec3 freeSpot(ServerLevel level, Vec3 from, Vec3 target, boolean underOpenSky) {
 		List<Vec3> safe = underOpenSky ? safeOf(level, Journey.escapes(from, target)) : List.of(surface(level, from));
 		Vec3 first = null;
 		for (Vec3 aim : safe) {
+			if (Journey.horizontalDistance(from, aim) > JUMP_MAX)
+				continue;
 			BlockPos column = BlockPos.containing(aim);
 			int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column.getX(), column.getZ());
 			BlockPos feet = new BlockPos(column.getX(), y, column.getZ());
