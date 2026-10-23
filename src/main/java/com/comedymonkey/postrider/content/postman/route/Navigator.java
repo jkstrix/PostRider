@@ -170,8 +170,10 @@ public final class Navigator {
 			adopt(coarse.plan());
 			coarse = null;
 		} else if (status == CoarsePlanner.Status.FAILED) {
+			// No route at all from here (cut off by what's been struck off, say): the old plan isn't kept to, he
+			// heads straight there and the stretches find what they can
+			adopt(null);
 			coarse = null;
-			planStruck = false;
 		} else if (++replanTicks > REPLAN_PATIENCE) {
 			log.accept("the route is taking too long to work out: he goes by the best of it so far");
 			adopt(coarse.bestSoFar());
@@ -985,10 +987,11 @@ public final class Navigator {
 			case REPLAN -> {
 				// The whole way from here to the stretch's goal is struck off, not just its last cell: a cliff the plan
 				// took for a slope is not got round a cell at a time
-				long own = CoarsePlanner.key(CoarsePlanner.cellOf(rider.getX()), CoarsePlanner.cellOf(rider.getZ()));
-				for (long cell : cellsBetween(rider.position(), localGoal))
-					if (cell != own)
-						blocked.add(cell);
+				int struck = 0;
+				for (long cell : strikeBand(rider.position(), localGoal))
+					if (blocked.add(cell))
+						struck++;
+				log.accept("the way from here to " + spot(localGoal) + " is struck off the map: " + struck + " cells new, " + blocked.size() + " struck this trip");
 				planStruck = true;
 				return Action.REPLAN;
 			}
@@ -1649,6 +1652,26 @@ public final class Navigator {
 		return CoarsePlanner.key(CoarsePlanner.cellOf(point.x), CoarsePlanner.cellOf(point.z));
 	}
 
+	/** The cell a spot is in and the eight round it: never struck off, or the plan could never leave where he stands. */
+	static Set<Long> cellsRound(Vec3 here) {
+		Set<Long> cells = new HashSet<>();
+		int cx = CoarsePlanner.cellOf(here.x), cz = CoarsePlanner.cellOf(here.z);
+		for (int dx = -1; dx <= 1; dx++)
+			for (int dz = -1; dz <= 1; dz++)
+				cells.add(CoarsePlanner.key(cx + dx, cz + dz));
+		return cells;
+	}
+
+	/** The cells to strike off for a way from here to a goal that can't be got along: the band to it, bar the cells round where he stands. */
+	static List<Long> strikeBand(Vec3 here, Vec3 goal) {
+		Set<Long> keep = cellsRound(here);
+		List<Long> band = new ArrayList<>();
+		for (long cell : cellsBetween(here, goal))
+			if (!keep.contains(cell))
+				band.add(cell);
+		return band;
+	}
+
 	/**
 	 * The long-range plan's cells on the straight line from one spot to another, both ends included, and the cells
 	 * either side of the line (a cliff or a ridge the way ran into is struck off as a band, not a thread, or the next
@@ -1679,18 +1702,18 @@ public final class Navigator {
 	public boolean strikeOffAhead(ServerLevel level, Vec3 here, Vec3 target) {
 		if (localGoal == null)
 			return false;
-		long own = CoarsePlanner.key(CoarsePlanner.cellOf(here.x), CoarsePlanner.cellOf(here.z));
 		boolean struck = false;
-		for (long cell : cellsBetween(here, localGoal))
-			if (cell != own && blocked.add(cell))
+		for (long cell : strikeBand(here, localGoal))
+			if (blocked.add(cell))
 				struck = true;
 		if (!struck) {
 			// Those were struck off already and he's still stuck here: the ground round the goal goes too
+			Set<Long> keep = cellsRound(here);
 			int gx = CoarsePlanner.cellOf(localGoal.x), gz = CoarsePlanner.cellOf(localGoal.z);
-			for (int dx = -1; dx <= 1; dx++)
-				for (int dz = -1; dz <= 1; dz++) {
+			for (int dx = -2; dx <= 2; dx++)
+				for (int dz = -2; dz <= 2; dz++) {
 					long cell = CoarsePlanner.key(gx + dx, gz + dz);
-					if (cell != own && blocked.add(cell))
+					if (!keep.contains(cell) && blocked.add(cell))
 						struck = true;
 				}
 		}

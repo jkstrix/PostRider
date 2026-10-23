@@ -395,4 +395,18 @@ class NavigatorTest {
 		assertTrue(halfwayUp < atTheFoot - 50, "no nearer across, but a long way up (half of it counts): " + atTheFoot + " to " + halfwayUp);
 		assertEquals(0, Navigator.alongToGo(List.of(toTheFoot), 0, boxOnTheTower, boxOnTheTower), 1e-6);
 	}
+
+	@Test
+	void theStrikeNeverEnclosesWhereHeStands() {
+		Vec3 here = new Vec3(4, 64, 4), goal = new Vec3(44, 64, 4);
+		List<Long> band = Navigator.strikeBand(here, goal);
+		for (int dx = -1; dx <= 1; dx++)
+			for (int dz = -1; dz <= 1; dz++)
+				assertFalse(band.contains(CoarsePlanner.key(dx, dz)), "his own cell and the eight round it are never struck: " + dx + " " + dz);
+		assertTrue(band.contains(CoarsePlanner.key(5, 0)), "the goal's cell is");
+		assertTrue(band.contains(CoarsePlanner.key(3, 1)), "and the band either side of the line");
+		List<Long> nextDoor = Navigator.strikeBand(here, new Vec3(12, 64, 4));
+		assertFalse(nextDoor.contains(CoarsePlanner.key(1, 0)), "a goal in the next cell: that cell is kept");
+		assertTrue(nextDoor.contains(CoarsePlanner.key(2, 0)), "the cells beyond it are struck");
+	}
 }
