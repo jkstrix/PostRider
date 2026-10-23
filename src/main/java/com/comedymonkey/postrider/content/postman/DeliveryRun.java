@@ -302,7 +302,8 @@ public class DeliveryRun {
 
 	/** Notes a routing decision in the log (rare: a new route, a way that wouldn't plan, a barge, a jump free). */
 	private void logRoute(PostmanEntity rider, String message) {
-		PostRider.LOGGER.info("Rider {} with mail for {}: {}", rider.getName().getString(), delivery.toName(), message);
+		String toGo = destination != null ? ", " + Math.round(Journey.horizontalDistance(rider.position(), Vec3.atCenterOf(destination.pos()))) + " blocks to go" : "";
+		PostRider.LOGGER.info("Rider {} with mail for {}{}: {}", rider.getName().getString(), delivery.toName(), toGo, message);
 	}
 
 	/** What he's up to, for /postrider status. */
@@ -1331,23 +1332,35 @@ public class DeliveryRun {
 	 * put there); null if none of the usual spots has one.
 	 */
 	@Nullable
+	/** A spot a jump lands on must have at least this much ground to be got about on, or it's a pinnacle or an islet. */
+	public static final int OPEN_GROUND = 100;
+
 	private Vec3 nearestWayOut(PostmanEntity rider, ServerLevel level, Vec3 target) {
 		Entity body = rider.getVehicle() != null ? rider.getVehicle() : rider;
 		boolean mounted = rider.getHorse() != null;
 		LevelTerrain terrain = new LevelTerrain(level);
 		int fromY = Mth.floor(body.getY() + 1e-3);
+		// Failing a spot with a way on, the most open ground about (never a pinnacle, a ledge or an islet to be stuck on again)
+		Vec3 openest = null;
+		int mostOpen = OPEN_GROUND - 1;
 		for (int[] offset : jumpOffsets()) {
 			double cx = body.getX() + offset[0], cz = body.getZ() + offset[1];
 			int x = mounted ? Mth.floor(cx - 0.5) : Mth.floor(cx), z = mounted ? Mth.floor(cz - 0.5) : Mth.floor(cz);
 			for (int y = fromY + 3; y >= fromY - 6; y--) {
 				if (!LocalPlanner.stands(terrain, mounted, x, y, z))
 					continue;
-				if (navigator.probe(level, x, y, z, mounted, rider.mayWhistle(), target, JUMP_PROBE_BUDGET).found())
-					return new Vec3(x + (mounted ? 1.0 : 0.5), y, z + (mounted ? 1.0 : 0.5));
+				Navigator.Probe probe = navigator.probe(level, x, y, z, mounted, rider.mayWhistle(), target, JUMP_PROBE_BUDGET);
+				Vec3 spot = new Vec3(x + (mounted ? 1.0 : 0.5), y, z + (mounted ? 1.0 : 0.5));
+				if (probe.found())
+					return spot;
+				if (probe.expanded() > mostOpen) {
+					mostOpen = probe.expanded();
+					openest = spot;
+				}
 				break;
 			}
 		}
-		return null;
+		return openest;
 	}
 
 	/**
@@ -1355,7 +1368,6 @@ public class DeliveryRun {
 	 * {@link Journey#escapes} (a stretch ahead, a shorter hop, anywhere round about), on top of whatever is there.
 	 * Never onto water, lava, fire and the like: null if there's nowhere safe at all.
 	 */
-	@Nullable
 	/** A spot to be jumped to is taken near his own level if there is one: a mountain top leads only to falls. */
 	public static final int JUMP_LEVEL = 8;
 	/** He's never jumped further than this: within the chunks that tick round him, and no great leap across the map. */
@@ -1363,6 +1375,8 @@ public class DeliveryRun {
 	/** How many times a trip the way ahead is struck off the map and the route redone, before he's jumped instead. */
 	public static final int MAX_STRIKES = 24;
 	private int strikesOff;
+
+	@Nullable
 
 	static Vec3 freeSpot(ServerLevel level, Vec3 from, Vec3 target, boolean underOpenSky) {
 		List<Vec3> safe = underOpenSky ? safeOf(level, Journey.escapes(from, target)) : List.of(surface(level, from));

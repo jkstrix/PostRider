@@ -1450,6 +1450,16 @@ public final class Navigator {
 		for (long cell : cellsBetween(here, localGoal))
 			if (cell != own && blocked.add(cell))
 				struck = true;
+		if (!struck) {
+			// Those were struck off already and he's still stuck here: the ground round the goal goes too
+			int gx = CoarsePlanner.cellOf(localGoal.x), gz = CoarsePlanner.cellOf(localGoal.z);
+			for (int dx = -1; dx <= 1; dx++)
+				for (int dz = -1; dz <= 1; dz++) {
+					long cell = CoarsePlanner.key(gx + dx, gz + dz);
+					if (cell != own && blocked.add(cell))
+						struck = true;
+				}
+		}
 		if (!struck)
 			return false;
 		replan(level, here, target, plannedAfloat);
