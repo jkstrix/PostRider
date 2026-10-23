@@ -15,15 +15,19 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 /**
  * A rider's harmonica, played on each player's own client while he sits playing: it follows him, starts for anyone
- * who comes along mid-tune, and stops the moment he does, without touching any other rider's tune.
+ * who comes along mid-tune, and fades out over a couple of seconds once he stops, without touching any other
+ * rider's tune.
  */
 public class HarmonicaSound extends AbstractTickableSoundInstance {
 	/** Each rider's tune, as last struck up here. */
 	private static final Map<PostmanEntity, HarmonicaSound> PLAYING = new WeakHashMap<>();
 	/** A tune the sound engine didn't take (the volume was down, say) is tried again this often. */
 	private static final int RETRY_TICKS = 20;
+	/** Once he stops playing, the tune fades out over this many ticks (two seconds) rather than cutting off. */
+	public static final int FADE_TICKS = 40;
 
 	private final PostmanEntity rider;
+	private boolean fading;
 
 	private HarmonicaSound(PostmanEntity rider) {
 		super(ModSounds.HARMONICA.get(), SoundSource.NEUTRAL, SoundInstance.createUnseededRandom());
@@ -55,13 +59,24 @@ public class HarmonicaSound extends AbstractTickableSoundInstance {
 
 	@Override
 	public void tick() {
-		if (!plays(rider)) {
-			PLAYING.remove(rider);
-			stop();
-			return;
+		if (fading || !plays(rider)) {
+			if (!fading) {
+				fading = true;
+				PLAYING.remove(rider);
+			}
+			volume = faded(volume);
+			if (volume <= 0)
+				stop();
 		}
-		x = rider.getX();
-		y = rider.getY();
-		z = rider.getZ();
+		if (!rider.isRemoved()) {
+			x = rider.getX();
+			y = rider.getY();
+			z = rider.getZ();
+		}
+	}
+
+	/** The volume a tick on in the fade: down by an equal step each tick, to nothing after {@link #FADE_TICKS}. */
+	public static float faded(float volume) {
+		return Math.max(0, volume - 1.0F / FADE_TICKS);
 	}
 }

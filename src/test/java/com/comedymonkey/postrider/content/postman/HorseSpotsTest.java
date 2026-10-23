@@ -1,6 +1,7 @@
 package com.comedymonkey.postrider.content.postman;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.List;
@@ -50,5 +51,15 @@ class HorseSpotsTest {
 
 	private static double horizontal(Vec3 spot) {
 		return Math.sqrt((spot.x - RIDER.x) * (spot.x - RIDER.x) + (spot.z - RIDER.z) * (spot.z - RIDER.z));
+	}
+
+	@Test
+	void theHorseNeedsRoomForTheRiderOnItsBackToo() {
+		net.minecraft.world.phys.AABB horse = new net.minecraft.world.phys.AABB(0, 64, 0, 1.4, 65.6, 1.4);
+		net.minecraft.world.phys.AABB room = HorseSpots.roomFor(horse);
+		assertEquals(64 + HorseSpots.RIDDEN_HEIGHT, room.maxY, 1e-9, "three blocks up: a rider sits higher than the horse's back");
+		assertEquals(horse.minX, room.minX, 1e-9);
+		assertEquals(horse.maxZ, room.maxZ, 1e-9);
+		assertTrue(HorseSpots.RIDDEN_HEIGHT >= 2.7, "a horse and a rider");
 	}
 }

@@ -210,4 +210,11 @@ class NavigatorTest {
 		assertFalse(Navigator.passed(1.2, 64, 4.5, 0.5, 64, 0.5, 1.5, 0.5), "four blocks off to the side of the way");
 		assertFalse(Navigator.passed(20, 64, 0.5, 0.5, 64, 0.5, 1.5, 0.5), "far beyond b");
 	}
+
+	@Test
+	void onlyAPlanThatReachesTheBoxEndsInAStretchAimedAtIt() {
+		Vec3 box = new Vec3(148.5, 100, -68.5);
+		assertTrue(Navigator.endsAtTheBox(new Vec3(140, 100, -60), box, 40), "the plan's end is a stretch from the box");
+		assertFalse(Navigator.endsAtTheBox(new Vec3(1105, 87, 4451), box, 40), "the best plan so far ended thousands of blocks short: not the box");
+	}
 }

@@ -123,6 +123,8 @@ public class DeliveryRun {
 	private int aground;
 	/** What the mail has been through, noted on it when it's delivered. */
 	private boolean crossedWater;
+	/** His horse was killed on this trip: he's on foot for the rest of it. */
+	private boolean horseLost;
 	private int nightsOut;
 	/** How many times this trip he's been teleported free when stuck (not saved; for the in-world tests). */
 	private int jumpsFree;
@@ -455,9 +457,23 @@ public class DeliveryRun {
 			enter(Stage.RIDING);
 			return;
 		}
-		if (stageTicks == 1)
+		if (stageTicks == 1) {
+			// His horse is gone for the trip: on foot it is
+			if (!rider.mayWhistle()) {
+				enter(Stage.RIDING);
+				return;
+			}
+			// No room for a horse here (a low roof, a tight spot): he sets off on foot, and whistles at the first place
+			// along the way with room for it (the plan gets him back on at the first such spot)
+			EntityType<PostmanHorse> type = ModEntities.POSTMAN_HORSE.get();
+			if (HorseSpots.find(rider.position(), rider.getYRot(), s -> HorseSpots.fits(level, type, s)) == null) {
+				logRoute(rider, "no room for his horse at " + Navigator.spot(rider.position()) + ": sets off on foot");
+				enter(Stage.RIDING);
+				return;
+			}
 			rider.whistleForHorse();
-		// No room for a horse here: he sets off on foot and tries again later
+		}
+		// The horse didn't come after all: he sets off on foot and tries again later
 		if (stageTicks >= HORSE_WAIT_TICKS)
 			enter(Stage.RIDING);
 	}
@@ -544,13 +560,16 @@ public class DeliveryRun {
 		rider.setSprinting(false);
 		if (horse == null) {
 			// On foot (he got down to reach the water's edge, or was walking anyway): the horse crosses with him all
-			// the same, appearing aboard; one he'd whistled for and that hasn't come yet isn't wanted now
+			// the same, appearing aboard (unless it's been killed this trip); one he'd whistled for and that hasn't
+			// come yet isn't wanted now
 			rider.dismissHorse();
-			horse = rider.summonHorse(level, barge.position());
+			if (rider.mayWhistle())
+				horse = rider.summonHorse(level, barge.position());
 		} else {
 			PostmanEffects.puff(level, horse);
 		}
-		horse.startRiding(barge, true);
+		if (horse != null)
+			horse.startRiding(barge, true);
 		rider.startRiding(barge, true);
 		rider.setActivity(PostmanEntity.Activity.ROW);
 		crossedWater = true;
@@ -907,6 +926,8 @@ public class DeliveryRun {
 
 	private void breakCamp(PostmanEntity rider, ServerLevel level) {
 		putOutFire(level);
+		// A night's rest: he's up with full hearts
+		rider.setHealth(rider.getMaxHealth());
 		if (rider.isInTent() && campSite != null) {
 			Vec3 seat = campSite.seatPos();
 			rider.moveTo(seat.x, seat.y, seat.z, rider.getYRot(), 0);
@@ -929,6 +950,28 @@ public class DeliveryRun {
 
 	@Nullable
 	private UUID attacker;
+
+	public boolean isHorseLost() {
+		return horseLost;
+	}
+
+	/** His horse was killed: no whistling brings it back this trip, and the way on is planned on foot. */
+	public void horseLost(PostmanEntity rider, ServerLevel level, DamageSource source) {
+		if (horseLost)
+			return;
+		horseLost = true;
+		logRoute(rider, "his horse was killed (" + source.getMsgId() + ") at " + Navigator.spot(rider.position()) + ": on foot for the rest of the trip");
+		rider.dismissHorse();
+		navigator.clearStretch();
+	}
+
+	/** Something hurt him: noted in the log (what, where, and how he stands), and if it was someone, dealt with. */
+	public void hurt(PostmanEntity rider, ServerLevel level, DamageSource source, float amount) {
+		logRoute(rider, "hurt by " + source.getMsgId() + " (" + amount + ") at " + Navigator.spot(rider.position()) + ", health " + rider.getHealth()
+			+ " (" + stage + ", " + bodyState(rider.getVehicle() != null ? rider.getVehicle() : rider, level) + ")");
+		if (source.getEntity() instanceof LivingEntity by)
+			attacked(rider, level, by);
+	}
 
 	/** Something hurt him. At camp, he leaves everything and runs for it on foot until daylight. */
 	public void attacked(PostmanEntity rider, ServerLevel level, LivingEntity by) {
@@ -1181,7 +1224,7 @@ public class DeliveryRun {
 			for (int y = fromY + 3; y >= fromY - 6; y--) {
 				if (!LocalPlanner.stands(terrain, mounted, x, y, z))
 					continue;
-				if (navigator.probe(level, x, y, z, mounted, target, JUMP_PROBE_BUDGET).found())
+				if (navigator.probe(level, x, y, z, mounted, rider.mayWhistle(), target, JUMP_PROBE_BUDGET).found())
 					return new Vec3(x + (mounted ? 1.0 : 0.5), y, z + (mounted ? 1.0 : 0.5));
 				break;
 			}
@@ -1275,6 +1318,7 @@ public class DeliveryRun {
 		tag.putInt("stage_ticks", stageTicks);
 		tag.putString("after_planning", afterPlanning.name());
 		tag.putBoolean("crossed_water", crossedWater);
+		tag.putBoolean("horse_lost", horseLost);
 		tag.putInt("nights_out", nightsOut);
 		if (loadedChunk != null)
 			tag.putLong("loaded_chunk", loadedChunk.toLong());
@@ -1319,6 +1363,7 @@ public class DeliveryRun {
 		if (run.stage == Stage.PLANNING)
 			run.stageTicks = 0;
 		run.crossedWater = tag.getBoolean("crossed_water");
+		run.horseLost = tag.getBoolean("horse_lost");
 		run.nightsOut = tag.getInt("nights_out");
 		if (tag.contains("loaded_chunk"))
 			run.loadedChunk = new ChunkPos(tag.getLong("loaded_chunk"));

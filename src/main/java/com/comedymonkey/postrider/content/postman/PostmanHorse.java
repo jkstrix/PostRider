@@ -2,10 +2,12 @@ package com.comedymonkey.postrider.content.postman;
 
 import java.util.function.DoubleSupplier;
 
+import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.InteractionHand;
@@ -89,6 +91,20 @@ public class PostmanHorse extends Horse {
 	/** A horse with no rider for this long (he died, or was taken away) vanishes rather than wander for ever. */
 	public static final int RIDERLESS_TICKS = 5 * 20;
 	private int riderless;
+	/** The rider it answers to (set when he whistles it up), told when it's killed. */
+	@Nullable
+	private UUID riderId;
+
+	public void setRiderId(@Nullable UUID riderId) {
+		this.riderId = riderId;
+	}
+
+	@Override
+	public void die(DamageSource source) {
+		super.die(source);
+		if (riderId != null && level() instanceof ServerLevel server && server.getEntity(riderId) instanceof PostmanEntity rider)
+			rider.horseKilled(server, source);
+	}
 
 	@Override
 	public void tick() {

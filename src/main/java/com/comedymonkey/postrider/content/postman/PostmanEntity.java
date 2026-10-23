@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.PostRiderConfig;
 import com.comedymonkey.postrider.content.lost.LostParcels;
 import com.comedymonkey.postrider.post.PendingDelivery;
@@ -326,9 +327,20 @@ public class PostmanEntity extends PathfinderMob {
 		return run;
 	}
 
+	/** Whether his horse comes when he whistles: not once it's been killed, for the rest of that trip. */
+	public boolean mayWhistle() {
+		return run == null || !run.isHorseLost();
+	}
+
+	/** His horse was killed: he goes on without it for the rest of the trip (the next delivery, he has it again). */
+	public void horseKilled(ServerLevel level, DamageSource source) {
+		if (run != null)
+			run.horseLost(this, level, source);
+	}
+
 	/** He whistles; a moment later his horse appears beside him in a puff of smoke and he climbs on. */
 	public void whistleForHorse() {
-		if (getVehicle() != null || horseCountdown > 0 || arrivingHorse != null)
+		if (getVehicle() != null || horseCountdown > 0 || arrivingHorse != null || !mayWhistle())
 			return;
 		playGesture(Gesture.WHISTLE);
 		horseCountdown = HORSE_ARRIVES_AFTER;
@@ -463,6 +475,7 @@ public class PostmanEntity extends PathfinderMob {
 	/** His horse, in his livery, appearing here in a puff of smoke (not yet mounted). */
 	public PostmanHorse summonHorse(ServerLevel level, Vec3 at) {
 		PostmanHorse horse = PostmanHorse.create(ModEntities.POSTMAN_HORSE.get(), level, at.x, at.y, at.z, getYRot());
+		horse.setRiderId(getUUID());
 		Roster.Rider rider = getRider();
 		if (rider != null)
 			horse.dressAs(rider.horse());
@@ -525,8 +538,8 @@ public class PostmanEntity extends PathfinderMob {
 	@Override
 	public boolean hurt(DamageSource source, float amount) {
 		boolean hurt = super.hurt(source, amount);
-		if (hurt && run != null && source.getEntity() instanceof LivingEntity attacker && level() instanceof ServerLevel server)
-			run.attacked(this, server, attacker);
+		if (hurt && run != null && level() instanceof ServerLevel server)
+			run.hurt(this, server, source, amount);
 		return hurt;
 	}
 
@@ -543,6 +556,11 @@ public class PostmanEntity extends PathfinderMob {
 			updateAnimations();
 		else if (level() instanceof ServerLevel server) {
 			tickHorse(server);
+			// Carried under a low roof on horseback he'd suffocate: he gets down, and plans on from there on foot
+			if (getVehicle() instanceof PostmanHorse && isInWall()) {
+				PostRider.LOGGER.info("Rider {} gets down from his horse at {} {} {}: no room for him on its back there", getName().getString(), getBlockX(), getBlockY(), getBlockZ());
+				dismissHorse();
+			}
 			if (isAlive())
 				tickPotions(server);
 			if (tickCount % 5 == 0)

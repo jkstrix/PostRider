@@ -188,4 +188,15 @@ class DeliveryRunTest {
 		assertEquals(PostmanEntity.Activity.CLIMB.ordinal() + 1, PostmanEntity.Activity.DRIFT.ordinal(), "the two column activities, after the map");
 		assertTrue(PostmanEntity.Activity.CLIMB.ordinal() > PostmanEntity.Activity.STUDY_MAP.ordinal(), "added at the end, so saved activities still read");
 	}
+
+	@Test
+	void aHorseLostOnTheTripStaysLostAcrossASave() {
+		var registries = VanillaRegistries.createLookup();
+		DeliveryRun run = new DeliveryRun(delivery(), null);
+		assertFalse(run.isHorseLost(), "he sets out with his horse");
+		CompoundTag saved = run.save(registries);
+		saved.putBoolean("horse_lost", true);
+		assertTrue(DeliveryRun.load(saved, registries).isHorseLost(), "once killed, gone for the rest of the trip, even over a restart");
+		assertFalse(DeliveryRun.load(run.save(registries), registries).isHorseLost(), "a new run has it again");
+	}
 }

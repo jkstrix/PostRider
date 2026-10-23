@@ -17,6 +17,8 @@ import net.minecraft.world.phys.Vec3;
 public final class HorseSpots {
 	/** How far beside him the horse appears. */
 	public static final double DISTANCE = 2.0;
+	/** How much clear height the horse needs where it appears: itself and the rider on its back (three blocks). */
+	public static final double RIDDEN_HEIGHT = 3.0;
 	private static final double[] HEIGHTS = {0, 1, -1};
 
 	private HorseSpots() {}
@@ -44,10 +46,18 @@ public final class HorseSpots {
 		return null;
 	}
 
-	/** Room for the whole horse, nothing solid or wet in the way, and ground to stand on under all of it. */
+	/** The room the horse needs: its own box, and the rider's on its back above it. */
+	public static AABB roomFor(AABB horse) {
+		return new AABB(horse.minX, horse.minY, horse.minZ, horse.maxX, horse.minY + RIDDEN_HEIGHT, horse.maxZ);
+	}
+
+	/**
+	 * Room for the whole horse and the rider on its back (under a low roof he'd suffocate), nothing solid or wet in
+	 * the way, and ground to stand on under all of it.
+	 */
 	public static boolean fits(ServerLevel level, EntityType<?> horse, Vec3 spot) {
 		AABB box = horse.getSpawnAABB(spot.x, spot.y, spot.z);
-		if (!level.noCollision(box) || level.containsAnyLiquid(box))
+		if (!level.noCollision(roomFor(box)) || level.containsAnyLiquid(box))
 			return false;
 		BlockPos ground = BlockPos.containing(spot.x, spot.y - 0.5, spot.z);
 		if (!level.getBlockState(ground).isFaceSturdy(level, ground, Direction.UP))

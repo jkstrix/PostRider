@@ -731,11 +731,11 @@ public final class Navigator {
 	 * A search there and then (not spread over ticks) from a spot to where the stretch was going, or the mailbox,
 	 * looking at up to {@code budget} places: for getting unstuck, and for the in-world trials.
 	 */
-	public Probe probe(ServerLevel level, int x, int y, int z, boolean mounted, Vec3 target, int budget) {
+	public Probe probe(ServerLevel level, int x, int y, int z, boolean mounted, boolean mayMount, Vec3 target, int budget) {
 		boolean toMailbox = localGoal == null || localIsFinal;
 		LocalPlanner.Goal goal = toMailbox ? new LocalPlanner.Goal(target.x, Mth.floor(target.y), target.z, MAILBOX_RADIUS, 3)
 			: LocalPlanner.Goal.anyHeight(localGoal.x, localGoal.z, WAYPOINT_RADIUS);
-		LocalPlanner search = new LocalPlanner(new LevelTerrain(level), x, y, z, mounted, goal, true);
+		LocalPlanner search = new LocalPlanner(new LevelTerrain(level), x, y, z, mounted, goal, mayMount);
 		LocalPlanner.Status status = search.step(budget);
 		while (status == LocalPlanner.Status.RUNNING && search.expanded() < budget)
 			status = search.step(budget - search.expanded());
@@ -748,7 +748,7 @@ public final class Navigator {
 		boolean mounted = body != rider;
 		int x = mounted ? Mth.floor(body.getX() - 0.5) : Mth.floor(body.getX());
 		int z = mounted ? Mth.floor(body.getZ() - 0.5) : Mth.floor(body.getZ());
-		return probe(level, x, Mth.floor(body.getY() + 1e-3), z, mounted, target, budget);
+		return probe(level, x, Mth.floor(body.getY() + 1e-3), z, mounted, rider.mayWhistle(), target, budget);
 	}
 
 	/** Takes the way a probe found from where he is as the stretch to follow now. */
@@ -772,7 +772,7 @@ public final class Navigator {
 		int y = Mth.floor(body.getY() + 1e-3);
 		LocalPlanner.Goal goal = goalFrom(level, rider.position(), target);
 		// On foot with the barge just ahead, he walks down to it rather than calling his horse for the last few blocks
-		boolean mayMount = now >= footOnlyUntil && (mounted || !waterWithin(rider.position(), FOOT_TO_WATER));
+		boolean mayMount = rider.mayWhistle() && now >= footOnlyUntil && (mounted || !waterWithin(rider.position(), FOOT_TO_WATER));
 		local = new LocalPlanner(new LevelTerrain(level), x, y, z, mounted, goal, mayMount);
 	}
 
@@ -798,10 +798,23 @@ public final class Navigator {
 		}
 		boolean lastLeg = leg >= plan.legs().size() - 1;
 		Vec3 point = along(current.points(), here, ahead);
-		if (lastLeg && (Journey.horizontalDistance(point, current.last()) < 1 || Journey.horizontalDistance(here, target) <= ahead))
+		if (Journey.horizontalDistance(here, target) <= ahead)
 			return mailbox(target);
+		if (lastLeg && Journey.horizontalDistance(point, current.last()) < 1) {
+			// At the end of the plan: the box, if the plan gets there; a plan that could only get so far (the best
+			// so far of one still being worked out) is carried straight on from its end
+			if (endsAtTheBox(current.last(), target, ahead))
+				return mailbox(target);
+			Vec3 aim = Journey.nextAim(here, target);
+			point = here.add(aim.subtract(here).normalize().scale(ahead));
+		}
 		localGoal = point;
 		return LocalPlanner.Goal.anyHeight(point.x, point.z, WAYPOINT_RADIUS);
+	}
+
+	/** Whether a plan ending here ends at the box: within a stretch of it, so the last stretch can be aimed at the box itself. */
+	public static boolean endsAtTheBox(Vec3 end, Vec3 target, double ahead) {
+		return Journey.horizontalDistance(end, target) <= ahead;
 	}
 
 	private LocalPlanner.Goal mailbox(Vec3 target) {
