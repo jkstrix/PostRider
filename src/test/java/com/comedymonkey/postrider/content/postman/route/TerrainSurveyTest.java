@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import net.minecraft.util.Mth;
 import net.minecraft.util.SimpleBitStorage;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
 
 class TerrainSurveyTest {
 	private static final int MIN_Y = -64, HEIGHT = 384;
@@ -85,5 +86,22 @@ class TerrainSurveyTest {
 		assertEquals(2 * 16 + 6, columns[1]);
 		assertEquals(6 * 16 + 2, columns[2]);
 		assertEquals(6 * 16 + 6, columns[3]);
+	}
+
+	@Test
+	void aTreeIsStoodUnderNotOn() {
+		// (Block tags aren't bound outside the game, so logs and wart blocks, known by their tags, aren't tried here)
+		assertTrue(TerrainSurvey.isGrowth(Blocks.DARK_OAK_LEAVES.defaultBlockState()));
+		assertTrue(TerrainSurvey.isGrowth(Blocks.RED_MUSHROOM_BLOCK.defaultBlockState()));
+		assertTrue(TerrainSurvey.isGrowth(Blocks.MUSHROOM_STEM.defaultBlockState()));
+		assertTrue(TerrainSurvey.isGrowth(Blocks.BAMBOO.defaultBlockState()));
+		assertTrue(TerrainSurvey.isGrowth(Blocks.MANGROVE_ROOTS.defaultBlockState()));
+		assertFalse(TerrainSurvey.isGrowth(Blocks.STONE.defaultBlockState()));
+		assertFalse(TerrainSurvey.isGrowth(Blocks.OAK_PLANKS.defaultBlockState()), "a house of planks is a wall, not a tree");
+		assertTrue(TerrainSurvey.holdsUp(Blocks.GRASS_BLOCK.defaultBlockState()));
+		assertTrue(TerrainSurvey.holdsUp(Blocks.WATER.defaultBlockState()), "water is the top of a wet column");
+		assertFalse(TerrainSurvey.holdsUp(Blocks.MUSHROOM_STEM.defaultBlockState()));
+		assertFalse(TerrainSurvey.holdsUp(Blocks.AIR.defaultBlockState()));
+		assertFalse(TerrainSurvey.holdsUp(Blocks.SHORT_GRASS.defaultBlockState()));
 	}
 }

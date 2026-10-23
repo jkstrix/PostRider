@@ -409,4 +409,14 @@ class LocalPlannerTest {
 		assertTrue(last.x() == before.x() || last.z() == before.z(), "dropped in straight, from " + before);
 		allStand(pit, steps);
 	}
+
+	@Test
+	void aVineThatStopsShortOfTheTopIsNoWayUp() {
+		// The same cliff, with a vine up its face that ends a block below the top: from the top of the vine the ledge
+		// is two up, and the air over the vine holds nobody (he'd fall through it), so there's no way up here
+		GridTerrain cliff = new GridTerrain().fill(10, Y, -400, 60, Y + 9, 400, Kind.SOLID).fill(9, Y, 0, 9, Y + 8, 0, Kind.CLIMB);
+		assertNotEquals(Status.FOUND, walking(cliff, 20.5, 0.5, false).finishNow());
+		assertFalse(LocalPlanner.stands(cliff, false, 9, Y + 9, 0), "air over the top of a vine");
+		assertTrue(LocalPlanner.stands(cliff, false, 9, Y + 8, 0), "in the vine, holding on");
+	}
 }

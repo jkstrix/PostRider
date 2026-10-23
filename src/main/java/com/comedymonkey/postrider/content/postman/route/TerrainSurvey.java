@@ -22,6 +22,12 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.SimpleBitStorage;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.core.BlockPos;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.HugeMushroomBlock;
+import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -123,7 +129,8 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 				tile.guessed[chunk] = false;
 				tile.filled[chunk] = false;
 				tile.chunksLeft++;
-				fill(tile, pos, loadedHeights(loaded, Heightmap.Types.OCEAN_FLOOR), loadedHeights(loaded, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES));
+				int[][] ground = groundOf(loaded);
+				fill(tile, pos, ground[0], ground[1]);
 			}
 	}
 
@@ -143,7 +150,8 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 				ChunkPos pos = new ChunkPos(tx * TILE_CHUNKS + dx, tz * TILE_CHUNKS + dz);
 				LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
 				if (chunk != null) {
-					fill(tile, pos, loadedHeights(chunk, Heightmap.Types.OCEAN_FLOOR), loadedHeights(chunk, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES));
+					int[][] ground = groundOf(chunk);
+					fill(tile, pos, ground[0], ground[1]);
 					loaded++;
 				} else {
 					readSaved(pos);
@@ -246,12 +254,41 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		tile.chunksLeft--;
 	}
 
-	private static int[] loadedHeights(LevelChunk chunk, Heightmap.Types type) {
-		int[] heights = new int[256];
-		for (int x = 0; x < 16; x++)
-			for (int z = 0; z < 16; z++)
-				heights[z * 16 + x] = chunk.getHeight(type, x, z) + 1;
-		return heights;
+	/**
+	 * The ground at the columns a loaded chunk's cells sample, and the top of any water over it (each as the first
+	 * free height, like the heightmaps), read from the blocks: the heightmaps count a tree trunk as ground, and a
+	 * trunk sampled in a wood would read as a cliff face, so a tree (or a giant mushroom) is looked under to what it
+	 * stands on. The floors first, then the tops; only the sampled columns are filled in.
+	 */
+	static int[][] groundOf(LevelChunk chunk) {
+		int[] floors = new int[256], tops = new int[256];
+		int minY = chunk.getMinBuildHeight();
+		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+		for (int column : sampledColumns()) {
+			int x = column % 16, z = column / 16;
+			int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+			// Down through the tree, if it's one, and the air under its canopy, to the ground or the water beneath
+			while (y >= minY && !holdsUp(chunk.getBlockState(pos.set(x, y, z))))
+				y--;
+			tops[column] = y + 1;
+			// And on down through the water to its floor
+			while (y >= minY && !chunk.getBlockState(pos.set(x, y, z)).blocksMotion())
+				y--;
+			floors[column] = y + 1;
+		}
+		return new int[][] {floors, tops};
+	}
+
+	/** Whether a block is ground, or water, as the survey sees it: anything that blocks motion but a tree, or any liquid. */
+	static boolean holdsUp(BlockState state) {
+		return !state.getFluidState().isEmpty() || state.blocksMotion() && !isGrowth(state);
+	}
+
+	/** A tree's trunk or leaves, a giant mushroom or fungus, bamboo: stood under, not on, and no cliff. */
+	static boolean isGrowth(BlockState state) {
+		return state.is(BlockTags.LOGS) || state.is(BlockTags.LEAVES) || state.is(BlockTags.WART_BLOCKS)
+			|| state.getBlock() instanceof LeavesBlock || state.getBlock() instanceof HugeMushroomBlock || state.is(Blocks.MUSHROOM_STEM) || state.is(Blocks.SHROOMLIGHT)
+			|| state.is(Blocks.BAMBOO) || state.is(Blocks.MANGROVE_ROOTS) || state.is(Blocks.CHORUS_PLANT) || state.is(Blocks.CHORUS_FLOWER);
 	}
 
 	// ---------------------------------------------------------------- the sums

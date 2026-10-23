@@ -273,11 +273,19 @@ public final class Navigator {
 	 * cells at either end (where he stands, and the mailbox's) may be as steep as they like.
 	 */
 	public static boolean legsFit(List<CoarsePlanner.Leg> legs, int fromLeg, CoarsePlanner.Cells cells, @Nullable Vec3 here, double reach) {
+		return misfit(legs, fromLeg, cells, here, reach) == null;
+	}
+
+	/** Where and how the plan's legs don't fit the ground (see {@link #legsFit}), for the log; null if they fit. */
+	@Nullable
+	public static String misfit(List<CoarsePlanner.Leg> legs, int fromLeg, CoarsePlanner.Cells cells, @Nullable Vec3 here, double reach) {
 		int first = Math.max(0, fromLeg);
 		long startCell = first < legs.size() ? cellKeyOf(legs.get(first).points().get(0)) : 0;
 		long goalCell = !legs.isEmpty() ? cellKeyOf(legs.get(legs.size() - 1).points().get(legs.get(legs.size() - 1).points().size() - 1)) : 0;
 		for (int i = first; i < legs.size(); i++) {
 			CoarsePlanner.Leg leg = legs.get(i);
+			boolean land = leg.kind() == CoarsePlanner.LegKind.LAND;
+			String which = (land ? "land" : "water") + " leg " + (i + 1) + "/" + legs.size();
 			CoarsePlanner.Cell previous = null;
 			for (Vec3 point : sampled(leg.points(), CoarsePlanner.CELL)) {
 				if (here != null && Journey.horizontalDistance(here, point) > reach)
@@ -288,21 +296,28 @@ public final class Navigator {
 					previous = null;
 					continue;
 				}
+				String at = " at " + Mth.floor(point.x) + " " + Mth.floor(point.z);
 				if (cell.isVoid())
-					return false;
+					return which + " over the void" + at;
 				long key = CoarsePlanner.key(cx, cz);
 				boolean anEnd = !legs.isEmpty() && (key == startCell || key == goalCell);
-				boolean wrong = leg.kind() == CoarsePlanner.LegKind.LAND ? cell.water() || (!anEnd && cell.rough() > STEEP_WITHIN) : !cell.water() && !cell.shore();
+				String wrong = null;
+				if (land && cell.water())
+					wrong = "over water";
+				else if (land && !anEnd && cell.rough() > STEEP_WITHIN)
+					wrong = "over a cliff face " + cell.rough() + " high inside a cell";
+				else if (!land && !cell.water() && !cell.shore())
+					wrong = "over dry land";
 				// A leg's line is drawn between the cells its way went through, so at a bend it clips the corner of a
 				// cell beside the way: only a cell with no fitting ground next to it is a real mismatch
-				if (wrong && !fittingBeside(cells, cx, cz, leg.kind()))
-					return false;
-				if (leg.kind() == CoarsePlanner.LegKind.LAND && previous != null && cell != previous && Math.abs(cell.height() - previous.height()) > STEEP_BETWEEN)
-					return false;
+				if (wrong != null && !fittingBeside(cells, cx, cz, leg.kind()))
+					return which + " " + wrong + at;
+				if (land && previous != null && cell != previous && Math.abs(cell.height() - previous.height()) > STEEP_BETWEEN)
+					return which + " over a step of " + Math.abs(cell.height() - previous.height()) + " from one cell to the next" + at;
 				previous = cell;
 			}
 		}
-		return true;
+		return null;
 	}
 
 	/** Whether any of the eight cells round one would do for a leg of this kind (land for a land leg, water or shore for a water one). */
@@ -369,7 +384,13 @@ public final class Navigator {
 
 	/** Whether the plan, as it stands, fits the ground as the survey now has it. */
 	public boolean planFits(ServerLevel level) {
-		return plan == null || legsFit(plan.legs(), leg, TerrainSurvey.of(level));
+		return planMisfit(level) == null;
+	}
+
+	/** Where and how the plan doesn't fit the ground as the survey now has it, for the log; null if it fits (or there's no plan). */
+	@Nullable
+	public String planMisfit(ServerLevel level) {
+		return plan == null ? null : misfit(plan.legs(), leg, TerrainSurvey.of(level), null, Double.MAX_VALUE);
 	}
 
 	/** How many chunks are held ahead, for the log. */

@@ -421,9 +421,10 @@ public class DeliveryRun {
 		if (checkingMap && navigator.isPlanned() && stageTicks < MAP_MAX_TICKS + MAP_CHECK_TICKS) {
 			if (!navigator.aheadLoaded(level))
 				return;
-			if (!navigator.planFits(level) && mapChecks < MAP_CHECKS) {
+			String misfit = navigator.planMisfit(level);
+			if (misfit != null && mapChecks < MAP_CHECKS) {
 				mapChecks++;
-				logRoute(rider, "the ground along the route isn't as the map had it: the route is redone (" + mapChecks + ")");
+				logRoute(rider, "the ground along the route isn't as the map had it (" + misfit + "): the route is redone (" + mapChecks + ")");
 				navigator.replan(level, rider.position(), target);
 				navigator.holdStageAhead(level, rider.position());
 				return;
@@ -431,9 +432,11 @@ public class DeliveryRun {
 		}
 		if (stageTicks >= MAP_MIN_TICKS && (navigator.isPlanned() && (!checkingMap || navigator.aheadLoaded(level) || stageTicks >= MAP_MAX_TICKS + MAP_CHECK_TICKS)
 				|| stageTicks >= MAP_MAX_TICKS + MAP_CHECK_TICKS)) {
-			if (checkingMap)
-				logRoute(rider, navigator.planFits(level) ? "the route checks out against the ground" + (mapChecks > 0 ? " (after " + mapChecks + " redoing)" : "")
-					: "the route still doesn't quite match the ground after " + mapChecks + " redoing: he goes anyway");
+			if (checkingMap) {
+				String misfit = navigator.planMisfit(level);
+				logRoute(rider, misfit == null ? "the route checks out against the ground" + (mapChecks > 0 ? " (after " + mapChecks + " redoing)" : "")
+					: "the route still doesn't quite match the ground after " + mapChecks + " redoing (" + misfit + "): he goes anyway");
+			}
 			checkingMap = false;
 			navigator.goWithBestSoFar();
 			showMap(rider, false);

@@ -254,4 +254,24 @@ class CoarsePlannerTest {
 		CoarsePlanner.Cells boxOnACliff = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx == 18 ? new Cell(64, 0, 12, false) : LAND;
 		assertEquals(Status.DONE, new CoarsePlanner(boxOnACliff, 2, 2, 18, 2, Set.of()).finishNow(), "the mailbox's own cell may be a cliff");
 	}
+
+	@Test
+	void theBargeIsntLandedUnderACliff() {
+		// A strait between two shores: a cliff coast (a cliff face inside the cells) straight across, a beach further
+		// along it; he lands on the beach, not under the cliff
+		Cell cliffCoast = new Cell(64, 0, 12, false);
+		CoarsePlanner.Cells coast = (cx, cz) -> cx < 0 || cz < 0 || cx > 12 || cz > 8 ? VOID
+			: cx >= 4 && cx <= 6 ? WATER
+			: cx == 7 && cz <= 6 ? cliffCoast : LAND;
+		CoarsePlanner planner = new CoarsePlanner(coast, 2, 2, 10, 2, Set.of());
+		assertEquals(Status.DONE, planner.finishNow());
+		Plan plan = planner.plan();
+		assertNotNull(plan);
+		Vec3 landing = plan.legs().get(1).points().get(plan.legs().get(1).points().size() - 1);
+		assertEquals(LegKind.WATER, plan.legs().get(1).kind());
+		assertTrue(landing.z >= 7 * CoarsePlanner.CELL, "landed on the beach at the end of the cliff coast, not under the cliff: " + landing);
+		CoarsePlanner.Cells cliffAll = (cx, cz) -> cx < 0 || cz < 0 || cx > 12 || cz > 8 ? VOID
+			: cx >= 4 && cx <= 6 ? WATER : cx == 7 ? cliffCoast : LAND;
+		assertEquals(Status.FAILED, new CoarsePlanner(cliffAll, 2, 2, 10, 2, Set.of()).finishNow(), "a cliff coast the whole way: nowhere to land");
+	}
 }

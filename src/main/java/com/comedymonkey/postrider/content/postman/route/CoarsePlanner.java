@@ -240,11 +240,12 @@ public final class CoarsePlanner {
 				return -1;
 			return length * rowing + (fromWater ? 0 : LAUNCH_COST);
 		}
-		if (fromWater)
-			return length * rowing + LANDING_COST;
 		int rise = Math.abs(to.height() - from.height());
+		// A cliff isn't ridden up, and nor is it landed on from the water: a shore that leads nowhere
 		if (rise > MAX_RISE || (!toGoal && to.rough() > CLIFF_WITHIN))
 			return -1;
+		if (fromWater)
+			return length * rowing + LANDING_COST;
 		double slope = rise / length;
 		double steep = slope <= 0.25 ? slope : 0.25 + (slope - 0.25) * 6;
 		double rough = Math.min(to.rough(), 16) / 32.0;

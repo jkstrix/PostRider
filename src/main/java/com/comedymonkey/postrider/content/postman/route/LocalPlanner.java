@@ -437,8 +437,10 @@ public final class LocalPlanner {
 			Terrain.Kind feet = terrain.kind(x, y, z);
 			if (!feet.feetFit() || !terrain.kind(x, y + 1, z).isClear())
 				return false;
+			// On something solid, or in a ladder or a vine holding on (the top of one holds nobody up: stood over, he
+			// falls through it)
 			Terrain.Kind below = terrain.kind(x, y - 1, z);
-			return below == Terrain.Kind.SOLID || below == Terrain.Kind.CLIMB || feet == Terrain.Kind.LOW || feet == Terrain.Kind.CLIMB;
+			return below == Terrain.Kind.SOLID || feet == Terrain.Kind.LOW || feet == Terrain.Kind.CLIMB;
 		}
 		int support = 0;
 		for (int dx = 0; dx <= 1; dx++)

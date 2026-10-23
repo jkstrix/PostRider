@@ -2,6 +2,8 @@ package com.comedymonkey.postrider.content.postman.route;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -307,5 +309,19 @@ class NavigatorTest {
 		assertFalse(Navigator.legsFit(List.of(land), 0, stepBetween), "sixteen up from one cell to the next");
 		CoarsePlanner.Cells terrace = (cx, cz) -> new CoarsePlanner.Cell(cx >= 6 ? 70 : 64, 0, 0, false);
 		assertTrue(Navigator.legsFit(List.of(land), 0, terrace), "six up from one cell to the next is a slope");
+	}
+
+	@Test
+	void theMisfitSaysWhatAndWhere() {
+		CoarsePlanner.Leg land = new CoarsePlanner.Leg(CoarsePlanner.LegKind.LAND, List.of(new Vec3(4, 64, 4), new Vec3(92, 64, 4)));
+		CoarsePlanner.Cells lake = (cx, cz) -> new CoarsePlanner.Cell(64, cx >= 4 && cx <= 7 ? 4 : 0, 0, false);
+		String misfit = Navigator.misfit(List.of(land), 0, lake, null, Double.MAX_VALUE);
+		assertNotNull(misfit);
+		assertTrue(misfit.startsWith("land leg 1/1 over water at "), misfit);
+		CoarsePlanner.Cells stepBetween = (cx, cz) -> new CoarsePlanner.Cell(cx >= 6 ? 80 : 64, 0, 0, false);
+		misfit = Navigator.misfit(List.of(land), 0, stepBetween, null, Double.MAX_VALUE);
+		assertNotNull(misfit);
+		assertTrue(misfit.contains("a step of 16"), misfit);
+		assertNull(Navigator.misfit(List.of(land), 0, (cx, cz) -> new CoarsePlanner.Cell(64, 0, 0, false), null, Double.MAX_VALUE));
 	}
 }
