@@ -397,4 +397,17 @@ class LocalPlannerTest {
 		assertEquals(Status.FOUND, planner.finishNow());
 		assertTrue(planner.steps().stream().filter(step -> step.x() == 10).noneMatch(Step::mounted), "on foot through the doors");
 	}
+
+	@Test
+	void onFootADeepHoleIsDroppedIntoStraightNeverCornerToCorner() {
+		// A hole a block wide and three deep, diagonally ahead of him: the short way in is corner to corner
+		GridTerrain pit = new GridTerrain().fill(3, Y - 3, 3, 3, Y - 1, 3, Kind.OPEN);
+		LocalPlanner planner = new LocalPlanner(pit, 0, Y, 0, false, new LocalPlanner.Goal(3.5, Y - 3, 3.5, 0.6, 0), false);
+		assertEquals(Status.FOUND, planner.finishNow());
+		List<Step> steps = planner.steps();
+		Step last = steps.get(steps.size() - 1), before = steps.get(steps.size() - 2);
+		assertEquals(Y - 3, last.y(), "down in the hole");
+		assertTrue(last.x() == before.x() || last.z() == before.z(), "dropped in straight, from " + before);
+		allStand(pit, steps);
+	}
 }

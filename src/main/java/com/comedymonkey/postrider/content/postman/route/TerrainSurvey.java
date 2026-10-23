@@ -33,7 +33,9 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * The lie of the land for long-range plans, one world at a time: the height of the ground and where the water is,
  * four columns to each 8x8-block cell, looked up in tiles of 4x4 chunks. It comes from loaded chunks first, then
  * from chunks saved on disk, and where neither has it the chunk is generated in the background (a few at a time,
- * let go again once read). Kept in memory only, and forgotten after a while so changes to the world come through.
+ * let go again once read). Kept in memory only, and forgotten after a while so changes to the world come through:
+ * a tile of loaded chunks is cheap to read and is looked at afresh every few seconds (a bridge or a canal someone
+ * has just built is seen at once), one that had to come off disk or be generated is kept for ten minutes.
  */
 public final class TerrainSurvey implements CoarsePlanner.Cells {
 	/** A tile is this many chunks square. */
@@ -41,8 +43,10 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	public static final int CELLS_PER_CHUNK = 16 / CoarsePlanner.CELL;
 	public static final int TILE_CELLS = TILE_CHUNKS * CELLS_PER_CHUNK;
 	public static final int MAX_TILES = 4096;
-	/** How long a surveyed tile is trusted before it's looked at again (10 minutes). */
+	/** How long a tile read off disk or generated is trusted before it's looked at again (10 minutes). */
 	public static final long TILE_LIFETIME = 12_000;
+	/** How long a tile of loaded chunks is kept before it's read again (5 seconds): a plan's many lookups, no more. */
+	public static final long LOADED_LIFETIME = 100;
 	/** Chunks being generated for surveys at once, across the whole server. */
 	public static final int MAX_GENERATING = 16;
 	/** A chunk that hasn't generated in this long is given up on (and counted as plain ground at sea level). */
@@ -93,7 +97,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		long key = ChunkPos.asLong(tx, tz);
 		Tile tile = tiles.get(key);
 		long now = level.getGameTime();
-		if (tile != null && tile.isDone() && now - tile.since > TILE_LIFETIME) {
+		if (tile != null && tile.isDone() && now - tile.since > tile.lifetime) {
 			tiles.remove(key);
 			tile = null;
 		}
@@ -115,16 +119,25 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 
 	private Tile survey(int tx, int tz, long now) {
 		Tile tile = new Tile(now);
+		int loaded = 0;
 		for (int dx = 0; dx < TILE_CHUNKS; dx++)
 			for (int dz = 0; dz < TILE_CHUNKS; dz++) {
 				ChunkPos pos = new ChunkPos(tx * TILE_CHUNKS + dx, tz * TILE_CHUNKS + dz);
 				LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
-				if (chunk != null)
+				if (chunk != null) {
 					fill(tile, pos, loadedHeights(chunk, Heightmap.Types.OCEAN_FLOOR), loadedHeights(chunk, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES));
-				else
+					loaded++;
+				} else {
 					readSaved(pos);
+				}
 			}
+		tile.lifetime = lifetime(loaded);
 		return tile;
+	}
+
+	/** How long a tile is kept, from how many of its chunks were loaded when it was read (all of them: not long). */
+	static long lifetime(int chunksLoaded) {
+		return chunksLoaded >= TILE_CHUNKS * TILE_CHUNKS ? LOADED_LIFETIME : TILE_LIFETIME;
 	}
 
 	private void readSaved(ChunkPos pos) {
@@ -257,6 +270,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		final CoarsePlanner.Cell[] cells = new CoarsePlanner.Cell[TILE_CELLS * TILE_CELLS];
 		final boolean[] filled = new boolean[TILE_CHUNKS * TILE_CHUNKS];
 		final long since;
+		long lifetime = TILE_LIFETIME;
 		int chunksLeft = TILE_CHUNKS * TILE_CHUNKS;
 
 		Tile(long since) {

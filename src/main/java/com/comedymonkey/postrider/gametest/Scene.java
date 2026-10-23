@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlockEntity;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
+import com.comedymonkey.postrider.content.postman.route.TerrainSurvey;
 import com.comedymonkey.postrider.post.MailboxDirectory;
 import com.comedymonkey.postrider.post.PendingDelivery;
 import com.comedymonkey.postrider.post.PostOffice;
@@ -102,6 +103,8 @@ final class Scene {
 
 	/** Posts a parcel from one mailbox to another, as the Send button does; a rider collects it at the next round. */
 	PendingDelivery post(BlockPos from, String fromName, String toName) {
+		// The long-range survey may have read this ground for another trial's rider before the scene was built
+		TerrainSurvey.clear();
 		PendingDelivery delivery = new PendingDelivery(UUID.randomUUID(), UUID.randomUUID(), "Tester", fromName,
 			GlobalPos.of(level.dimension(), from), toName, List.of(new ItemStack(Items.BREAD, 3)), level.getGameTime());
 		PostOffice.get(level.getServer()).enqueue(delivery);

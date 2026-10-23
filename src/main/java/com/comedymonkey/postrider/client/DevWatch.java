@@ -130,6 +130,10 @@ public final class DevWatch {
 					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "gamerule doDaylightCycle false");
 					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "time set day");
 					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "test clearall");
+					// Somewhere fresh each time: a test is built on whatever ground is under the player, and the world keeps
+					// what earlier runs built (the ground of a flat world is at -61; he's stood on it)
+					long spot = (System.nanoTime() / 1000) % 64;
+					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "tp @s " + (spot * 2048 + 512) + " -60 " + ((spot * 7919) % 64 * 2048 + 512));
 					PostRider.LOGGER.info("Post Rider watch run: /{}", command);
 					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), command);
 					// A spectator: through walls and roofs to see, and a click on a rider to follow him

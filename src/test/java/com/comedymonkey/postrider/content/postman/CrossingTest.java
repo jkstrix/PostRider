@@ -106,4 +106,18 @@ class CrossingTest {
 		assertFalse(Crossing.waterAhead(rider, new Vec3(200, 64, 0.5), 8, LAKE_EAST), "not within 8");
 		assertFalse(Crossing.waterAhead(rider, new Vec3(-200, 64, 0.5), 15, LAKE_EAST), "the water is behind him");
 	}
+
+	@Test
+	void heNeverStepsAshoreThroughAWall() {
+		// Dry ground from x 20 on at y 64, but a wall at x 21 (he can stand on the block before it, not beyond it)
+		CampSites.Floor bank = (x, z) -> x >= 20 ? 64 : CampSites.UNUSABLE;
+		Crossing.Way wall = (x, z, y) -> x != 21;
+		Vec3 bow = new Vec3(18.5, 63, 0.5), target = new Vec3(300, 64, 0.5);
+		assertEquals(new BlockPos(20, 64, 0), Crossing.landingSpot(bow, target, bank, Crossing.LANDING_REACH, wall), "the strip before the wall");
+		CampSites.Floor beyond = (x, z) -> x >= 22 ? 64 : CampSites.UNUSABLE;
+		assertNull(Crossing.landingSpot(bow, target, beyond, DeliveryRun.STUCK_LANDING_REACH, wall), "the ground beyond the wall is no landing");
+		assertTrue(Crossing.wayClear(18, 0, 20, 0, 64, wall));
+		assertFalse(Crossing.wayClear(18, 0, 24, 0, 64, wall));
+		assertTrue(Crossing.wayClear(18, 0, 19, 0, 64, (x, z, y) -> false), "next door: nothing between");
+	}
 }

@@ -100,15 +100,32 @@ public final class Crossing {
 		return false;
 	}
 
+	/** Whether a body on foot can pass through a column at a height: nothing solid where his feet and head would be. */
+	public interface Way {
+		boolean clear(int x, int z, int feetY);
+
+		/** Open everywhere (for made-up ground in tests). */
+		Way OPEN = (x, z, y) -> true;
+	}
+
 	/** The dry ground nearest the bow (and, among equals, nearest the destination) to step off onto; null if none. */
 	@Nullable
 	public static BlockPos landingSpot(Vec3 bow, Vec3 target, CampSites.Floor floor) {
-		return landingSpot(bow, target, floor, LANDING_REACH);
+		return landingSpot(bow, target, floor, LANDING_REACH, Way.OPEN);
 	}
 
 	/** As above, looking up to {@code reach} blocks from the bow (further than usual when he's stuck against a bank). */
 	@Nullable
 	public static BlockPos landingSpot(Vec3 bow, Vec3 target, CampSites.Floor floor, int reach) {
+		return landingSpot(bow, target, floor, reach, Way.OPEN);
+	}
+
+	/**
+	 * As above, and only ground he can get to from the bow: nothing in the way between (a wall along the shore, a
+	 * bank too high) at the height he'd walk it.
+	 */
+	@Nullable
+	public static BlockPos landingSpot(Vec3 bow, Vec3 target, CampSites.Floor floor, int reach, Way way) {
 		int bx = Mth.floor(bow.x), bz = Mth.floor(bow.z);
 		for (int radius = 0; radius <= reach; radius++) {
 			BlockPos best = null;
@@ -118,7 +135,7 @@ public final class Crossing {
 					if (Math.max(Math.abs(dx), Math.abs(dz)) != radius)
 						continue;
 					int y = floor.at(bx + dx, bz + dz);
-					if (y == CampSites.UNUSABLE)
+					if (y == CampSites.UNUSABLE || !wayClear(bx, bz, bx + dx, bz + dz, y, way))
 						continue;
 					double distance = Journey.horizontalDistance(new Vec3(bx + dx + 0.5, y, bz + dz + 0.5), target);
 					if (distance < bestDistance) {
@@ -130,6 +147,17 @@ public final class Crossing {
 				return best;
 		}
 		return null;
+	}
+
+	/** Whether the straight line between two columns is clear at a height, the columns between them inclusive. */
+	static boolean wayClear(int fromX, int fromZ, int toX, int toZ, int feetY, Way way) {
+		int steps = Math.max(Math.abs(toX - fromX), Math.abs(toZ - fromZ));
+		for (int i = 1; i < steps; i++) {
+			int x = fromX + Math.round((float) (toX - fromX) * i / steps), z = fromZ + Math.round((float) (toZ - fromZ) * i / steps);
+			if (!way.clear(x, z, feetY))
+				return false;
+		}
+		return true;
 	}
 
 	// ---------------------------------------------------------------- the real world

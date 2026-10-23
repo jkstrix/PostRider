@@ -64,4 +64,13 @@ class TerrainSurveyTest {
 		assertFalse(TerrainSurvey.claim(filled, new ChunkPos(5, -3)), "a late answer from an earlier survey is ignored");
 		assertTrue(TerrainSurvey.claim(filled, new ChunkPos(6, -3)));
 	}
+
+	@Test
+	void aTileOfLoadedChunksIsReadAgainSoonAndOneOffDiskKeptLonger() {
+		int all = TerrainSurvey.TILE_CHUNKS * TerrainSurvey.TILE_CHUNKS;
+		assertEquals(TerrainSurvey.LOADED_LIFETIME, TerrainSurvey.lifetime(all), "all loaded: a few seconds, then looked at afresh");
+		assertEquals(TerrainSurvey.TILE_LIFETIME, TerrainSurvey.lifetime(all - 1), "one off disk: ten minutes");
+		assertEquals(TerrainSurvey.TILE_LIFETIME, TerrainSurvey.lifetime(0));
+		assertTrue(TerrainSurvey.LOADED_LIFETIME < TerrainSurvey.TILE_LIFETIME);
+	}
 }

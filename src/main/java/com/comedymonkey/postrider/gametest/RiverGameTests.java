@@ -266,14 +266,16 @@ public final class RiverGameTests {
 	/**
 	 * A wide river that narrows to a single block, a leap for a horse, well upstream of the straight line between the
 	 * boxes: riding up to the narrows and leaping is much shorter than launching the barge where he first meets the
-	 * water.
+	 * water. The banks at the narrows are sixteen blocks long, so that however the scene falls on the long-range
+	 * plan's 8x8 cells one cell lies wholly on them (a shorter bank can be lost between two cells that each sample
+	 * the river beside it, and then the plan can only see a river to row across).
 	 */
 	@GameTest(skyAccess = true, template = ARENA, batch = "deliver_narrows", timeoutTicks = DELIVERY_TICKS)
 	public static void heLeapsTheRiverAtItsNarrows(GameTestHelper helper) {
 		Scene scene = new Scene(helper);
 		banks(scene);
 		river(scene, X0 + 1, BANK_NORTH, X1 - 1, BANK_SOUTH);
-		int narrowsX0 = 88, narrowsX1 = 95, streamZ = 31;
+		int narrowsX0 = 84, narrowsX1 = 99, streamZ = 31;
 		bank(scene, narrowsX0, BANK_NORTH, narrowsX1, BANK_SOUTH, Blocks.GRASS_BLOCK.defaultBlockState());
 		river(scene, narrowsX0, streamZ, narrowsX1, streamZ);
 		Boxes boxes = post(scene, "GT Narrows", 50, 50, 70, 12);

@@ -542,13 +542,15 @@ public class DeliveryRun {
 		rider.stopRiding();
 		rider.getNavigation().stop();
 		rider.setSprinting(false);
-		// On foot: a horse he'd whistled for and that hasn't come yet isn't wanted now
-		if (horse == null)
+		if (horse == null) {
+			// On foot (he got down to reach the water's edge, or was walking anyway): the horse crosses with him all
+			// the same, appearing aboard; one he'd whistled for and that hasn't come yet isn't wanted now
 			rider.dismissHorse();
-		if (horse != null) {
+			horse = rider.summonHorse(level, barge.position());
+		} else {
 			PostmanEffects.puff(level, horse);
-			horse.startRiding(barge, true);
 		}
+		horse.startRiding(barge, true);
 		rider.startRiding(barge, true);
 		rider.setActivity(PostmanEntity.Activity.ROW);
 		crossedWater = true;
@@ -633,7 +635,8 @@ public class DeliveryRun {
 	public static final int STUCK_LANDING_REACH = 12;
 
 	private boolean land(PostmanEntity rider, ServerLevel level, BargeEntity barge, Vec3 target, int reach) {
-		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> CampSites.floorIn(level, x, z, barge.getBlockY()), reach);
+		BlockPos spot = Crossing.landingSpot(barge.bow(), target, (x, z) -> CampSites.floorIn(level, x, z, barge.getBlockY()), reach,
+			(x, z, y) -> passable(level, new BlockPos(x, y, z)) && passable(level, new BlockPos(x, y + 1, z)));
 		if (spot == null)
 			return false;
 		Vec3 ground = Vec3.atBottomCenterOf(spot);
@@ -666,6 +669,11 @@ public class DeliveryRun {
 			rider.whistleForHorse();
 		enter(Stage.RIDING);
 		return true;
+	}
+
+	/** Whether a body passes through this block (water included: it's the water's edge he steps over). */
+	private static boolean passable(ServerLevel level, BlockPos pos) {
+		return level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
 	}
 
 	// ---------------------------------------------------------------- jumping gaps

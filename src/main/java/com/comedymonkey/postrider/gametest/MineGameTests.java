@@ -16,7 +16,8 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * A mine: a stair of blocks one wide at forty-five degrees (a block down for every block along, as a miner digs
- * one) from the top of a plateau down to a chamber on the bedrock, with a mailbox in it. Delivered to from the top,
+ * one) from the top of a plateau down to a chamber on the bedrock (a layer of it laid at the structure's bottom,
+ * so the scene is the same wherever the structure is put), with a mailbox in it. Delivered to from the top,
  * and from it back up to the top. Judged by {@link Trials#deliver} and a {@link Lookout}: never moved, never hurt,
  * and the stair walked, not ridden (it's a block wide).
  */
@@ -27,10 +28,11 @@ public final class MineGameTests {
 	private static final BlockState STONE = Blocks.STONE.defaultBlockState();
 	private static final BlockState GRASS = Blocks.GRASS_BLOCK.defaultBlockState();
 	private static final BlockState AIR = Blocks.AIR.defaultBlockState();
+	private static final BlockState BEDROCK = Blocks.BEDROCK.defaultBlockState();
 	/** The plateau's top block: he stands on it a block higher. */
 	private static final int PLATEAU = 24;
-	/** The chamber's floor is the test world's bedrock, four below the structure's bottom: he stands on it at -3. */
-	private static final int BEDROCK_FLOOR = -3;
+	/** The chamber's floor is bedrock at the structure's bottom: he stands on it at 1. */
+	private static final int BEDROCK_FLOOR = 1;
 	private static final int STAIR_X = 30, STAIR_Z = 48;
 
 	private MineGameTests() {}
@@ -78,14 +80,14 @@ public final class MineGameTests {
 	}
 
 	/**
-	 * A stone plateau over the whole arena, grass on top, and the mine: from a hole in the top at {@link #STAIR_X}
-	 * a stair one wide and three high going down a block for every block east, through the stone and the ground
-	 * under it to the bedrock, where it opens into a chamber nine square and four high. Returns the x the stair
+	 * Bedrock over the whole arena's bottom, a stone plateau on it with grass on top, and the mine: from a hole in
+	 * the top at {@link #STAIR_X} a stair one wide and three high going down a block for every block east, through
+	 * the stone to the bedrock, where it opens into a chamber nine square and four high. Returns the x the stair
 	 * reaches the chamber at.
 	 */
 	private static int mine(Scene scene) {
-		// From the structure's own bottom (the test world's ground is a block below it), so there's no gap under it
-		scene.fill(0, 0, 0, 95, PLATEAU - 1, 95, STONE);
+		scene.fill(0, 0, 0, 95, 0, 95, BEDROCK);
+		scene.fill(0, 1, 0, 95, PLATEAU - 1, 95, STONE);
 		scene.fill(0, PLATEAU, 0, 95, PLATEAU, 95, GRASS);
 		int feet = PLATEAU, x = STAIR_X;
 		while (feet > BEDROCK_FLOOR) {

@@ -1,7 +1,6 @@
 package com.comedymonkey.postrider.gametest;
 
 import com.comedymonkey.postrider.PostRider;
-import com.comedymonkey.postrider.content.postman.route.TerrainSurvey;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -98,9 +97,8 @@ public final class CaveGameTests {
 			scene.helper.setBlock(new BlockPos(x, y, z), ladder);
 	}
 
-	/** Mail posted from one box to the other, with the long-range survey forgotten so it sees the scene as built. */
+	/** Mail posted from one box to the other. */
 	private static Watch post(Scene scene, BlockPos from, String fromName, String toName) {
-		TerrainSurvey.clear();
 		return new Watch(scene, scene.post(from, fromName, toName));
 	}
 

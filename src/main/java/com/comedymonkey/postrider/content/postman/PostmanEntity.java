@@ -460,6 +460,17 @@ public class PostmanEntity extends PathfinderMob {
 		return getVehicle() instanceof PostmanHorse horse ? horse : null;
 	}
 
+	/** His horse, in his livery, appearing here in a puff of smoke (not yet mounted). */
+	public PostmanHorse summonHorse(ServerLevel level, Vec3 at) {
+		PostmanHorse horse = PostmanHorse.create(ModEntities.POSTMAN_HORSE.get(), level, at.x, at.y, at.z, getYRot());
+		Roster.Rider rider = getRider();
+		if (rider != null)
+			horse.dressAs(rider.horse());
+		level.addFreshEntity(horse);
+		PostmanEffects.puff(level, horse);
+		return horse;
+	}
+
 	/** Whether he has whistled and his horse hasn't come yet. */
 	public boolean isHorseOnTheWay() {
 		return horseCountdown > 0 || arrivingHorse != null;
@@ -469,13 +480,8 @@ public class PostmanEntity extends PathfinderMob {
 		if (horseCountdown > 0 && --horseCountdown == 0) {
 			EntityType<PostmanHorse> type = ModEntities.POSTMAN_HORSE.get();
 			Vec3 spot = HorseSpots.find(position(), getYRot(), s -> HorseSpots.fits(level, type, s));
-			PostmanHorse horse = spot == null ? null : PostmanHorse.create(type, level, spot.x, spot.y, spot.z, getYRot());
+			PostmanHorse horse = spot == null ? null : summonHorse(level, spot);
 			if (horse != null) {
-				Roster.Rider rider = getRider();
-				if (rider != null)
-					horse.dressAs(rider.horse());
-				level.addFreshEntity(horse);
-				PostmanEffects.puff(level, horse);
 				arrivingHorse = horse;
 				mountCountdown = MOUNTS_AFTER;
 			}
