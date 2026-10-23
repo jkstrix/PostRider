@@ -37,7 +37,7 @@ import net.neoforged.neoforge.common.NeoForge;
  * the rider most recently out, looking at him (the mouse swings the view round him), then the next once that
  * one's delivered, and so on; shift lets go of a rider until the next one, and the game doesn't pause when another
  * window is in front. It stays open
- * afterwards (type {@code /test runall} or {@code /test run postrider:<name>} for another go; {@code /test clearall}
+ * afterwards (type {@code /test runall} or {@code /test run <name>} for another go; {@code /test clearall}
  * tidies up).
  */
 public final class DevWatch {
@@ -62,12 +62,15 @@ public final class DevWatch {
 
 	private DevWatch() {}
 
-	/** The test command for what the property asks for: everything, or one test by its name (namespace or not). */
+	/**
+	 * The test command for what the property asks for: everything, or one test by its name (the method's, in lower
+	 * case, as the tests are registered; a {@code postrider:} in front is dropped).
+	 */
 	public static String command(String wanted) {
 		String name = wanted == null ? "" : wanted.trim().toLowerCase(Locale.ROOT);
 		if (name.isEmpty() || name.equals("all") || name.equals("true"))
 			return "test runall";
-		return "test run " + (name.contains(":") ? name : PostRider.MOD_ID + ":" + name);
+		return "test run " + name.substring(name.indexOf(':') + 1);
 	}
 
 	/** Switches the run on if the game was started for it. */
