@@ -480,4 +480,13 @@ class NavigatorTest {
 		assertEquals(0.5 + Navigator.TIGHT_LOOKAHEAD, Navigator.steerFor(way, false, goal, here, true).x, 1e-6, "a lead between bergs: close along, so the hull follows the bends");
 		assertTrue(Navigator.TIGHT_LOOKAHEAD < Navigator.WATER_LOOKAHEAD);
 	}
+
+	@Test
+	void strikesAreForgivenTwiceInAWhileAndThenStand() {
+		java.util.Deque<Long> forgivenAt = new java.util.ArrayDeque<>();
+		assertTrue(Navigator.mayForgive(forgivenAt, 100));
+		assertTrue(Navigator.mayForgive(forgivenAt, 200));
+		assertFalse(Navigator.mayForgive(forgivenAt, 300), "a third time in the same place: they stand, and the jump free gets its turn");
+		assertTrue(Navigator.mayForgive(forgivenAt, 100 + Navigator.FORGIVENESS_WINDOW + 1), "much later, somewhere else: forgiven again");
+	}
 }

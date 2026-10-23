@@ -1,5 +1,7 @@
 package com.comedymonkey.postrider.content.postman.route;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -100,12 +102,31 @@ public final class Navigator {
 	@Nullable
 	private ServerLevel lastLevel;
 
+	/** How often, at most, strikes are forgiven in {@link #FORGIVENESS_WINDOW} ticks: forgiven over and over in one place, he'd strike and replan the same route for ever rather than be jumped free. */
+	public static final int MAX_FORGIVENESS = 2;
+	public static final int FORGIVENESS_WINDOW = 2400;
+	private final Deque<Long> forgivenAt = new ArrayDeque<>();
+
+	/** Whether strikes may be forgiven now, and notes it if so: no more than {@link #MAX_FORGIVENESS} times in the window. */
+	static boolean mayForgive(Deque<Long> forgivenAt, long now) {
+		while (!forgivenAt.isEmpty() && now - forgivenAt.peekFirst() > FORGIVENESS_WINDOW)
+			forgivenAt.pollFirst();
+		if (forgivenAt.size() >= MAX_FORGIVENESS)
+			return false;
+		forgivenAt.addLast(now);
+		return true;
+	}
+
 	/** Forgives the cells struck off this trip (bar shores that led nowhere), once per failed plan; false if there were none to forgive, or they just were. */
 	private boolean forgiveStrikes() {
 		if (lastTarget == null || lastLevel == null)
 			return false;
 		if (!strikesForgivenForThisPlan) {
 			strikesForgivenForThisPlan = true;
+			if (!blocked.isEmpty() && !blocked.equals(noShore) && !mayForgive(forgivenAt, lastLevel.getGameTime())) {
+				log.accept("no long-range route with " + blocked.size() + " cells struck off, and they've been forgiven twice lately: they stand, and he gets himself out of here");
+				return false;
+			}
 			int before = blocked.size();
 			blocked.retainAll(noShore);
 			strikesForgiven = before - blocked.size();

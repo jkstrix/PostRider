@@ -196,4 +196,15 @@ class JourneyTest {
 		assertFalse(progress.isStalled(0, 62, 0, Journey.Progress.STALL_TICKS, 300), "five seconds pressed against the bank is nothing for a barge");
 		assertTrue(progress.isStalled(0, 62, 0, 300, 300));
 	}
+
+	@Test
+	void aStrikeOffsOwnRedoIsNoRedoWithoutProgress() {
+		Journey.Progress progress = new Journey.Progress();
+		progress.isStuck(1000, 0);
+		for (int i = 0; i < Journey.Progress.MAX_REDOS; i++)
+			progress.rebase(1000, 10 + i);
+		assertTrue(progress.isStuck(1000, 20), "redone six times without getting nearer: stuck");
+		progress.struckOff();
+		assertFalse(progress.isStuck(1000, 21), "the way ahead struck off and the route redone on purpose: the count starts again");
+	}
 }

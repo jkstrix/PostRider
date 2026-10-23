@@ -303,8 +303,12 @@ public class PostmanEntity extends PathfinderMob {
 		Vec3 stand = DeliveryRun.standingSpot(level, mailbox, DeliveryRun.PICKUP_STAND_OFF);
 		for (int up = 0; up <= 3 && !level.noCollision(type.getSpawnAABB(stand.x, stand.y, stand.z)); up++)
 			stand = stand.add(0, 1, 0);
-		if (!level.noCollision(type.getSpawnAABB(stand.x, stand.y, stand.z)))
-			return null;
+		if (!level.noCollision(type.getSpawnAABB(stand.x, stand.y, stand.z))) {
+			// The stand in front of the box is in a bush, a bank, a tree: the nearest standing room will do
+			stand = standingRoomNear(level, type, BlockPos.containing(DeliveryRun.standingSpot(level, mailbox, DeliveryRun.PICKUP_STAND_OFF)));
+			if (stand == null)
+				return null;
+		}
 		float yaw = DeliveryRun.yawToward(stand, Vec3.atBottomCenterOf(mailbox));
 		PostmanEntity rider = appear(type, level, stand.x, stand.y, stand.z, yaw, who);
 		if (rider != null)

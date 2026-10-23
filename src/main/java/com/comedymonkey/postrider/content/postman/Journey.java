@@ -172,6 +172,14 @@ public final class Journey {
 			stallX = Double.NaN;
 		}
 
+		/**
+		 * The way ahead was struck off and the route is being redone on purpose: that redo isn't one more without
+		 * progress, or the next check would find him stuck again at once and strike again, over and over.
+		 */
+		public void struckOff() {
+			redosWithoutProgress = 0;
+		}
+
 		/** This many ticks were spent busy (the route being redone, say): they don't count, but the clocks keep what they had. */
 		public void excuse(int ticks) {
 			bestSince += ticks;

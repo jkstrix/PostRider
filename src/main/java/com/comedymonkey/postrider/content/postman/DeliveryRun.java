@@ -685,9 +685,9 @@ public class DeliveryRun {
 				.stream().map(Entity::position).toList();
 			// Along its way across the water, round the bends; with none to be found, the old straight swerves
 			Vec3 aim = navigator.bargeAim(level, barge.position(), nearY, target, drowned, level.getGameTime());
-			// Caught on an edge with the way across going on: it pulls back onto the line of the way first, rather than
-			// push at what it's caught on
-			if (aim != null && barge.isBlockedAhead()) {
+			// Caught on an edge with the way across going on, or on a corner by its side: it pulls back onto the line
+			// of the way first, rather than push at what it's caught on (or back off and come straight back onto it)
+			if (aim != null && (barge.isBlockedAhead() || caughtOnACorner(barge.horizontalCollision, barge.isBlockedAhead()))) {
 				Vec3 line = navigator.waterPathNearest(barge.position());
 				if (line != null && Journey.horizontalDistance(line, barge.position()) > OFF_THE_LINE)
 					aim = line;
@@ -1364,6 +1364,7 @@ public class DeliveryRun {
 				rider.getNavigation().stop();
 				navigator.clearStretch();
 				progress.pause(now);
+				progress.struckOff();
 				// The map comes out while the new route is worked out (the route's already asked for), and it's
 				// checked against the ground before he sets off again
 				lastMapStop = now;
