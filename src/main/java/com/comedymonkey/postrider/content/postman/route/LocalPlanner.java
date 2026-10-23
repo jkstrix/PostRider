@@ -75,6 +75,8 @@ public final class LocalPlanner {
 	public static final double STEP_UP_COST = 0.5;
 	public static final double DROP_COST = 0.25;
 	public static final double LEAP_COST = 2.0;
+	/** What a step on ice costs, to the block: bad going (and cracked by leads at sea), kept off where there's other ground near. */
+	public static final double ICE_COST = 3.0;
 	public static final double CLIMB_COST = 1.5;
 	/** A block up or down a bubble column: quicker than a ladder, as the water does the work. */
 	public static final double COLUMN_COST = 1.0;
@@ -727,6 +729,8 @@ public final class LocalPlanner {
 		double cost = length * (mounted ? 1.0 : FOOT_COST);
 		if (!mounted && terrain.kind(x, y, z) == Terrain.Kind.DOOR)
 			cost += DOOR_COST;
+		if (terrain.icy(x, y, z))
+			cost *= ICE_COST;
 		return terrain.covered(x, y, z) ? cost * COVERED_COST : cost;
 	}
 

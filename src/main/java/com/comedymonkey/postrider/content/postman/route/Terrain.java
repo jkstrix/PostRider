@@ -52,6 +52,11 @@ public interface Terrain {
 
 	Kind kind(int x, int y, int z);
 
+	/** Whether a place stands on ice (sea ice, a frozen lake): walkable, but bad going that a way keeps off where it can. */
+	default boolean icy(int x, int y, int z) {
+		return false;
+	}
+
 	/** Whether there's a roof over this spot (underground, or indoors): a little dearer, as monsters lurk there. */
 	boolean covered(int x, int y, int z);
 }

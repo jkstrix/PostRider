@@ -48,6 +48,15 @@ public final class LevelTerrain implements Terrain {
 	}
 
 	@Override
+	public boolean icy(int x, int y, int z) {
+		LevelChunk chunk = chunk(x, z);
+		if (chunk == null || level.isOutsideBuildHeight(y - 1))
+			return false;
+		cursor.set(x, y - 1, z);
+		return chunk.getBlockState(cursor).is(BlockTags.ICE);
+	}
+
+	@Override
 	public boolean covered(int x, int y, int z) {
 		LevelChunk chunk = chunk(x, z);
 		return chunk != null && chunk.getHeight(Heightmap.Types.MOTION_BLOCKING, x & 15, z & 15) >= y;

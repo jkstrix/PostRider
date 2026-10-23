@@ -23,6 +23,10 @@ import net.minecraft.util.SimpleBitStorage;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.QuartPos;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HugeMushroomBlock;
@@ -130,7 +134,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 				tile.filled[chunk] = false;
 				tile.chunksLeft++;
 				int[][] ground = groundOf(loaded);
-				fill(tile, pos, ground[0], ground[1]);
+				fill(tile, pos, ground[0], ground[1], ground[2]);
 			}
 	}
 
@@ -151,7 +155,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 				LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
 				if (chunk != null) {
 					int[][] ground = groundOf(chunk);
-					fill(tile, pos, ground[0], ground[1]);
+					fill(tile, pos, ground[0], ground[1], ground[2]);
 					loaded++;
 				} else {
 					readSaved(pos);
@@ -172,7 +176,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		// estimated on the server thread (the generator's noise is sampled there, and nothing can go missing)
 		level.getChunkSource().chunkMap.read(pos).whenComplete((saved, error) -> {
 			Arrival arrival = fromSaved(pos, saved, error, heightBits, minY);
-			arrivals.add(arrival != null ? arrival : new Arrival(pos, null, null));
+			arrivals.add(arrival != null ? arrival : new Arrival(pos, null, null, null));
 		});
 	}
 
@@ -186,8 +190,9 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 			return null;
 		CompoundTag heightmaps = tag.getCompound("Heightmaps");
 		try {
+			// (Its biomes aren't read off disk: an ice field there is known once the chunk is loaded and read afresh)
 			return new Arrival(pos, heights(heightmaps.getLongArray("OCEAN_FLOOR"), bits, minY),
-				heights(heightmaps.getLongArray("MOTION_BLOCKING_NO_LEAVES"), bits, minY));
+				heights(heightmaps.getLongArray("MOTION_BLOCKING_NO_LEAVES"), bits, minY), new int[256]);
 		} catch (RuntimeException e) {
 			return null;
 		}
@@ -198,13 +203,14 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	 * ground (the ocean floor, as the generator calls it) and the top of any water over it. Nothing is generated.
 	 */
 	private static Arrival estimated(ChunkPos pos, ChunkGenerator generator, RandomState random, LevelHeightAccessor heights) {
-		int[] floors = new int[256], tops = new int[256];
+		int[] floors = new int[256], tops = new int[256], icy = new int[256];
 		for (int column : sampledColumns()) {
 			int x = pos.getMinBlockX() + column % 16, z = pos.getMinBlockZ() + column / 16;
 			floors[column] = generator.getBaseHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, heights, random);
 			tops[column] = generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, heights, random);
+			icy[column] = isIceField(generator.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(tops[column]), QuartPos.fromBlock(z), random.sampler())) ? 1 : 0;
 		}
-		return new Arrival(pos, floors, tops);
+		return new Arrival(pos, floors, tops, icy);
 	}
 
 	/** The columns of a chunk (index z * 16 + x) that its cells sample: the only ones an estimate need look at. */
@@ -227,24 +233,24 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 					PostRider.LOGGER.warn("Route survey couldn't estimate chunk {}: taken as plain ground at sea level", arrival.pos(), e);
 					int[] plain = new int[256];
 					Arrays.fill(plain, level.getSeaLevel() + 1);
-					arrival = new Arrival(arrival.pos(), plain, plain);
+					arrival = new Arrival(arrival.pos(), plain, plain, new int[256]);
 				}
 			}
-			fill(arrival.pos(), arrival.floors(), arrival.tops());
+			fill(arrival.pos(), arrival.floors(), arrival.tops(), arrival.icy());
 		}
 	}
 
-	private void fill(ChunkPos pos, int[] floors, int[] tops) {
+	private void fill(ChunkPos pos, int[] floors, int[] tops, int[] icy) {
 		Tile tile = tiles.get(ChunkPos.asLong(Math.floorDiv(pos.x, TILE_CHUNKS), Math.floorDiv(pos.z, TILE_CHUNKS)));
 		if (tile != null) {
 			// Off disk or estimated: to be read from the real ground once the chunk is loaded
 			tile.guessed[Math.floorMod(pos.z, TILE_CHUNKS) * TILE_CHUNKS + Math.floorMod(pos.x, TILE_CHUNKS)] = true;
-			fill(tile, pos, floors, tops);
+			fill(tile, pos, floors, tops, icy);
 		}
 	}
 
-	private void fill(Tile tile, ChunkPos pos, int[] floors, int[] tops) {
-		CoarsePlanner.Cell[] chunkCells = cellsOfChunk(floors, tops, level.getMinBuildHeight());
+	private void fill(Tile tile, ChunkPos pos, int[] floors, int[] tops, int[] icy) {
+		CoarsePlanner.Cell[] chunkCells = cellsOfChunk(floors, tops, icy, level.getMinBuildHeight());
 		if (!claim(tile.filled, pos))
 			return;
 		int baseX = Math.floorMod(pos.x, TILE_CHUNKS) * CELLS_PER_CHUNK, baseZ = Math.floorMod(pos.z, TILE_CHUNKS) * CELLS_PER_CHUNK;
@@ -261,7 +267,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	 * stands on. The floors first, then the tops; only the sampled columns are filled in.
 	 */
 	static int[][] groundOf(LevelChunk chunk) {
-		int[] floors = new int[256], tops = new int[256];
+		int[] floors = new int[256], tops = new int[256], icy = new int[256];
 		int minY = chunk.getMinBuildHeight();
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 		for (int column : sampledColumns()) {
@@ -271,12 +277,20 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 			while (y >= minY && !holdsUp(chunk.getBlockState(pos.set(x, y, z))))
 				y--;
 			tops[column] = y + 1;
+			// Ice underfoot, or the biome of a frozen sea or river: an ice field
+			boolean iceUnderfoot = y >= minY && chunk.getBlockState(pos.set(x, y, z)).is(BlockTags.ICE);
+			icy[column] = iceUnderfoot || isIceField(chunk.getNoiseBiome(QuartPos.fromBlock(chunk.getPos().getMinBlockX() + x), QuartPos.fromBlock(y), QuartPos.fromBlock(chunk.getPos().getMinBlockZ() + z))) ? 1 : 0;
 			// And on down through the water to its floor
 			while (y >= minY && !chunk.getBlockState(pos.set(x, y, z)).blocksMotion())
 				y--;
 			floors[column] = y + 1;
 		}
-		return new int[][] {floors, tops};
+		return new int[][] {floors, tops, icy};
+	}
+
+	/** Whether a biome is an ice field: a frozen ocean (deep or not) or a frozen river, sea ice with leads and holes in it. */
+	public static boolean isIceField(Holder<Biome> biome) {
+		return biome.is(Biomes.FROZEN_OCEAN) || biome.is(Biomes.DEEP_FROZEN_OCEAN) || biome.is(Biomes.FROZEN_RIVER);
 	}
 
 	/** Whether a block is ground, or water, as the survey sees it: anything that blocks motion but a tree, or any liquid. */
@@ -316,21 +330,28 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 
 	/** The cells of one chunk (x fastest) from its floor and top heights (column index z * 16 + x). */
 	public static CoarsePlanner.Cell[] cellsOfChunk(int[] floors, int[] tops, int minY) {
+		return cellsOfChunk(floors, tops, new int[256], minY);
+	}
+
+	/** As above, with which columns are in an ice field (1 for one that is). */
+	public static CoarsePlanner.Cell[] cellsOfChunk(int[] floors, int[] tops, int[] icy, int minY) {
 		CoarsePlanner.Cell[] cells = new CoarsePlanner.Cell[CELLS_PER_CHUNK * CELLS_PER_CHUNK];
 		for (int cx = 0; cx < CELLS_PER_CHUNK; cx++)
 			for (int cz = 0; cz < CELLS_PER_CHUNK; cz++) {
 				int[] cellFloors = new int[SAMPLES.length], cellTops = new int[SAMPLES.length];
+				boolean[] cellIcy = new boolean[SAMPLES.length];
 				for (int i = 0; i < SAMPLES.length; i++) {
 					int column = (cz * CoarsePlanner.CELL + SAMPLES[i][1]) * 16 + cx * CoarsePlanner.CELL + SAMPLES[i][0];
 					cellFloors[i] = floors[column];
 					cellTops[i] = tops[column];
+					cellIcy[i] = icy[column] != 0;
 				}
-				cells[cz * CELLS_PER_CHUNK + cx] = CoarsePlanner.Cell.of(cellFloors, cellTops, minY);
+				cells[cz * CELLS_PER_CHUNK + cx] = CoarsePlanner.Cell.of(cellFloors, cellTops, cellIcy, minY);
 			}
 		return cells;
 	}
 
-	private record Arrival(ChunkPos pos, int @Nullable [] floors, int @Nullable [] tops) {}
+	private record Arrival(ChunkPos pos, int @Nullable [] floors, int @Nullable [] tops, int @Nullable [] icy) {}
 
 	private static final class Tile {
 		final CoarsePlanner.Cell[] cells = new CoarsePlanner.Cell[TILE_CELLS * TILE_CELLS];

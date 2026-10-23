@@ -48,6 +48,11 @@ public final class CoarsePlanner {
 	public static final int CLIFF_WITHIN = 8;
 	/** Half-water ground (a marsh, a river bank) is slow going. */
 	public static final double SHORE_COST = 1.25;
+	/**
+	 * What riding an ice field costs, to the block: sea ice is cracked by leads and holes, so a route goes round by
+	 * the coast when there is one within reach, and across the ice only when there isn't.
+	 */
+	public static final double ICE_COST = 4;
 	public static final int MAX_NODES = 60_000;
 	/** While he waits for terrain, the planner asks after this many more places on its list so they come together. */
 	private static final int PREFETCH = 32;
@@ -55,10 +60,19 @@ public final class CoarsePlanner {
 	private static final double DIAGONAL = Math.sqrt(2);
 
 	/** What a cell is like, from four columns sampled in it. */
-	public record Cell(int height, int liquid, int rough, boolean isVoid) {
+	public record Cell(int height, int liquid, int rough, boolean isVoid, int icy) {
+		public Cell(int height, int liquid, int rough, boolean isVoid) {
+			this(height, liquid, rough, isVoid, 0);
+		}
+
 		/** Mostly water (or lava): crossed only by barge. */
 		public boolean water() {
 			return !isVoid && liquid >= 3;
+		}
+
+		/** An ice field (a frozen ocean or river): sea ice with leads and holes in it, bad going and no water to row. */
+		public boolean ice() {
+			return !isVoid && icy >= 2;
 		}
 
 		public boolean shore() {
@@ -70,7 +84,12 @@ public final class CoarsePlanner {
 		 * height above any water on it). A column whose floor is at the bottom of the world has no ground at all.
 		 */
 		public static Cell of(int[] floors, int[] tops, int minY) {
-			int liquid = 0, voids = 0, land = 0;
+			return of(floors, tops, new boolean[floors.length], minY);
+		}
+
+		/** As above, with which of the columns are in an ice field. */
+		public static Cell of(int[] floors, int[] tops, boolean[] icy, int minY) {
+			int liquid = 0, voids = 0, land = 0, ice = 0;
 			int floorSum = 0, topSum = 0, low = Integer.MAX_VALUE, high = Integer.MIN_VALUE;
 			for (int i = 0; i < floors.length; i++) {
 				if (floors[i] <= minY) {
@@ -78,6 +97,8 @@ public final class CoarsePlanner {
 					continue;
 				}
 				land++;
+				if (icy[i])
+					ice++;
 				floorSum += floors[i];
 				low = Math.min(low, floors[i]);
 				high = Math.max(high, floors[i]);
@@ -89,7 +110,7 @@ public final class CoarsePlanner {
 			if (land == 0 || voids >= 3)
 				return new Cell(minY, 0, 0, true);
 			int height = liquid >= 3 ? topSum / liquid : floorSum / land;
-			return new Cell(height, liquid, high - low, false);
+			return new Cell(height, liquid, high - low, false, ice);
 		}
 	}
 
@@ -237,7 +258,8 @@ public final class CoarsePlanner {
 		// start is water whatever its columns say (an inlet in sea ice reads as land, and he's in the barge in it)
 		boolean fromWater = fromStart ? afloat : from.water(), toWater = to.water() && !toGoal;
 		if (toWater) {
-			if (!barge)
+			// The water of an ice field is never rowed: sea ice shuts the barge in
+			if (!barge || to.ice())
 				return -1;
 			return length * rowing + (fromWater ? 0 : LAUNCH_COST);
 		}
@@ -246,11 +268,11 @@ public final class CoarsePlanner {
 		if (rise > MAX_RISE || (!toGoal && to.rough() > CLIFF_WITHIN))
 			return -1;
 		if (fromWater)
-			return length * rowing + LANDING_COST;
+			return length * rowing + LANDING_COST + (to.ice() ? length * ICE_COST : 0);
 		double slope = rise / length;
 		double steep = slope <= 0.25 ? slope : 0.25 + (slope - 0.25) * 6;
 		double rough = Math.min(to.rough(), 16) / 32.0;
-		return length * (1 + steep + rough) * (to.shore() ? SHORE_COST : 1);
+		return length * (1 + steep + rough) * (to.shore() ? SHORE_COST : 1) * (to.ice() ? ICE_COST : 1);
 	}
 
 	private double toGo(int cx, int cz) {
@@ -268,10 +290,15 @@ public final class CoarsePlanner {
 		List<Leg> legs = new ArrayList<>();
 		List<Node> run = new ArrayList<>();
 		LegKind kind = null;
+		LegKind[] kinds = new LegKind[path.size()];
+		for (int i = 0; i < path.size(); i++) {
+			boolean ends = i == 0 && !afloat || i == path.size() - 1;
+			kinds[i] = (path.get(i).cell.water() || i == 0 && afloat) && !ends ? LegKind.WATER : LegKind.LAND;
+		}
+		smooth(kinds);
 		for (int i = 0; i < path.size(); i++) {
 			Node node = path.get(i);
-			boolean ends = i == 0 && !afloat || i == path.size() - 1;
-			LegKind here = (node.cell.water() || i == 0 && afloat) && !ends ? LegKind.WATER : LegKind.LAND;
+			LegKind here = kinds[i];
 			if (kind != null && here != kind) {
 				legs.add(new Leg(kind, pull(run, kind)));
 				run = new ArrayList<>();
@@ -282,6 +309,16 @@ public final class CoarsePlanner {
 		if (!run.isEmpty())
 			legs.add(new Leg(kind, pull(run, kind)));
 		return new Plan(legs, effort(path));
+	}
+
+	/**
+	 * A lone cell of the other kind between two runs is no leg of its own (a pond on the way is ridden round, an
+	 * islet rowed round): it goes with the run either side, so the route isn't chopped into legs of a few blocks.
+	 */
+	static void smooth(LegKind[] kinds) {
+		for (int i = 1; i + 1 < kinds.length; i++)
+			if (kinds[i] != kinds[i - 1] && kinds[i] != kinds[i + 1] && kinds[i - 1] == kinds[i + 1])
+				kinds[i] = kinds[i - 1];
 	}
 
 	/** What the way really costs, with rowing at its true price (the search made it dearer so he'd row less). */
@@ -325,6 +362,9 @@ public final class CoarsePlanner {
 			if (cell == null || cell.isVoid() || blocked.contains(key(cx, cz)) || cell.water() != (kind == LegKind.WATER))
 				return false;
 			if (kind == LegKind.LAND && Math.abs(cell.height() - previous.height()) > CELL / 2)
+				return false;
+			// A straight line isn't drawn across an ice field the way went round (unless the way is over the ice anyway)
+			if (cell.ice() && !(a.cell.ice() && b.cell.ice()))
 				return false;
 			previous = cell;
 		}

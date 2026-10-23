@@ -9,6 +9,7 @@ import net.minecraft.core.BlockPos;
 final class GridTerrain implements Terrain {
 	static final int GROUND = 64;
 	private final Map<Long, Kind> blocks = new HashMap<>();
+	private final java.util.Set<Long> ice = new java.util.HashSet<>();
 	private final int reach;
 
 	GridTerrain() {
@@ -26,6 +27,19 @@ final class GridTerrain implements Terrain {
 				for (int z = Math.min(z1, z2); z <= Math.max(z1, z2); z++)
 					blocks.put(BlockPos.asLong(x, y, z), kind);
 		return this;
+	}
+
+	/** The columns between these corners stand on ice. */
+	GridTerrain ice(int x0, int z0, int x1, int z1) {
+		for (int x = Math.min(x0, x1); x <= Math.max(x0, x1); x++)
+			for (int z = Math.min(z0, z1); z <= Math.max(z0, z1); z++)
+				ice.add(BlockPos.asLong(x, 0, z));
+		return this;
+	}
+
+	@Override
+	public boolean icy(int x, int y, int z) {
+		return ice.contains(BlockPos.asLong(x, 0, z));
 	}
 
 	@Override

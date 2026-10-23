@@ -323,4 +323,42 @@ class CoarsePlannerTest {
 		// On land the same strikes next to the start are spared, or the way could never begin
 		assertEquals(Status.DONE, new CoarsePlanner(inlet, 2, 2, 11, 2, struck, false).finishNow());
 	}
+
+	private static final Cell ICE = new Cell(63, 0, 0, false, 4);
+	private static final Cell ICE_WATER = new Cell(62, 4, 0, false, 4);
+
+	@Test
+	void anIceFieldIsRiddenRoundWhereThereIsAWayRoundAndAcrossWhereThereIsNot() {
+		// A band of sea ice across the way, with grass round its south end: the long way round is taken
+		CoarsePlanner.Cells field = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 6 ? VOID : cx >= 8 && cx <= 12 && cz <= 3 ? ICE : LAND;
+		Plan round = plan(field, 2, 1, 18, 1);
+		for (int cx = 8; cx <= 12; cx++)
+			for (int cz = 0; cz <= 3; cz++)
+				assertFalse(passesThrough(round, cx, cz), "across the ice at " + cx + " " + cz + ": " + round.legs());
+		// The band right across: ridden over on the ice, as land, since there's no way round
+		CoarsePlanner.Cells wall = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 6 ? VOID : cx >= 8 && cx <= 12 ? ICE : LAND;
+		Plan across = plan(wall, 2, 1, 18, 1);
+		assertEquals(1, across.legs().size(), across.legs().toString());
+		assertEquals(LegKind.LAND, across.legs().get(0).kind());
+	}
+
+	@Test
+	void theBargeNeverRowsTheWaterOfAnIceField() {
+		CoarsePlanner.Cells sea = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx >= 8 && cx <= 12 ? ICE_WATER : LAND;
+		assertEquals(Status.FAILED, new CoarsePlanner(sea, 2, 2, 18, 2, Set.of()).finishNow(), "sea ice shuts the barge in");
+		CoarsePlanner.Cells open = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx >= 8 && cx <= 12 ? WATER : LAND;
+		Plan plan = plan(open, 2, 2, 18, 2);
+		assertEquals(LegKind.WATER, plan.legs().get(1).kind(), "open water is rowed: " + plan.legs());
+	}
+
+	@Test
+	void aLoneCellOfTheOtherKindMakesNoLegOfItsOwn() {
+		LegKind[] kinds = {LegKind.LAND, LegKind.LAND, LegKind.WATER, LegKind.LAND, LegKind.LAND, LegKind.WATER, LegKind.WATER, LegKind.LAND, LegKind.WATER, LegKind.WATER};
+		CoarsePlanner.smooth(kinds);
+		LegKind[] smoothed = {LegKind.LAND, LegKind.LAND, LegKind.LAND, LegKind.LAND, LegKind.LAND, LegKind.WATER, LegKind.WATER, LegKind.WATER, LegKind.WATER, LegKind.WATER};
+		assertEquals(List.of(smoothed), List.of(kinds), "a pond is ridden round and an islet rowed round");
+		LegKind[] ends = {LegKind.WATER, LegKind.LAND, LegKind.LAND};
+		CoarsePlanner.smooth(ends);
+		assertEquals(LegKind.WATER, ends[0], "the ends are left alone");
+	}
 }

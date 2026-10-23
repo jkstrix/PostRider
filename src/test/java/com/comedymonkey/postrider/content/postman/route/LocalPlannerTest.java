@@ -462,4 +462,17 @@ class LocalPlannerTest {
 		assertFalse(scrap.found());
 		assertTrue(com.comedymonkey.postrider.content.postman.DeliveryRun.isScrapOfShore(scrap.found(), scrap.expanded()), "all of it seen: " + scrap.expanded());
 	}
+
+	@Test
+	void aWayKeepsOffTheIceWhereThereIsOtherGroundNear() {
+		// A patch of ice straight across the way, with open ground either side of it: the way goes round
+		GridTerrain ice = new GridTerrain().ice(5, -3, 15, 3);
+		LocalPlanner planner = riding(ice, 20, 0);
+		assertEquals(Status.FOUND, planner.finishNow());
+		for (Step step : planner.steps())
+			assertFalse(step.x() >= 5 && step.x() <= 15 && Math.abs(step.z()) <= 3, "on the ice at " + step);
+		// Ice right across, as far as the search goes: ridden over all the same
+		GridTerrain sheet = new GridTerrain().ice(5, -400, 15, 400);
+		assertEquals(Status.FOUND, riding(sheet, 20, 0).finishNow());
+	}
 }

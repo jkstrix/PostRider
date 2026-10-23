@@ -104,4 +104,19 @@ class TerrainSurveyTest {
 		assertFalse(TerrainSurvey.holdsUp(Blocks.AIR.defaultBlockState()));
 		assertFalse(TerrainSurvey.holdsUp(Blocks.SHORT_GRASS.defaultBlockState()));
 	}
+
+	@Test
+	void theColumnsOfAnIceFieldMakeAnIceCell() {
+		int[] floors = new int[256], tops = new int[256], icy = new int[256];
+		Arrays.fill(floors, 64);
+		Arrays.fill(tops, 64);
+		for (int z = 0; z < 8; z++)
+			for (int x = 0; x < 8; x++)
+				icy[z * 16 + x] = 1;
+		CoarsePlanner.Cell[] cells = TerrainSurvey.cellsOfChunk(floors, tops, icy, MIN_Y);
+		assertTrue(cells[0].ice(), "the first cell's columns are all sea ice");
+		assertFalse(cells[0].water(), "ice is ridden, not rowed");
+		assertFalse(cells[1].ice());
+		assertFalse(TerrainSurvey.cellsOfChunk(floors, tops, MIN_Y)[0].ice(), "no ice flagged: no ice");
+	}
 }
