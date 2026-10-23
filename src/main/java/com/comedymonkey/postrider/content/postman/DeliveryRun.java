@@ -610,7 +610,7 @@ public class DeliveryRun {
 		if (barge == null)
 			return false;
 		Vec3 shore = rider.position();
-		barge.moveTo(spot.x, BargeEntity.floatHeight(spot.y), spot.z, yawToward(spot, target), 0);
+		barge.moveTo(spot.x, Crossing.restHeight(level, Mth.floor(spot.x), Mth.floor(spot.z), spot.y), spot.z, yawToward(spot, target), 0);
 		level.addFreshEntity(barge);
 		PostmanEffects.puff(level, barge);
 		PostmanHorse horse = rider.getHorse();
@@ -680,7 +680,7 @@ public class DeliveryRun {
 		}
 		if (--aimCooldown <= 0) {
 			aimCooldown = BARGE_AIM_INTERVAL;
-			int nearY = barge.getBlockY();
+			int nearY = barge.waterLevelY();
 			List<Vec3> drowned = level.getEntitiesOfClass(Drowned.class, barge.getBoundingBox().inflate(Journey.stretch() + Crossing.DROWNED_BERTH))
 				.stream().map(Entity::position).toList();
 			// Along its way across the water, round the bends; with none to be found, the old straight swerves
@@ -1340,7 +1340,7 @@ public class DeliveryRun {
 		// Stuck on the water with nowhere to step off: the barge is pushed off to open water a little way on towards the
 		// box (never put down on land, as a jump would); failing that he leaves it and is jumped ashore like anyone
 		if (stage == Stage.BARGING && rider.getVehicle() instanceof BargeEntity barge) {
-			int nearY = barge.getBlockY();
+			int nearY = barge.waterLevelY();
 			Vec3 on = barge.position().add(new Vec3(target.x - barge.getX(), 0, target.z - barge.getZ()).normalize().scale(JUMP_MAX / 2));
 			Vec3 water = Crossing.launchSpotAround(on, (x, z) -> Crossing.surfaceIn(level, x, z, nearY));
 			double hop = water == null ? 0 : Journey.horizontalDistance(water, barge.position());
@@ -1348,7 +1348,7 @@ public class DeliveryRun {
 				logRoute(rider, stuck + "; on the water; the barge is pushed off to open water " + Math.round(hop) + " blocks on, at " + Navigator.spot(water));
 				jumps.add(new Jump(stage, why, BlockPos.containing(barge.position()), BlockPos.containing(water), false, "pushed off " + Math.round(hop) + " blocks"));
 				PostmanEffects.puff(level, barge);
-				barge.moveTo(water.x, BargeEntity.floatHeight(water.y), water.z, yawToward(water, target), 0);
+				barge.moveTo(water.x, Crossing.restHeight(level, Mth.floor(water.x), Mth.floor(water.z), water.y), water.z, yawToward(water, target), 0);
 				PostmanEffects.puff(level, barge);
 				jumpsFree++;
 				aimCooldown = 0;

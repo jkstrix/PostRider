@@ -163,4 +163,11 @@ class BargeTest {
 		// His seat is in the bow: with the bow stopped this short of a bank, the seat (bench forward, and his half width) is still clear of it
 		assertTrue(BargeEntity.STOPS_SHORT + BargeEntity.BOW_REACH - BargeEntity.BENCH_FORWARD - 0.3 > 0.5, "the seat stays clear of the bank");
 	}
+
+	@Test
+	void itSlidesOverIceAShadeFasterAndLooksForItsLevelJustUnderTheHull() {
+		assertTrue(BargeEntity.ICE_GLIDE > 1 && BargeEntity.ICE_GLIDE <= 2, "faster on ice than rowing, within reason");
+		assertEquals(62, BargeEntity.levelBelow(BargeEntity.floatHeight(62 + 8 / 9.0)), "afloat: the water's block");
+		assertEquals(62, BargeEntity.levelBelow(63.0), "on ice: the ice's block, so ice a block up is a bank");
+	}
 }

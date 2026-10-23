@@ -115,7 +115,7 @@ class TerrainSurveyTest {
 				icy[z * 16 + x] = 1;
 		CoarsePlanner.Cell[] cells = TerrainSurvey.cellsOfChunk(floors, tops, icy, MIN_Y);
 		assertTrue(cells[0].ice(), "the first cell's columns are all sea ice");
-		assertFalse(cells[0].water(), "ice is ridden, not rowed");
+		assertTrue(cells[0].water(), "an ice field is barge country");
 		assertFalse(cells[1].ice());
 		assertFalse(TerrainSurvey.cellsOfChunk(floors, tops, MIN_Y)[0].ice(), "no ice flagged: no ice");
 	}

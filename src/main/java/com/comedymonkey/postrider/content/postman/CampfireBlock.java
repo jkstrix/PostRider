@@ -77,7 +77,7 @@ public class CampfireBlock extends Block {
 
 	/** Ice of any kind: no fire is lit on it (it would melt through), and a camp on it is a cold one. */
 	public static boolean isIce(BlockState ground) {
-		return ground.is(Blocks.ICE) || ground.is(Blocks.PACKED_ICE) || ground.is(Blocks.BLUE_ICE) || ground.is(Blocks.FROSTED_ICE) || ground.is(BlockTags.ICE);
+		return Crossing.isIce(ground);
 	}
 
 	@Override

@@ -10,6 +10,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -246,17 +247,39 @@ public final class Crossing {
 	 */
 	public static final int LAUNCH_DROP = 8;
 
-	/** As above, looking this far below the height. */
+	/**
+	 * As above, looking this far below the height. To the barge, sea ice is water: ice of any kind whose top is no
+	 * more than a block above the height counts as a surface too (its top), so the barge slides from the water onto
+	 * it and off again; ice higher than that (an iceberg, a frozen bank) is a bank like any other.
+	 */
 	public static double surfaceIn(BlockGetter level, int x, int z, int nearY, int below) {
 		for (int y = nearY + 2; y >= nearY - below; y--) {
 			BlockPos pos = new BlockPos(x, y, z);
 			FluidState fluid = level.getFluidState(pos);
 			if (isWater(fluid) && level.getFluidState(pos.above()).isEmpty() && headroomOver(level, pos))
 				return y + fluid.getHeight(level, pos);
-			if (!clear(level.getBlockState(pos)) && !isWater(fluid))
+			BlockState state = level.getBlockState(pos);
+			if (isIce(state))
+				return y + 1 <= nearY + 1 && headroomOver(level, pos) ? y + 1 : Double.NaN;
+			if (!clear(state) && !isWater(fluid))
 				return Double.NaN;
 		}
 		return Double.NaN;
+	}
+
+	/** Ice of any kind: the barge slides over it, no fire is lit on it, and a camp on it is a cold one. */
+	public static boolean isIce(BlockState state) {
+		return state.is(Blocks.ICE) || state.is(Blocks.PACKED_ICE) || state.is(Blocks.BLUE_ICE) || state.is(Blocks.FROSTED_ICE) || state.is(BlockTags.ICE);
+	}
+
+	/** Whether a surface found by {@link #surfaceIn} is ice (the block under it), rather than water. */
+	public static boolean isIceSurface(BlockGetter level, int x, int z, double surface) {
+		return isIce(level.getBlockState(new BlockPos(x, Mth.floor(surface) - 1, z)));
+	}
+
+	/** Where the bottom of the barge's hull rests on a surface: sunk its bottom pixel into water, sat on top of ice. */
+	public static double restHeight(BlockGetter level, int x, int z, double surface) {
+		return isIceSurface(level, x, z, surface) ? surface : BargeEntity.floatHeight(surface);
 	}
 
 	/** Whether the {@link #HEADROOM} blocks over a water block are clear. */

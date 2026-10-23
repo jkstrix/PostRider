@@ -49,9 +49,8 @@ public final class CoarsePlanner {
 	/** Half-water ground (a marsh, a river bank) is slow going. */
 	public static final double SHORE_COST = 1.25;
 	/**
-	 * What riding (or rowing) an ice field costs, to the block: sea ice is cracked by leads and holes and shuts the
-	 * barge in, so a route goes round by the coast when there is one within reach, and across the ice only when
-	 * there isn't (never impassable: with no route at all he'd head straight there, which is worse).
+	 * What riding a cell that's partly an ice field costs, to the block: sea ice is bad going for a horse, cracked by
+	 * leads and holes. A cell that's mostly ice field is water to the map, and the barge slides over it as over water.
 	 */
 	public static final double ICE_COST = 4;
 	public static final int MAX_NODES = 60_000;
@@ -66,12 +65,12 @@ public final class CoarsePlanner {
 			this(height, liquid, rough, isVoid, 0);
 		}
 
-		/** Mostly water (or lava): crossed only by barge. */
+		/** Mostly water (or lava), or an ice field: crossed only by barge, which slides over sea ice as over water. */
 		public boolean water() {
-			return !isVoid && liquid >= 3;
+			return !isVoid && (liquid >= 3 || icy >= 3);
 		}
 
-		/** An ice field (a frozen ocean or river): sea ice with leads and holes in it, bad going and no water to row. */
+		/** Partly an ice field (a frozen ocean or river): some of it sea ice, bad going for a horse. */
 		public boolean ice() {
 			return !isVoid && icy >= 2;
 		}
@@ -261,8 +260,7 @@ public final class CoarsePlanner {
 		if (toWater) {
 			if (!barge)
 				return -1;
-			// The water of an ice field is rowed only when there's no other way: sea ice shuts the barge in
-			return length * rowing * (to.ice() ? ICE_COST : 1) + (fromWater ? 0 : LAUNCH_COST);
+			return length * rowing + (fromWater ? 0 : LAUNCH_COST);
 		}
 		int rise = Math.abs(to.height() - from.height());
 		// A cliff isn't ridden up, and nor is it landed on from the water: a shore that leads nowhere
@@ -351,8 +349,8 @@ public final class CoarsePlanner {
 				return false;
 			if (kind == LegKind.LAND && Math.abs(cell.height() - previous.height()) > CELL / 2)
 				return false;
-			// A straight line isn't drawn across an ice field the way went round (unless the way is over the ice anyway)
-			if (cell.ice() && !(a.cell.ice() && b.cell.ice()))
+			// A land leg isn't drawn straight across ice the way went round (unless it's over the ice anyway)
+			if (kind == LegKind.LAND && cell.ice() && !(a.cell.ice() && b.cell.ice()))
 				return false;
 			previous = cell;
 		}

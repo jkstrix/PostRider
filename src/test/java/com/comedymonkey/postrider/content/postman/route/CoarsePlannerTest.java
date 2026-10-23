@@ -327,32 +327,23 @@ class CoarsePlannerTest {
 	private static final Cell ICE = new Cell(63, 0, 0, false, 4);
 	private static final Cell ICE_WATER = new Cell(62, 4, 0, false, 4);
 
-	@Test
-	void anIceFieldIsRiddenRoundWhereThereIsAWayRoundAndAcrossWhereThereIsNot() {
-		// A band of sea ice across the way, with grass round its south end: the long way round is taken
-		CoarsePlanner.Cells field = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 6 ? VOID : cx >= 8 && cx <= 12 && cz <= 3 ? ICE : LAND;
-		Plan round = plan(field, 2, 1, 18, 1);
-		for (int cx = 8; cx <= 12; cx++)
-			for (int cz = 0; cz <= 3; cz++)
-				assertFalse(passesThrough(round, cx, cz), "across the ice at " + cx + " " + cz + ": " + round.legs());
-		// The band right across: ridden over on the ice, as land, since there's no way round
-		CoarsePlanner.Cells wall = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 6 ? VOID : cx >= 8 && cx <= 12 ? ICE : LAND;
-		Plan across = plan(wall, 2, 1, 18, 1);
-		assertEquals(1, across.legs().size(), across.legs().toString());
-		assertEquals(LegKind.LAND, across.legs().get(0).kind());
-	}
 
 	@Test
-	void theWaterOfAnIceFieldIsRowedOnlyWhenThereIsNoOtherWay() {
-		// Frozen sea across the way with a land bridge round its south end: the bridge is taken
-		CoarsePlanner.Cells sea = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 6 ? VOID : cx >= 8 && cx <= 12 && cz <= 4 ? ICE_WATER : LAND;
-		Plan round = plan(sea, 2, 1, 18, 1);
-		assertEquals(1, round.legs().size(), "ridden round: " + round.legs());
-		assertEquals(LegKind.LAND, round.legs().get(0).kind());
-		// Frozen sea right across: rowed all the same, as there's no other way (no route at all would be worse)
-		CoarsePlanner.Cells wall = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx >= 8 && cx <= 12 ? ICE_WATER : LAND;
+	void anIceFieldIsBargeCountryNeverRidden() {
+		assertTrue(ICE.water(), "to the map an ice field is water: the barge slides over sea ice");
+		assertTrue(ICE_WATER.water());
+		// A band of sea ice right across the way: crossed by barge, like open water
+		CoarsePlanner.Cells wall = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 4 ? VOID : cx >= 8 && cx <= 12 ? ICE : LAND;
 		Plan across = plan(wall, 2, 2, 18, 2);
-		assertEquals(LegKind.WATER, across.legs().get(1).kind(), "rowed: " + across.legs());
+		assertEquals(3, across.legs().size(), across.legs().toString());
+		assertEquals(LegKind.WATER, across.legs().get(1).kind(), "slid across on the barge: " + across.legs());
+		// With grass round its south end, whichever way is taken, no land leg ever runs over the ice
+		CoarsePlanner.Cells field = (cx, cz) -> cx < 0 || cz < 0 || cx > 20 || cz > 6 ? VOID : cx >= 8 && cx <= 12 && cz <= 3 ? ICE : LAND;
+		Plan plan = plan(field, 2, 1, 18, 1);
+		for (CoarsePlanner.Leg leg : plan.legs())
+			if (leg.kind() == LegKind.LAND)
+				for (int cx = 8; cx <= 12; cx++)
+					for (int cz = 0; cz <= 3; cz++)
+						assertFalse(passesThrough(new Plan(List.of(leg), 0), cx, cz), "ridden over the ice at " + cx + " " + cz + ": " + plan.legs());
 	}
-
 }

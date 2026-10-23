@@ -39,6 +39,10 @@ public class BargeEntity extends Entity {
 	}
 	/** How fast it comes up to speed, and how far it turns each tick. */
 	private static final double ACCELERATION = 0.02;
+	/** How much faster it goes sliding on ice than rowing on water. */
+	public static final double ICE_GLIDE = 1.5;
+	/** Whether the hull is on ice this tick (sliding, not rowing). */
+	private boolean onIce;
 	public static final float TURN_PER_TICK = 4.0F;
 	/**
 	 * How far the hull's sides reach below the deck, as drawn in blockbench/barge.bbmodel. The barge's position is
@@ -57,6 +61,24 @@ public class BargeEntity extends Entity {
 	/** Where the barge (the bottom of its hull) floats on water whose surface is at this height. */
 	public static double floatHeight(double surface) {
 		return surface + FREEBOARD - HULL_DEPTH;
+	}
+
+	/**
+	 * The height the water (or ice) it's on is looked for near: a touch under the hull, so that afloat (the hull's
+	 * bottom pixel in the water) and on ice (the hull on top of it) alike it's the level of that surface's block,
+	 * and ice a block higher than the surface it's on is a bank, not a step to climb.
+	 */
+	public static int levelBelow(double y) {
+		return Mth.floor(y - 0.1);
+	}
+
+	/** As {@link #levelBelow}, for where it is now. */
+	public int waterLevelY() {
+		return levelBelow(getY());
+	}
+
+	public boolean isOnIce() {
+		return onIce;
 	}
 	/** Where the bench and deck are from the middle of the deck (blocks forward, and up), as in blockbench/barge.bbmodel. */
 	public static final double BENCH_FORWARD = 21 / 16.0, BENCH_HEIGHT = 7 / 16.0;
@@ -197,21 +219,27 @@ public class BargeEntity extends Entity {
 		}
 		// The hull is longer than its box: it stops with the bow short of anything that isn't open water ahead, rather
 		// than push its bow (and the rider's seat in it) into a bank, a wall or a low roof
+		int nearY = waterLevelY();
 		Vec3 ahead = beyondBow(position(), getYRot(), STOPS_SHORT);
-		blockedAhead = Double.isNaN(Crossing.surfaceIn(level, Mth.floor(ahead.x), Mth.floor(ahead.z), Mth.floor(getY())));
+		blockedAhead = Double.isNaN(Crossing.surfaceIn(level, Mth.floor(ahead.x), Mth.floor(ahead.z), nearY));
 		if (blockedAhead && speed > 0)
 			speed = 0;
+		// Float: hold the deck just above the water, or the hull on top of the ice it's slid onto (a shade faster
+		// there); with neither underneath it settles onto whatever is there
+		double surface = Crossing.surfaceIn(level, Mth.floor(getX()), Mth.floor(getZ()), nearY);
+		onIce = !Double.isNaN(surface) && Crossing.isIceSurface(level, Mth.floor(getX()), Mth.floor(getZ()), surface);
+		if (onIce)
+			speed = Math.min(speed * ICE_GLIDE, speed() * ICE_GLIDE);
 		Vec3 forward = Vec3.directionFromRotation(0, getYRot()).scale(speed);
-		// Float: hold the deck just above the water; with no water underneath it settles onto whatever is there
-		double surface = Crossing.surfaceIn(level, Mth.floor(getX()), Mth.floor(getZ()), Mth.floor(getY()));
-		double dy = Double.isNaN(surface) ? Math.max(motion.y - 0.04, -0.5) : Mth.clamp((floatHeight(surface) - getY()) * 0.3, -0.1, 0.1);
+		double rest = onIce ? surface : floatHeight(surface);
+		double dy = Double.isNaN(surface) ? Math.max(motion.y - 0.04, -0.5) : Mth.clamp((rest - getY()) * 0.3, -0.1, 0.1);
 		setDeltaMovement(forward.x, dy, forward.z);
 		move(MoverType.SELF, getDeltaMovement());
 		boolean rowing = speed > 0.02;
-		if (rowing)
+		if (rowing && !onIce)
 			cutPlants(level, forward);
 		entityData.set(DATA_ROWING, rowing);
-		if (rowing && tickCount % STROKE_TICKS == 0)
+		if (rowing && !onIce && tickCount % STROKE_TICKS == 0)
 			level.playSound(null, getX(), getY(), getZ(), SoundEvents.BOAT_PADDLE_WATER, SoundSource.NEUTRAL, 0.8F, 0.9F + random.nextFloat() * 0.2F);
 	}
 

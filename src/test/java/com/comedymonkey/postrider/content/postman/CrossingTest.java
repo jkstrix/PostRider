@@ -214,4 +214,23 @@ class CrossingTest {
 	void theBargesBoxIsATouchNarrowerThanItsHull() {
 		assertTrue(BargeEntity.BOX_WIDTH < 3 && BargeEntity.BOX_WIDTH >= 2.5, "a hull three wide, a box with a little to spare in a lead three wide");
 	}
+
+	@Test
+	void toTheBargeSeaIceIsWaterButAnIcebergIsABank() {
+		var ice = net.minecraft.world.level.block.Blocks.ICE.defaultBlockState();
+		var water = net.minecraft.world.level.block.Blocks.WATER.defaultBlockState();
+		var stone = net.minecraft.world.level.block.Blocks.STONE.defaultBlockState();
+		var seaIce = column(java.util.Map.of(62, ice, 61, water, 60, stone));
+		assertEquals(63.0, Crossing.surfaceIn(seaIce, 0, 0, 62), 1e-9, "the top of the ice is the surface, from the water's level");
+		assertEquals(63.0, Crossing.surfaceIn(seaIce, 0, 0, BargeEntity.levelBelow(63.0)), 1e-9, "and from on the ice itself");
+		assertTrue(Double.isNaN(Crossing.surfaceIn(seaIce, 0, 0, 60)), "ice two above is a bank");
+		var berg = column(java.util.Map.of(63, ice, 62, ice, 61, water));
+		assertTrue(Double.isNaN(Crossing.surfaceIn(berg, 0, 0, 62)), "an iceberg a block up is a bank, not a step");
+		assertTrue(Crossing.isIceSurface(seaIce, 0, 0, 63.0));
+		assertEquals(63.0, Crossing.restHeight(seaIce, 0, 0, 63.0), 1e-9, "the hull sits on top of the ice");
+		var open = column(java.util.Map.of(62, water, 61, stone));
+		double surface = Crossing.surfaceIn(open, 0, 0, 62);
+		assertFalse(Crossing.isIceSurface(open, 0, 0, surface));
+		assertEquals(BargeEntity.floatHeight(surface), Crossing.restHeight(open, 0, 0, surface), 1e-9, "and its bottom pixel in the water");
+	}
 }

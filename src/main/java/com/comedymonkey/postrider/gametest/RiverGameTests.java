@@ -224,36 +224,44 @@ public final class RiverGameTests {
 	// ---------------------------------------------------------------- the ice field
 
 	/**
-	 * A band of sea ice across the arena, with holes of open water in it, and grass round its south end: an ice
-	 * field is bad going (and no water to row), so he rides round it by the grass rather than across it.
+	 * A band of sea ice right across the arena, with holes of open water in it: an ice field is barge country, so
+	 * he puts the barge out at its edge, slides across it (and over the holes) without stopping, and steps ashore on
+	 * the far side; never rides the ice.
 	 */
 	@GameTest(skyAccess = true, template = ARENA, batch = "deliver_ice_field", timeoutTicks = DELIVERY_TICKS)
-	public static void heRidesRoundAnIceFieldRatherThanAcrossIt(GameTestHelper helper) {
+	public static void heSlidesAcrossAnIceFieldInTheBargeRatherThanRidingIt(GameTestHelper helper) {
 		Scene scene = new Scene(helper);
 		banks(scene);
-		int iceX0 = 48, iceX1 = 79, iceZ1 = 47;
-		scene.fill(iceX0, 0, INSIDE_Z0, iceX1, 0, iceZ1, Blocks.ICE.defaultBlockState());
-		for (int[] hole : new int[][] {{54, 10}, {62, 30}, {70, 18}, {58, 40}, {74, 38}})
+		int iceX0 = 48, iceX1 = 79;
+		scene.fill(iceX0, 0, INSIDE_Z0, iceX1, 0, INSIDE_Z1, Blocks.ICE.defaultBlockState());
+		for (int[] hole : new int[][] {{54, 10}, {62, 30}, {70, 18}, {58, 40}, {74, 50}})
 			scene.water(hole[0], hole[1], hole[0] + 2, hole[1] + 2, 2);
-		Boxes boxes = post(scene, "GT Ice", 30, 20, 100, 20);
+		Boxes boxes = post(scene, "GT Ice", 30, 32, 100, 32);
 		Crossings crossings = new Crossings(scene, boxes.watch());
-		Vec3[] onIce = {null};
+		Vec3[] rodeIce = {null};
+		boolean[] slid = {false};
 		scene.helper.onEachTick(() -> {
 			PostmanEntity rider = boxes.watch().rider;
 			if (rider == null || !rider.isAlive())
 				return;
 			Entity body = rider.getVehicle() != null ? rider.getVehicle() : rider;
 			Vec3 at = scene.helper.relativeVec(body.position());
-			// Well inside the band (a corner of it brushed going round is no crossing)
-			boolean inside = at.x >= iceX0 + 2 && at.x < iceX1 - 1 && at.z < iceZ1 - 1;
-			if (inside && rider.level().getBlockState(BlockPos.containing(body.position()).below()).is(BlockTags.ICE))
-				onIce[0] = at;
+			boolean onIce = rider.level().getBlockState(BlockPos.containing(body.position()).below()).is(BlockTags.ICE);
+			if (body instanceof BargeEntity barge) {
+				if (barge.isOnIce())
+					slid[0] = true;
+			} else if (onIce && at.x >= iceX0 + 2 && at.x < iceX1 - 1) {
+				rodeIce[0] = at;
+			}
 		});
 		Trials.deliver("Ice field", scene, boxes.to(), boxes.watch(), () -> {
-			if (onIce[0] != null)
-				throw new GameTestAssertException("He rode across the ice (last seen on it at " + spot(onIce[0]) + ") with grass round it to the south");
-			if (!crossings.launches.isEmpty())
-				throw new GameTestAssertException("He put the barge out in an ice field: " + crossings.describe());
+			PostRider.LOGGER.info("Trial Ice field: {}", crossings.describe());
+			if (rodeIce[0] != null)
+				throw new GameTestAssertException("He rode the ice (last seen on it at " + spot(rodeIce[0]) + ") rather than slide across it in the barge");
+			if (crossings.launches.size() != 1 || crossings.landings.size() != 1)
+				throw new GameTestAssertException("He should have crossed the ice once in the barge: " + crossings.describe());
+			if (!slid[0])
+				throw new GameTestAssertException("The barge never slid on the ice: " + crossings.describe());
 		});
 	}
 
