@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2
+
+- New: with Dailies installed, the mailbox, letters being read and letters being written show in its recordings,
+  drawn again in first-person playback and exports as the player saw them. Post Rider runs as before without Dailies.
+
 ## 1.2.1
 
 - Fixed: a rider setting out on a long trip into land nobody had explored could freeze the server until it crashed,
