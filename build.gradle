@@ -89,6 +89,9 @@ neoForge {
     }
 }
 
+// The version of Dailies' API jar in libs/
+def dailiesApiVersion = '1.1.0'
+
 repositories {
     exclusiveContent {
         forRepository {
@@ -107,6 +110,10 @@ dependencies {
     // (A mod has to be on the ordinary runtime classpath to be found: a run's additionalRuntimeClasspath is taken
     // for libraries, and a mod put there never loads.) Kept out of the in-world tests' run below
     runtimeOnly 'maven.modrinth:distanthorizons:3.3.3-1.21.1'
+    // Dailies' compat API, so the mailbox and letters are drawn in Dailies' recordings (client/dailies). Only compiled
+    // against, from a copy of Dailies' API jar (its gradlew apiJar) kept in libs/, so it builds anywhere and is never
+    // packed in: Post Rider runs without Dailies, and touches the hooks only when Dailies is loaded
+    compileOnly files("libs/dailies-api-${dailiesApiVersion}.jar")
     testImplementation(platform('org.junit:junit-bom:5.10.2'))
     testImplementation('org.junit.jupiter:junit-jupiter')
     testRuntimeOnly('org.junit.platform:junit-platform-launcher')

@@ -26,12 +26,17 @@ public class LetterEditScreen extends Screen {
 	private int frame;
 	private boolean confirmingSeal;
 	private boolean sent;
+	/** Drawn by Dailies in playback: shows the letter as it stood and never sends anything. */
+	private final boolean readOnly;
+	/** Where the cursor starts on the open page, for a read-only copy; -1 at the end. */
+	private int startCursor = -1;
 	private PostOfficeButton leftButton;
 	private PostOfficeButton rightButton;
 
 	public LetterEditScreen(Player player, InteractionHand hand, ItemStack letter) {
 		super(Component.translatable("gui.postrider.letter.write"));
 		slot = hand == InteractionHand.MAIN_HAND ? player.getInventory().selected : Inventory.SLOT_OFFHAND;
+		readOnly = false;
 		LetterDraft draft = letter.get(ModDataComponents.LETTER_DRAFT.get());
 		if (draft != null)
 			pages.addAll(draft.pages());
@@ -39,11 +44,55 @@ public class LetterEditScreen extends Screen {
 			pages.add("");
 	}
 
-	private int pageX() {
+	private LetterEditScreen(List<String> written, int page, int cursor, boolean confirmingSeal) {
+		super(Component.translatable("gui.postrider.letter.write"));
+		slot = -1;
+		readOnly = true;
+		pages.addAll(written);
+		if (pages.isEmpty())
+			pages.add("");
+		this.page = Math.max(0, Math.min(page, pages.size() - 1));
+		this.startCursor = cursor;
+		this.confirmingSeal = confirmingSeal;
+	}
+
+	/**
+	 * The letter as a recording has it at one moment, for Dailies to draw in playback (client/dailies): its pages, the
+	 * page open, where the cursor is on it, and whether the seal is being confirmed. It sends nothing, ever.
+	 */
+	public static LetterEditScreen readOnly(List<String> pages, int page, int cursor, boolean confirmingSeal) {
+		return new LetterEditScreen(pages, page, cursor, confirmingSeal);
+	}
+
+	/** Every page as written so far, the open one as it stands; for Dailies to record. */
+	public List<String> pagesNow() {
+		List<String> now = new ArrayList<>(pages);
+		if (editor != null)
+			now.set(page, editor.getText());
+		return now;
+	}
+
+	/** The page open, from 0; for Dailies to record. */
+	public int page() {
+		return page;
+	}
+
+	/** Where the cursor is on the open page; for Dailies to record. */
+	public int cursor() {
+		return editor == null ? 0 : editor.getCursor();
+	}
+
+	/** Whether the seal is being confirmed; for Dailies to record. */
+	public boolean confirmingSeal() {
+		return confirmingSeal;
+	}
+
+	/** Where the page starts on the screen; Dailies keeps the pointer from here. */
+	public int pageX() {
 		return (width - PostOfficeStyle.PAGE_WIDTH) / 2;
 	}
 
-	private int pageY() {
+	public int pageY() {
 		return Math.max(4, (height - PostOfficeStyle.PAGE_HEIGHT - 24) / 2);
 	}
 
@@ -51,6 +100,9 @@ public class LetterEditScreen extends Screen {
 	protected void init() {
 		editor = new LetterText(font::width, PostOfficeStyle.PAGE_TEXT_WIDTH, PostOfficeStyle.PAGE_LINES, LetterDraft.MAX_PAGE_LENGTH);
 		editor.setText(pages.get(page));
+		// The text puts the cursor at its end; a read-only copy moves it back to where it was recorded
+		for (int back = startCursor < 0 ? 0 : editor.getCursor() - startCursor; back > 0; back--)
+			editor.left();
 		int buttonY = pageY() + PostOfficeStyle.PAGE_HEIGHT + 4;
 		int centre = width / 2;
 		leftButton = addRenderableWidget(new PostOfficeButton(centre - PostOfficeStyle.BUTTON_WIDTH - 4, buttonY,
@@ -106,7 +158,7 @@ public class LetterEditScreen extends Screen {
 	}
 
 	private void send(boolean seal) {
-		if (sent)
+		if (sent || readOnly)
 			return;
 		sent = true;
 		storePage();

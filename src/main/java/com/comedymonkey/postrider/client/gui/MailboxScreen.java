@@ -107,7 +107,8 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 			nameBox.setValue(name);
 	}
 
-	private void switchTab(int tab) {
+	/** Opens a tab, as clicking it does: the server is told too (the display test of Post Rider's Dailies compat uses it). */
+	public void switchTab(int tab) {
 		if (tab == menu.getTab())
 			return;
 		menu.setTab(tab);
@@ -347,6 +348,39 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 			}
 		}
 		return super.mouseClicked(mouseX, mouseY, button);
+	}
+
+	// ---------------------------------------------------------------- recordings
+
+	/** The address picked in the ledger, or null; for Dailies to record (client/dailies). */
+	@Nullable
+	public String selectedAddress() {
+		return selected;
+	}
+
+	/** How far the ledger is scrolled, in rows; for Dailies to record. */
+	public int scrollRows() {
+		return scroll;
+	}
+
+	/** What is in the address box, typed or not; for Dailies to record. */
+	public String typedAddress() {
+		return nameBox == null ? "" : nameBox.getValue();
+	}
+
+	/**
+	 * Shows the screen as a recording has it, on a copy Dailies built to draw in playback: the tab, the address picked,
+	 * the ledger's scroll and the address box. Called before every frame it is drawn, so it only changes what differs,
+	 * and tells the server nothing.
+	 */
+	public void showRecorded(int tab, @Nullable String address, int scrollRows, String typed) {
+		menu.setTab(tab);
+		refreshInfo();
+		selected = address;
+		scroll = Mth.clamp(scrollRows, 0, Math.max(0, addresses.size() - LEDGER_ROWS));
+		if (nameBox != null && !nameBox.getValue().equals(typed))
+			nameBox.setValue(typed);
+		updateWidgets();
 	}
 
 	/** Picks an address from the ledger, as clicking it would (for the screenshot run). */

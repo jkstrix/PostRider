@@ -30,6 +30,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
@@ -57,6 +58,22 @@ public class PostRiderClient {
 		modBus.addListener(this::registerRenderers);
 		modBus.addListener(this::registerBlockColors);
 		modBus.addListener(this::registerItemColors);
+		registerDailies();
+	}
+
+	/**
+	 * With Dailies installed, the mailbox, letters being read and letters being written go into its recordings and are
+	 * drawn again in playback (client/dailies). Without it nothing of Dailies is touched: the hook class is only loaded
+	 * here, after the check.
+	 */
+	private static void registerDailies() {
+		if (!ModList.get().isLoaded("dailies"))
+			return;
+		try {
+			com.comedymonkey.postrider.client.dailies.PostRiderDailies.register();
+		} catch (LinkageError tooOld) {
+			PostRider.LOGGER.warn("Post Rider: this version of Dailies has no compat API, so Post Rider's screens are left out of its recordings", tooOld);
+		}
 	}
 
 	private void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {

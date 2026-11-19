@@ -18,20 +18,41 @@ public class LetterReadScreen extends Screen {
 	private int page;
 
 	public LetterReadScreen(ItemStack stack) {
+		this(contentOf(stack), 0);
+	}
+
+	/** A letter open at a page: for Dailies to draw in playback, as a recording has it (client/dailies). */
+	public LetterReadScreen(LetterContent letter, int page) {
 		super(Component.translatable("gui.postrider.letter.read"));
+		this.letter = letter;
+		this.page = Math.max(0, Math.min(page, Math.max(1, letter.pages().size()) - 1));
+	}
+
+	private static LetterContent contentOf(ItemStack stack) {
 		LetterContent content = stack.get(ModDataComponents.LETTER.get());
-		letter = content != null ? content : new LetterContent(List.of(), "", Optional.empty());
+		return content != null ? content : new LetterContent(List.of(), "", Optional.empty());
+	}
+
+	/** The letter being read; for Dailies to record. */
+	public LetterContent letter() {
+		return letter;
+	}
+
+	/** The page open, from 0; for Dailies to record. */
+	public int page() {
+		return page;
 	}
 
 	private int pageCount() {
 		return Math.max(1, letter.pages().size());
 	}
 
-	private int pageX() {
+	/** Where the page starts on the screen; Dailies keeps the pointer from here. */
+	public int pageX() {
 		return (width - PostOfficeStyle.PAGE_WIDTH) / 2;
 	}
 
-	private int pageY() {
+	public int pageY() {
 		return Math.max(4, (height - PostOfficeStyle.PAGE_HEIGHT - 24) / 2);
 	}
 
