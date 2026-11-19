@@ -29,7 +29,8 @@ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
 /**
  * The display test of Post Rider's compat, run by Dailies' scripted run (its postrider group): two mailboxes beside the
- * player, then while recording the first is opened on its Send tab with the other's address picked, a letter is read,
+ * player, then while recording the first is opened on each of its tabs (Inbox, Send with the other's address picked,
+ * and Settings), a letter is read,
  * and a letter is written a character at a time. Dailies then checks each is drawn in first-person playback, and
  * nothing in third person.
  */
@@ -57,23 +58,32 @@ final class PostRiderDisplayTest implements DisplayTest {
 			mailbox.rename(name, player);
 	}
 
+	/** Opens the first mailbox as using it does, then the given tab as clicking it does. */
+	private static void openMailbox(Stage stage, int tab) throws Exception {
+		stage.onServer(player -> {
+			if (player.serverLevel().getBlockEntity(MAILBOX) instanceof MailboxBlockEntity mailbox)
+				mailbox.openFor(player);
+		});
+		stage.waitTicks(10);
+		stage.onClient(() -> {
+			if (Minecraft.getInstance().screen instanceof MailboxScreen mailbox)
+				mailbox.switchTab(tab);
+		});
+	}
+
 	@Override
 	public List<Display> displays() {
 		Minecraft minecraft = Minecraft.getInstance();
 		return List.of(
+			new Display("a mailbox on its Inbox tab", PostRider.MOD_ID + ":mailbox", stage -> openMailbox(stage, MailboxMenu.TAB_INBOX)),
 			new Display("a mailbox on its Send tab", PostRider.MOD_ID + ":mailbox", stage -> {
-				stage.onServer(player -> {
-					if (player.serverLevel().getBlockEntity(MAILBOX) instanceof MailboxBlockEntity mailbox)
-						mailbox.openFor(player);
-				});
-				stage.waitTicks(10);
+				openMailbox(stage, MailboxMenu.TAB_SEND);
 				stage.onClient(() -> {
-					if (minecraft.screen instanceof MailboxScreen mailbox) {
-						mailbox.switchTab(MailboxMenu.TAB_SEND);
+					if (minecraft.screen instanceof MailboxScreen mailbox)
 						mailbox.pickAddress(OTHER_ADDRESS);
-					}
 				});
 			}),
+			new Display("a mailbox on its Settings tab", PostRider.MOD_ID + ":mailbox", stage -> openMailbox(stage, MailboxMenu.TAB_SETTINGS)),
 			new Display("a letter being read", PostRiderDailies.ID + "/letter_read", stage -> {
 				stage.onServer(player -> {
 					ItemStack letter = new ItemStack(ModItems.WRITTEN_LETTER.get());
