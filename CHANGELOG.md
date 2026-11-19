@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1
+
+- Fixed: a rider setting out on a long trip into land nobody had explored could freeze the server until it crashed,
+  and crash it again each time it restarted. The unexplored ground is now worked out a little each tick, so the
+  planning takes a minute or so longer and the server keeps running.
+- Fixed: the chunks a rider held loaded along his route ahead stayed loaded after a restart, and after his mail was
+  handed to another rider. They're now let go.
+
 ## 1.2.0
 
 - New: the Ice Hopper, a boat for players with an upturned, iron-shod bow. Row it at sea ice and it hops up onto the

@@ -1611,6 +1611,7 @@ public class DeliveryRun {
 		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent)
 			tent.packAway(level);
 		enter(Stage.DONE);
+		navigator.releaseAhead(level);
 		if (loadedChunk != null)
 			RiderChunks.release(level, rider.getUUID(), loadedChunk);
 		loadedChunk = null;

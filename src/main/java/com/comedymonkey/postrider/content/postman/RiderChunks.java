@@ -16,11 +16,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.neoforged.neoforge.common.world.chunk.TicketController;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+
 /**
  * Keeps the chunks around a working rider loaded, so he carries on riding when nobody is near him: a square ticking
  * close round him, and a wider one loaded (but not ticking, so nothing grows or spawns there) for planning his route a
  * stretch ahead. The tickets are saved with the world; when it loads, any left over from riders who are no longer
- * working are dropped.
+ * working are dropped, and a working rider keeps only his ticking square: the rest (the wider square, and the chunks
+ * held ahead along a plan that isn't saved) is held again once he's going, and would otherwise be held for ever.
  */
 public final class RiderChunks {
 	/** Chunks loaded in each direction around him by default: 3 makes a 7x7 square, reaching past a 48-block stretch. */
@@ -35,9 +38,14 @@ public final class RiderChunks {
 
 	public static final TicketController CONTROLLER = new TicketController(PostRider.asResource("rider"), (level, tickets) -> {
 		PostOffice office = PostOffice.get(level.getServer());
-		for (UUID owner : Set.copyOf(tickets.getEntityTickets().keySet()))
-			if (!office.isRider(owner))
+		for (UUID owner : Set.copyOf(tickets.getEntityTickets().keySet())) {
+			if (!office.isRider(owner)) {
 				tickets.removeAllTickets(owner);
+				continue;
+			}
+			for (long chunk : new LongArrayList(tickets.getEntityTickets().get(owner).nonTicking()))
+				tickets.removeTicket(owner, chunk, false);
+		}
 	});
 
 	private RiderChunks() {}
@@ -96,6 +104,11 @@ public final class RiderChunks {
 			release(level, rider, square.centre());
 		else if (lastSeen != null)
 			releaseAround(level, rider, new ChunkPos(lastSeen), radius() + 1);
+	}
+
+	/** Forgets every square (the server is stopping: the tickets are saved with the world, and sorted out when it loads). */
+	public static void clear() {
+		SQUARES.clear();
 	}
 
 	public static void release(ServerLevel level, UUID rider, ChunkPos centre) {

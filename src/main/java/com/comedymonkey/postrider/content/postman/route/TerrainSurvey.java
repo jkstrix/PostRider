@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Predicate;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -34,6 +35,7 @@ import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.LevelHeightAccessor;
+import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
@@ -43,7 +45,8 @@ import net.minecraft.world.level.levelgen.RandomState;
  * four columns to each 8x8-block cell, looked up in tiles of 4x4 chunks. It comes from loaded chunks first, then
  * from chunks saved on disk, and where neither has it the ground is estimated from the world generator's noise (its
  * base heights, as the game places structures by): no chunk is generated for a plan, so a plan thousands of blocks
- * long is done in seconds. Kept in memory only, and forgotten after a while so changes to the world come through:
+ * long is done in seconds (the noise is sampled a column at a time, a few milliseconds' worth each tick, so a long
+ * trip into unexplored land is surveyed over a while rather than in one tick that stalls the server). Kept in memory only, and forgotten after a while so changes to the world come through:
  * a tile of loaded chunks is cheap to read and is looked at afresh every few seconds (a bridge or a canal someone
  * has just built is seen at once), one that had to come off disk or be generated is kept for ten minutes.
  */
@@ -57,8 +60,11 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	public static final long TILE_LIFETIME = 12_000;
 	/** How long a tile of loaded chunks is kept before it's read again (5 seconds): a plan's many lookups, no more. */
 	public static final long LOADED_LIFETIME = 100;
+	/** How long the server thread spends estimating ground from the noise each tick, all worlds together (4 ms). */
+	public static final long ESTIMATE_NANOS_PER_TICK = 4_000_000;
 	/** Where in each cell the four columns are sampled. */
 	private static final int[][] SAMPLES = {{2, 2}, {6, 2}, {2, 6}, {6, 6}};
+	private static final int[] SAMPLED_COLUMNS = sampledColumns();
 
 	private static final Map<ResourceKey<Level>, TerrainSurvey> SURVEYS = new HashMap<>();
 
@@ -66,6 +72,9 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	private final int heightBits;
 	private final LinkedHashMap<Long, Tile> tiles = new LinkedHashMap<>(256, 0.75F, true);
 	private final Queue<Arrival> arrivals = new ConcurrentLinkedQueue<>();
+	/** The never-generated chunk being estimated, a column at a time, if any. */
+	@Nullable
+	private Estimate estimating;
 
 	private TerrainSurvey(ServerLevel level) {
 		this.level = level;
@@ -76,11 +85,12 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		return SURVEYS.computeIfAbsent(level.dimension(), key -> new TerrainSurvey(level));
 	}
 
-	/** Each tick: takes in what's been read off disk, and starts and collects chunks being generated. */
+	/** Each tick: takes in what's been read off disk, and estimates never-generated chunks for as long as the budget allows. */
 	public static void tickAll(MinecraftServer server) {
+		long deadline = System.nanoTime() + ESTIMATE_NANOS_PER_TICK;
 		for (TerrainSurvey survey : SURVEYS.values())
 			if (server.getLevel(survey.level.dimension()) == survey.level)
-				survey.tick();
+				survey.tick(deadline);
 	}
 
 	/** How the survey stands, for the log: tiles read, and tiles still waiting on chunks off disk. */
@@ -89,7 +99,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		for (Tile tile : tiles.values())
 			if (!tile.isDone())
 				waiting++;
-		return tiles.size() + " tiles, " + waiting + " waiting on chunks off disk";
+		return tiles.size() + " tiles, " + waiting + " waiting on chunks off disk or still being estimated";
 	}
 
 	/** Forgets everything (the server is stopping). */
@@ -201,16 +211,39 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	/**
 	 * A chunk that was never generated, estimated from the generator's noise at the columns the cells sample: the
 	 * ground (the ocean floor, as the generator calls it) and the top of any water over it. Nothing is generated.
+	 * Sampling a column is costly (the generator builds its noise anew for each), so it's done a column at a time.
 	 */
-	private static Arrival estimated(ChunkPos pos, ChunkGenerator generator, RandomState random, LevelHeightAccessor heights) {
-		int[] floors = new int[256], tops = new int[256], icy = new int[256];
-		for (int column : sampledColumns()) {
-			int x = pos.getMinBlockX() + column % 16, z = pos.getMinBlockZ() + column / 16;
-			floors[column] = generator.getBaseHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, heights, random);
-			tops[column] = generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, heights, random);
-			icy[column] = isIceField(generator.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(tops[column]), QuartPos.fromBlock(z), random.sampler())) ? 1 : 0;
+	private static final class Estimate {
+		final ChunkPos pos;
+		final int[] floors = new int[256], tops = new int[256], icy = new int[256];
+		int next;
+
+		Estimate(ChunkPos pos) {
+			this.pos = pos;
 		}
-		return new Arrival(pos, floors, tops, icy);
+
+		/** Samples one more column; true once they all are. */
+		boolean step(ChunkGenerator generator, RandomState random, LevelHeightAccessor heights) {
+			int column = SAMPLED_COLUMNS[next++];
+			int x = pos.getMinBlockX() + column % 16, z = pos.getMinBlockZ() + column / 16;
+			// One pass of the noise for both heights, where asking for each would build it twice
+			NoiseColumn blocks = generator.getBaseColumn(x, z, heights, random);
+			floors[column] = firstFree(blocks, heights.getMinBuildHeight(), heights.getMaxBuildHeight(), Heightmap.Types.OCEAN_FLOOR_WG.isOpaque());
+			tops[column] = firstFree(blocks, heights.getMinBuildHeight(), heights.getMaxBuildHeight(), Heightmap.Types.WORLD_SURFACE_WG.isOpaque());
+			icy[column] = isIceField(generator.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(tops[column]), QuartPos.fromBlock(z), random.sampler())) ? 1 : 0;
+			return next >= SAMPLED_COLUMNS.length;
+		}
+	}
+
+	/**
+	 * The first free height over the topmost block of a column that a heightmap counts (as the generator's own base
+	 * heights give it), or the bottom of the world if there's none.
+	 */
+	static int firstFree(NoiseColumn column, int minY, int maxY, Predicate<BlockState> counts) {
+		for (int y = maxY - 1; y >= minY; y--)
+			if (counts.test(column.getBlock(y)))
+				return y + 1;
+		return minY;
 	}
 
 	/** The columns of a chunk (index z * 16 + x) that its cells sample: the only ones an estimate need look at. */
@@ -224,20 +257,47 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		return columns;
 	}
 
-	private void tick() {
-		for (Arrival arrival; (arrival = arrivals.poll()) != null; ) {
-			if (arrival.floors() == null) {
-				try {
-					arrival = estimated(arrival.pos(), level.getChunkSource().getGenerator(), level.getChunkSource().randomState(), level);
-				} catch (RuntimeException e) {
-					PostRider.LOGGER.warn("Route survey couldn't estimate chunk {}: taken as plain ground at sea level", arrival.pos(), e);
-					int[] plain = new int[256];
-					Arrays.fill(plain, level.getSeaLevel() + 1);
-					arrival = new Arrival(arrival.pos(), plain, plain, new int[256]);
+	/**
+	 * Takes in every chunk read off disk, and estimates the never-generated ones a column at a time until the deadline
+	 * (at least one column a tick, so no world waits on another for ever), carrying on next tick from where it got to.
+	 */
+	private void tick(long deadline) {
+		ChunkGenerator generator = level.getChunkSource().getGenerator();
+		RandomState random = level.getChunkSource().randomState();
+		while (true) {
+			if (estimating == null) {
+				Arrival arrival = arrivals.poll();
+				if (arrival == null)
+					return;
+				if (arrival.floors() != null) {
+					fill(arrival.pos(), arrival.floors(), arrival.tops(), arrival.icy());
+					continue;
 				}
+				if (!awaited(arrival.pos()))
+					continue;
+				estimating = new Estimate(arrival.pos());
 			}
-			fill(arrival.pos(), arrival.floors(), arrival.tops(), arrival.icy());
+			try {
+				if (estimating.step(generator, random, level)) {
+					fill(estimating.pos, estimating.floors, estimating.tops, estimating.icy);
+					estimating = null;
+				}
+			} catch (RuntimeException e) {
+				PostRider.LOGGER.warn("Route survey couldn't estimate chunk {}: taken as plain ground at sea level", estimating.pos, e);
+				int[] plain = new int[256];
+				Arrays.fill(plain, level.getSeaLevel() + 1);
+				fill(estimating.pos, plain, plain, new int[256]);
+				estimating = null;
+			}
+			if (System.nanoTime() >= deadline)
+				return;
 		}
+	}
+
+	/** Whether a chunk's tile is still waiting to hear about it: one forgotten, or already filled in, isn't estimated. */
+	private boolean awaited(ChunkPos pos) {
+		Tile tile = tiles.get(ChunkPos.asLong(Math.floorDiv(pos.x, TILE_CHUNKS), Math.floorDiv(pos.z, TILE_CHUNKS)));
+		return tile != null && !tile.filled[Math.floorMod(pos.z, TILE_CHUNKS) * TILE_CHUNKS + Math.floorMod(pos.x, TILE_CHUNKS)];
 	}
 
 	private void fill(ChunkPos pos, int[] floors, int[] tops, int[] icy) {
@@ -270,7 +330,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		int[] floors = new int[256], tops = new int[256], icy = new int[256];
 		int minY = chunk.getMinBuildHeight();
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-		for (int column : sampledColumns()) {
+		for (int column : SAMPLED_COLUMNS) {
 			int x = column % 16, z = column / 16;
 			int y = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
 			// Down through the tree, if it's one, and the air under its canopy, to the ground or the water beneath

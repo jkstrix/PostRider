@@ -1,5 +1,7 @@
 package com.comedymonkey.postrider.content.postman.route;
 
+import com.comedymonkey.postrider.content.postman.RiderChunks;
+
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
@@ -28,6 +30,7 @@ public final class PlanningBudget {
 
 	public static void onServerStopped(ServerStoppedEvent event) {
 		TerrainSurvey.clear();
+		RiderChunks.clear();
 	}
 
 	/** One rider's share of this tick's local planning (none if it's all gone). */

@@ -89,6 +89,32 @@ class TerrainSurveyTest {
 	}
 
 	@Test
+	void oneNoiseColumnGivesBothTheFloorAndTheWaterTop() {
+		// Stone up to y=40, water to y=62, air above: the floor is 41, the top of the water 63
+		net.minecraft.world.level.block.state.BlockState[] states = new net.minecraft.world.level.block.state.BlockState[HEIGHT];
+		for (int y = MIN_Y; y < MIN_Y + HEIGHT; y++)
+			states[y - MIN_Y] = (y <= 40 ? Blocks.STONE : y <= 62 ? Blocks.WATER : Blocks.AIR).defaultBlockState();
+		net.minecraft.world.level.NoiseColumn column = new net.minecraft.world.level.NoiseColumn(MIN_Y, states);
+		int maxY = MIN_Y + HEIGHT;
+		assertEquals(41, TerrainSurvey.firstFree(column, MIN_Y, maxY, net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR_WG.isOpaque()));
+		assertEquals(63, TerrainSurvey.firstFree(column, MIN_Y, maxY, net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG.isOpaque()));
+	}
+
+	@Test
+	void aColumnOfNothingIsTheBottomOfTheWorld() {
+		net.minecraft.world.level.block.state.BlockState[] states = new net.minecraft.world.level.block.state.BlockState[HEIGHT];
+		Arrays.fill(states, Blocks.AIR.defaultBlockState());
+		net.minecraft.world.level.NoiseColumn column = new net.minecraft.world.level.NoiseColumn(MIN_Y, states);
+		assertEquals(MIN_Y, TerrainSurvey.firstFree(column, MIN_Y, MIN_Y + HEIGHT, net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG.isOpaque()));
+	}
+
+	@Test
+	void theNoiseIsSampledAFewMillisecondsATick() {
+		assertTrue(TerrainSurvey.ESTIMATE_NANOS_PER_TICK > 0);
+		assertTrue(TerrainSurvey.ESTIMATE_NANOS_PER_TICK <= 10_000_000, "well inside a 50 ms tick");
+	}
+
+	@Test
 	void aTreeIsStoodUnderNotOn() {
 		// (Block tags aren't bound outside the game, so logs and wart blocks, known by their tags, aren't tried here)
 		assertTrue(TerrainSurvey.isGrowth(Blocks.DARK_OAK_LEAVES.defaultBlockState()));
