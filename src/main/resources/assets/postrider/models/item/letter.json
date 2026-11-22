@@ -4,7 +4,8 @@
 	"textures": {
 		"sheet": "postrider:item/letter_sheet",
 		"feather": "postrider:item/quill_feather",
-		"nib": "postrider:item/quill_nib"
+		"nib": "postrider:item/quill_nib",
+		"particle": "postrider:item/letter_sheet"
 	},
 	"elements": [
 		{

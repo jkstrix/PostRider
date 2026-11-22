@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.0
+
+- New: Post Rider runs on Minecraft 26.3 (NeoForge 26.3, Java 25). Minecraft 1.21.1 carries on with the same features
+  and version numbers, as a separate download. Worlds from 1.21.1 keep their mailboxes and deliveries, and servers
+  their settings.
+- Riders walk their horses past fire, campfires, magma, cactus and berry bushes, and keep to the way round them
+  rather than cut the corner, so neither they nor their horses get singed in passing.
+- On foot, riders step up stairs and slabs rather than hop them, so a narrow stair winding up a tower no longer
+  throws them off the edge at a turn.
+- Fixed: a rider could plan his trip from ground as it was up to ten minutes earlier, riding off for a way round a
+  lake that had since been dug, or missing a bridge just built. The map he plans by now sees changes at once.
+- Works alongside Dailies on 26.3 too (the mailbox and letters show in its recordings).
+
 ## 1.2.2
 
 - New: with Dailies installed, the mailbox, letters being read and letters being written show in its recordings,

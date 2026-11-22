@@ -5,7 +5,10 @@ mailbox in the world. One of twenty riders appears in a puff of smoke, takes the
 rides it there, across country, around ravines, over lakes by ferry barge, camping out under canvas at night.
 Usually it arrives. Sometimes the riders don't make it, and you'll have to go and find what's left.
 
-For Minecraft 1.21.1 with NeoForge 21.1. Needed on both the server and every client; it doesn't need any other mods.
+For Minecraft 26.3 with NeoForge 26.3, and for Minecraft 1.21.1 with NeoForge 21.1 (a separate download: the jar's
+name says which). Needed on both the server and every client; it doesn't need any other mods, though the Concurrent
+Chunk Management Engine (C2ME) is recommended where there's a build of it for your version, as riders load a lot of
+ground.
 
 ## Mailboxes
 
@@ -103,11 +106,12 @@ crossed water by barge or spent nights on the trail.
 ./gradlew build
 ```
 
-Java 21. `./gradlew runClient` and `./gradlew runServer` start a development game. Every run loads two other mods
-alongside, from Modrinth, as players are likely to have them and both change how chunks are loaded under the riders:
-the Concurrent Chunk Management Engine (`c2me-neoforge`, alpha builds only for NeoForge 1.21.1), in the in-world tests
-too, and Distant Horizons (`distanthorizons`), in every run but the in-world tests, where it crashes at startup (it
-takes the game-test server for a dedicated one); the versions are in `build.gradle`.
+`main` is Minecraft 26.3 and builds with Java 25; the `mc/1.21.1` branch is Minecraft 1.21.1 and builds with Java 21.
+New work lands on `main` first and is cherry-picked across. `./gradlew runClient` and `./gradlew runServer` start a
+development game with the mod alone; add `-Pc2me` (the Concurrent Chunk Management Engine) and/or `-Pdh` (Distant
+Horizons) to any run to check it alongside mods that change how chunks are loaded under the riders (Distant Horizons is
+kept out of the in-world tests, where it crashes at startup). `./gradlew runGameTestServer` runs the in-world tests,
+`-Ptests=postrider:<name>` (wildcards allowed) just some of them, and `-PtraceAll` traces each rider the whole way.
 The ice hopper is a boat for you: any boat and two packed ice make one, and it hops from the water up onto sea ice
 and slides on without stopping (and off again), so a frozen ocean is no bar to it.
 
