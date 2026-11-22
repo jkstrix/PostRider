@@ -1,16 +1,22 @@
 package com.comedymonkey.postrider.client.model;
 
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+
+import org.jetbrains.annotations.Nullable;
 
 import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.client.renderer.state.PostmanRenderState;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.Roster;
 
 import net.minecraft.client.animation.AnimationDefinition;
+import net.minecraft.client.animation.KeyframeAnimation;
 import net.minecraft.world.entity.AnimationState;
-import net.minecraft.client.model.HierarchicalModel;
+import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
@@ -19,6 +25,7 @@ import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.util.Mth;
 
 /**
@@ -26,12 +33,14 @@ import net.minecraft.util.Mth;
  * women of the crew blockbench/postman_slim.bbmodel (a narrower head and slim arms); both share the parts and so the
  * animations from {@link PostmanAnimations}. Long hair is drawn with extra parts on the head, shown for whoever wears it.
  */
-public class PostmanModel extends HierarchicalModel<PostmanEntity> {
+public class PostmanModel extends EntityModel<PostmanRenderState> {
 	public static final ModelLayerLocation LAYER = new ModelLayerLocation(PostRider.asResource("postman"), "main");
 	public static final ModelLayerLocation SLIM_LAYER = new ModelLayerLocation(PostRider.asResource("postman"), "slim");
 	public static final List<String> HAIR_PARTS = List.of("hair_back", "hair_bun", "hair_braid", "hair_pigtails");
 
+	/** The bone at his feet that the animations call "root" (see the constructor), not the model's own root above it. */
 	private final ModelPart root;
+	private final Function<String, ModelPart> bones;
 	private final ModelPart head;
 	private final ModelPart harmonica;
 	private final ModelPart hammer;
@@ -47,11 +56,21 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 	private final ModelPart satchelFlat;
 	private final ModelPart satchelFull;
 	private final Map<String, ModelPart> hair = new HashMap<>();
+	private final KeyframeAnimation walk;
+	private final KeyframeAnimation idle;
+	private final KeyframeAnimation ride;
+	private final KeyframeAnimation rideIdle;
+	private final KeyframeAnimation hurt;
+	private final Map<PostmanEntity.Activity, KeyframeAnimation> activities = new EnumMap<>(PostmanEntity.Activity.class);
+	private final Map<PostmanEntity.Gesture, KeyframeAnimation> gestures = new EnumMap<>(PostmanEntity.Gesture.class);
 
 	public PostmanModel(ModelPart baked) {
-		// Animations of the "root" bone go to root(), so that has to be the bone at his feet that Blockbench pivots
-		// them on, not the part above it (which pivots 1.5 blocks up and swung him into the air lying down)
+		super(baked, RenderTypes::entityCutout);
+		// Animations of the "root" bone have to go to the bone at his feet that Blockbench pivots them on, not the
+		// model's own root above it (which pivots 1.5 blocks up and swung him into the air lying down), so they're
+		// baked against that bone: a part's lookup answers "root" with the part itself
 		this.root = baked.getChild("root");
+		this.bones = root.createPartLookup();
 		ModelPart body = root.getChild("body");
 		this.head = body.getChild("head");
 		this.harmonica = head.getChild("harmonica");
@@ -71,6 +90,18 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		this.satchelFull = satchel.getChild("satchel_full");
 		for (String part : HAIR_PARTS)
 			hair.put(part, head.getChild(part));
+		this.walk = PostmanAnimations.WALK.bake(root);
+		this.idle = PostmanAnimations.IDLE.bake(root);
+		this.ride = PostmanAnimations.RIDE.bake(root);
+		this.rideIdle = PostmanAnimations.RIDE_IDLE.bake(root);
+		this.hurt = PostmanAnimations.HURT.bake(root);
+		for (PostmanEntity.Activity activity : PostmanEntity.Activity.values()) {
+			AnimationDefinition animation = activityAnimation(activity);
+			if (animation != null)
+				activities.put(activity, animation.bake(root));
+		}
+		for (PostmanEntity.Gesture gesture : PostmanEntity.Gesture.values())
+			gestures.put(gesture, gestureAnimation(gesture).bake(root));
 	}
 
 	public static LayerDefinition createBodyLayer() {
@@ -145,71 +176,90 @@ public class PostmanModel extends HierarchicalModel<PostmanEntity> {
 		return LayerDefinition.create(mesh, 128, 64);
 	}
 
-	@Override
-	public ModelPart root() {
+	/** The bone the animations are baked against, which they call "root": the one at his feet. */
+	public ModelPart animationRoot() {
 		return root;
 	}
 
 	@Override
-	public void setupAnim(PostmanEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
-		root().getAllParts().forEach(ModelPart::resetPose);
-		if (headTurns(entity.getActivity(), entity.isGesturing())) {
-			head.yRot = netHeadYaw * Mth.DEG_TO_RAD;
-			head.xRot = headPitch * Mth.DEG_TO_RAD;
+	public void setupAnim(PostmanRenderState state) {
+		super.setupAnim(state);
+		if (headTurns(state.activity, state.gesturing)) {
+			head.yRot = state.yRot * Mth.DEG_TO_RAD;
+			head.xRot = state.xRot * Mth.DEG_TO_RAD;
 		}
 
-		boolean free = entity.getVehicle() == null && entity.getActivity() == PostmanEntity.Activity.NONE;
+		float ageInTicks = state.ageInTicks;
+		boolean free = !state.inVehicle && state.activity == PostmanEntity.Activity.NONE;
 		if (free)
-			animateWalk(PostmanAnimations.WALK, limbSwing, limbSwingAmount, 2.0F, 2.5F);
-		animate(entity.idleAnimation, PostmanAnimations.IDLE, ageInTicks);
-		animate(entity.rideAnimation, PostmanAnimations.RIDE, ageInTicks);
-		animate(entity.rideIdleAnimation, PostmanAnimations.RIDE_IDLE, ageInTicks);
-		animate(entity.activityAnimations.get(PostmanEntity.Activity.CAMP_HAMMER), PostmanAnimations.CAMP_HAMMER, ageInTicks);
-		animate(entity.activityAnimations.get(PostmanEntity.Activity.CAMP_REST), PostmanAnimations.CAMP_REST, ageInTicks);
-		animate(entity.activityAnimations.get(PostmanEntity.Activity.ROW), PostmanAnimations.ROW, ageInTicks);
-		animate(entity.activityAnimations.get(PostmanEntity.Activity.HARMONICA), PostmanAnimations.HARMONICA, ageInTicks);
-		animate(entity.activityAnimations.get(PostmanEntity.Activity.SLEEP), PostmanAnimations.SLEEP, ageInTicks);
-		animate(entity.activityAnimations.get(PostmanEntity.Activity.CLIMB), PostmanAnimations.CLIMB, ageInTicks);
-		animate(entity.activityAnimations.get(PostmanEntity.Activity.DRIFT), PostmanAnimations.DRIFT, ageInTicks);
+			walk.applyWalk(state.walkAnimationPos, state.walkAnimationSpeed, 2.0F, 2.5F);
+		idle.apply(state.idleAnimation, ageInTicks);
+		ride.apply(state.rideAnimation, ageInTicks);
+		rideIdle.apply(state.rideIdleAnimation, ageInTicks);
+		for (PostmanEntity.Activity activity : PostmanEntity.Activity.values())
+			if (activity != PostmanEntity.Activity.STUDY_MAP && activities.containsKey(activity))
+				activities.get(activity).apply(state.activityAnimations.get(activity), ageInTicks);
 		for (PostmanEntity.Gesture gesture : PostmanEntity.Gesture.values())
 			if (!overridesUpperBody(gesture))
-				animate(entity.gestureAnimations.get(gesture), gestureAnimation(gesture), ageInTicks);
-		animate(entity.hurtAnimation, PostmanAnimations.HURT, ageInTicks);
+				gestures.get(gesture).apply(state.gestureAnimations.get(gesture), ageInTicks);
+		hurt.apply(state.hurtAnimation, ageInTicks);
 		// Studying the map takes over his head and arms, so it looks the same in the saddle as on foot
-		AnimationState studying = entity.activityAnimations.get(PostmanEntity.Activity.STUDY_MAP);
+		AnimationState studying = state.activityAnimations.get(PostmanEntity.Activity.STUDY_MAP);
 		if (studying.isStarted()) {
-			for (String bone : PostmanAnimations.STUDY_MAP.boneAnimations().keySet())
-				getAnyDescendantWithName(bone).ifPresent(ModelPart::resetPose);
-			animate(studying, PostmanAnimations.STUDY_MAP, ageInTicks);
+			resetBones(PostmanAnimations.STUDY_MAP);
+			activities.get(PostmanEntity.Activity.STUDY_MAP).apply(studying, ageInTicks);
 		}
 		// A drink or a mannerism can come mid-gallop: the parts it moves drop whatever they were doing, and the rest of
 		// him carries on
 		for (PostmanEntity.Gesture gesture : PostmanEntity.Gesture.values()) {
-			AnimationState state = entity.gestureAnimations.get(gesture);
-			if (overridesUpperBody(gesture) && state.isStarted()) {
-				AnimationDefinition animation = gestureAnimation(gesture);
-				for (String bone : animation.boneAnimations().keySet())
-					getAnyDescendantWithName(bone).ifPresent(ModelPart::resetPose);
-				animate(state, animation, ageInTicks);
+			AnimationState gestureState = state.gestureAnimations.get(gesture);
+			if (overridesUpperBody(gesture) && gestureState.isStarted()) {
+				resetBones(gestureAnimation(gesture));
+				gestures.get(gesture).apply(gestureState, ageInTicks);
 			}
 		}
 
-		Roster.Rider rider = entity.getRider();
+		Roster.Rider rider = state.rider;
 		String hairPart = rider == null ? null : rider.hair().part();
 		hair.forEach((name, part) -> part.visible = name.equals(hairPart));
-		harmonica.visible = entity.getActivity() == PostmanEntity.Activity.HARMONICA;
-		hammer.visible = entity.getActivity() == PostmanEntity.Activity.CAMP_HAMMER;
-		potion.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.DRINK).isStarted();
-		canteen.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.SWIG).isStarted();
-		food.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.EAT).isStarted();
-		pocketWatch.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.POCKET_WATCH).isStarted();
-		letter.visible = entity.gestureAnimations.get(PostmanEntity.Gesture.READ_LETTER).isStarted();
-		boolean lighting = entity.gestureAnimations.get(PostmanEntity.Gesture.LIGHT_FIRE).isStarted();
+		harmonica.visible = state.activity == PostmanEntity.Activity.HARMONICA;
+		hammer.visible = state.activity == PostmanEntity.Activity.CAMP_HAMMER;
+		potion.visible = state.gestureAnimations.get(PostmanEntity.Gesture.DRINK).isStarted();
+		canteen.visible = state.gestureAnimations.get(PostmanEntity.Gesture.SWIG).isStarted();
+		food.visible = state.gestureAnimations.get(PostmanEntity.Gesture.EAT).isStarted();
+		pocketWatch.visible = state.gestureAnimations.get(PostmanEntity.Gesture.POCKET_WATCH).isStarted();
+		letter.visible = state.gestureAnimations.get(PostmanEntity.Gesture.READ_LETTER).isStarted();
+		boolean lighting = state.gestureAnimations.get(PostmanEntity.Gesture.LIGHT_FIRE).isStarted();
 		striker.visible = lighting;
 		flint.visible = lighting;
-		map.visible = entity.getActivity() == PostmanEntity.Activity.STUDY_MAP;
-		satchelFlat.visible = !entity.isCarrying();
-		satchelFull.visible = entity.isCarrying();
+		map.visible = state.activity == PostmanEntity.Activity.STUDY_MAP;
+		satchelFlat.visible = !state.carrying;
+		satchelFull.visible = state.carrying;
+	}
+
+	/** Puts back the parts an animation moves, so it takes them over rather than adding to what they were doing. */
+	private void resetBones(AnimationDefinition animation) {
+		for (String bone : animation.boneAnimations().keySet()) {
+			ModelPart part = bones.apply(bone);
+			if (part != null)
+				part.resetPose();
+		}
+	}
+
+	/** The animation each activity plays, or null for none (just standing about). */
+	@Nullable
+	public static AnimationDefinition activityAnimation(PostmanEntity.Activity activity) {
+		return switch (activity) {
+			case NONE -> null;
+			case CAMP_HAMMER -> PostmanAnimations.CAMP_HAMMER;
+			case CAMP_REST -> PostmanAnimations.CAMP_REST;
+			case ROW -> PostmanAnimations.ROW;
+			case HARMONICA -> PostmanAnimations.HARMONICA;
+			case SLEEP -> PostmanAnimations.SLEEP;
+			case STUDY_MAP -> PostmanAnimations.STUDY_MAP;
+			case CLIMB -> PostmanAnimations.CLIMB;
+			case DRIFT -> PostmanAnimations.DRIFT;
+		};
 	}
 
 	/** His head only follows where he's looking while he's free; at work the animation keeps his eyes on the job. */

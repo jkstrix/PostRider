@@ -7,7 +7,6 @@ import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlockEntity;
 import com.comedymonkey.postrider.content.postman.DeliveryRun;
@@ -16,13 +15,12 @@ import com.comedymonkey.postrider.registry.ModBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.gametest.framework.GameTest;
-import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.DyeColor;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.BubbleColumnBlock;
@@ -31,8 +29,6 @@ import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Deliveries up, down and under things: a tower with a ramp spiralling up it, rooms under a hill reached by a tunnel
@@ -41,8 +37,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * {@link Lookout}: he's never moved more than a few blocks in a tick, never hurt, and only gets off to walk up to the
  * mailbox once he's about level with it (a box on top of a tower is no nearer from its foot).
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class ClimbingGameTests {
 	/** Long enough to study the map, ride a hundred blocks or so, climb, and deliver; a loop or a stall fails sooner. */
 	private static final int DELIVERY_TICKS = 6000;
@@ -76,9 +70,9 @@ public final class ClimbingGameTests {
 		lookout.place("ramp", 16, 10, 16, 31, 30, 31);
 		Trials.deliver("Spiral up", scene, to, watch, () -> {
 			if (!lookout.been("ramp"))
-				throw new GameTestAssertException("He never went up the ramp");
+				throw helper.assertionException(Component.literal("He never went up the ramp"));
 			if (!lookout.rodeAt("ramp"))
-				throw new GameTestAssertException("He walked the ramp instead of riding it");
+				throw helper.assertionException(Component.literal("He walked the ramp instead of riding it"));
 		});
 	}
 
@@ -97,11 +91,11 @@ public final class ClimbingGameTests {
 		lookout.place("ramp", 18, 4, 18, 29, 30, 29);
 		Trials.deliver("Spiral on foot", scene, to, watch, () -> {
 			if (!lookout.been("ramp"))
-				throw new GameTestAssertException("He never went up the ramp");
+				throw helper.assertionException(Component.literal("He never went up the ramp"));
 			if (lookout.rodeAt("ramp"))
-				throw new GameTestAssertException("He rode a ramp one block wide");
+				throw helper.assertionException(Component.literal("He rode a ramp one block wide"));
 			if (!lookout.gotDown)
-				throw new GameTestAssertException("He never got down from his horse");
+				throw helper.assertionException(Component.literal("He never got down from his horse"));
 		});
 	}
 
@@ -157,11 +151,11 @@ public final class ClimbingGameTests {
 		lookout.place("the stair", 20, 4, 20, 42, top - 1, 42);
 		Trials.deliver("Spire", scene, to, watch, () -> {
 			if (!lookout.been("the stair"))
-				throw new GameTestAssertException("He never went up the stair");
+				throw helper.assertionException(Component.literal("He never went up the stair"));
 			if (lookout.rodeAt("the stair"))
-				throw new GameTestAssertException("He rode a stair one block wide");
+				throw helper.assertionException(Component.literal("He rode a stair one block wide"));
 			if (!lookout.gotDown)
-				throw new GameTestAssertException("He never got down from his horse");
+				throw helper.assertionException(Component.literal("He never got down from his horse"));
 		});
 	}
 
@@ -188,7 +182,7 @@ public final class ClimbingGameTests {
 		lookout.place("bend", 36, 1, 38, 37, 3, 39);
 		Trials.deliver("Tunnel base", scene, to, watch, () -> {
 			if (!lookout.been("bend"))
-				throw new GameTestAssertException("He never came through the tunnel");
+				throw helper.assertionException(Component.literal("He never came through the tunnel"));
 		});
 	}
 
@@ -211,9 +205,9 @@ public final class ClimbingGameTests {
 		lookout.place("shaft", 42, 5, 47, 42, 8, 47);
 		Trials.deliver("Ladder shaft", scene, to, watch, () -> {
 			if (!lookout.been("shaft"))
-				throw new GameTestAssertException("He never came down the shaft");
+				throw helper.assertionException(Component.literal("He never came down the shaft"));
 			if (!lookout.gotDown)
-				throw new GameTestAssertException("He never got down from his horse");
+				throw helper.assertionException(Component.literal("He never got down from his horse"));
 		});
 	}
 
@@ -250,7 +244,7 @@ public final class ClimbingGameTests {
 		lookout.place("deep in the cave", 33, 1, 41, 41, 3, 48);
 		Trials.deliver("Dead-end cave", scene, to, watch, () -> {
 			if (lookout.been("deep in the cave"))
-				throw new GameTestAssertException("He went into the cave that leads nowhere");
+				throw helper.assertionException(Component.literal("He went into the cave that leads nowhere"));
 		});
 	}
 
@@ -276,7 +270,7 @@ public final class ClimbingGameTests {
 		lookout.place("ramp", 28, 1, 1, 39, 8, 3);
 		Trials.deliver("Cliff foot", scene, to, watch, () -> {
 			if (!lookout.been("ramp"))
-				throw new GameTestAssertException("He got up without the ramp");
+				throw helper.assertionException(Component.literal("He got up without the ramp"));
 		});
 	}
 
@@ -335,12 +329,12 @@ public final class ClimbingGameTests {
 		lookout.place("the whirlpool", 52, 1, 54, 52, 12, 54);
 		Trials.deliver("Complex base", scene, to, watch, () -> {
 			if (lookout.been("the room that goes nowhere"))
-				throw new GameTestAssertException("He went into the room that goes nowhere");
+				throw helper.assertionException(Component.literal("He went into the room that goes nowhere"));
 			for (String way : new String[] {"the ladder", "the column up", "the whirlpool"})
 				if (!lookout.been(way))
-					throw new GameTestAssertException("He never went by " + way);
+					throw helper.assertionException(Component.literal("He never went by " + way));
 			if (!lookout.gotDown)
-				throw new GameTestAssertException("He never got down from his horse");
+				throw helper.assertionException(Component.literal("He never got down from his horse"));
 		});
 	}
 
@@ -400,7 +394,7 @@ public final class ClimbingGameTests {
 				y = floor;
 			} else if ((i / stretch) % 2 == 0) {
 				int[] before = path.get(i - 1);
-				block = STAIRS.setValue(StairBlock.FACING, Direction.getNearest(cell[0] - before[0], 0, cell[1] - before[1]));
+				block = STAIRS.setValue(StairBlock.FACING, Direction.getApproximateNearest(cell[0] - before[0], 0, cell[1] - before[1]));
 				y = floor + 1;
 			} else {
 				block = SLAB;
@@ -414,7 +408,7 @@ public final class ClimbingGameTests {
 
 	/** No monsters in the dark rooms (the tests are about finding the way, not fighting). */
 	private static void quiet(Scene scene) {
-		scene.level.getGameRules().getRule(GameRules.RULE_DOMOBSPAWNING).set(false, scene.level.getServer());
+		scene.level.getGameRules().set(GameRules.SPAWN_MOBS, false, scene.level.getServer());
 	}
 
 	/** A mailbox standing on the block below (x, y, z), its door facing this way, as {@link Scene#mailbox} but at any height. */
@@ -424,10 +418,10 @@ public final class ClimbingGameTests {
 		scene.helper.setBlock(new BlockPos(x, y + 1, z), lower.setValue(MailboxBlock.HALF, DoubleBlockHalf.UPPER));
 		BlockPos pos = scene.at(x, y, z);
 		if (!(scene.level.getBlockEntity(pos) instanceof MailboxBlockEntity mailbox))
-			throw new GameTestAssertException("No mailbox at " + pos);
+			throw scene.helper.assertionException(Component.literal("No mailbox at " + pos));
 		MailboxDirectory.Result named = mailbox.rename(address, scene.helper.makeMockPlayer(GameType.SURVIVAL));
 		if (named != MailboxDirectory.Result.OK)
-			throw new GameTestAssertException("Couldn't name the mailbox " + address + ": " + named);
+			throw scene.helper.assertionException(Component.literal("Couldn't name the mailbox " + address + ": " + named));
 		return pos;
 	}
 
@@ -527,7 +521,7 @@ public final class ClimbingGameTests {
 
 		private void fail(String trouble) {
 			Trials.record(trial, watch, false);
-			throw new GameTestAssertException(trial + ": " + trouble);
+			throw scene.helper.assertionException(Component.literal(trial + ": " + trouble));
 		}
 
 		private static String spot(Vec3 at) {

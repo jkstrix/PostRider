@@ -64,7 +64,7 @@ public final class LevelTerrain implements Terrain {
 
 	private Kind look(int x, int y, int z) {
 		if (level.isOutsideBuildHeight(y))
-			return y < level.getMinBuildHeight() ? Kind.UNKNOWN : Kind.OPEN;
+			return y < level.getMinY() ? Kind.UNKNOWN : Kind.OPEN;
 		LevelChunk chunk = chunk(x, z);
 		if (chunk == null)
 			return Kind.UNKNOWN;
@@ -94,7 +94,7 @@ public final class LevelTerrain implements Terrain {
 	}
 
 	private LevelChunk chunk(int x, int z) {
-		long key = ChunkPos.asLong(x >> 4, z >> 4);
+		long key = ChunkPos.pack(x >> 4, z >> 4);
 		LevelChunk chunk = chunks.get(key);
 		if (chunk == null && !chunks.containsKey(key)) {
 			chunk = level.getChunkSource().getChunkNow(x >> 4, z >> 4);

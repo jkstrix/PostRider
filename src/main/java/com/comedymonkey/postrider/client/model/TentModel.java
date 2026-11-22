@@ -1,7 +1,7 @@
 package com.comedymonkey.postrider.client.model;
 
 import com.comedymonkey.postrider.PostRider;
-import com.comedymonkey.postrider.content.postman.TentEntity;
+import com.comedymonkey.postrider.client.renderer.state.TentRenderState;
 
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
@@ -13,17 +13,12 @@ import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-
 /** The rider's A-frame canvas tent. Geometry is Blockbench's Mojang-mappings export of blockbench/tent.bbmodel. */
-public class TentModel extends EntityModel<TentEntity> {
+public class TentModel extends EntityModel<TentRenderState> {
 	public static final ModelLayerLocation LAYER = new ModelLayerLocation(PostRider.asResource("tent"), "main");
 
-	private final ModelPart tent;
-
 	public TentModel(ModelPart root) {
-		this.tent = root.getChild("tent");
+		super(root);
 	}
 
 	public static LayerDefinition createBodyLayer() {
@@ -54,11 +49,4 @@ public class TentModel extends EntityModel<TentEntity> {
 		return LayerDefinition.create(mesh, 128, 128);
 	}
 
-	@Override
-	public void setupAnim(TentEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {}
-
-	@Override
-	public void renderToBuffer(PoseStack poseStack, VertexConsumer buffer, int packedLight, int packedOverlay, int color) {
-		tent.render(poseStack, buffer, packedLight, packedOverlay, color);
-	}
 }

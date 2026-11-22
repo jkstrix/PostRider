@@ -31,6 +31,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.server.level.ServerLevel;
@@ -40,11 +41,12 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 import net.minecraft.world.entity.ai.util.DefaultRandomPos;
-import net.minecraft.world.entity.monster.Drowned;
+import net.minecraft.world.entity.monster.zombie.Drowned;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -317,7 +319,7 @@ public class DeliveryRun {
 		return rider.getName().getString() + ": " + stage + (stage == Stage.CAMPING ? " (" + campStep + ")" : "")
 			+ " for " + stageTicks + " ticks, activity " + rider.getActivity() + (rider.isInTent() ? ", in the tent" : "")
 			+ ", " + (int) rider.getHealth() + " health and " + rider.getPotions() + " potions"
-			+ ", " + distance + " to " + delivery.toName() + ", time of day " + PostOfficeHours.timeOfDay(level.getDayTime());
+			+ ", " + distance + " to " + delivery.toName() + ", time of day " + PostOfficeHours.timeOfDay(level.getOverworldClockTime());
 	}
 
 	private void keepChunksLoaded(PostmanEntity rider, ServerLevel level) {
@@ -526,7 +528,7 @@ public class DeliveryRun {
 		Vec3 target = destinationSpot(level);
 		if (target == null)
 			return;
-		if (!PostOfficeHours.isOpen(level.getDayTime()) && !rider.isInWater()) {
+		if (!PostOfficeHours.isOpen(level.getOverworldClockTime()) && !rider.isInWater()) {
 			enter(Stage.CAMPING);
 			return;
 		}
@@ -606,11 +608,11 @@ public class DeliveryRun {
 
 	/** As above; {@code pushOff} first rows straight out from the shore for a few seconds (out of a cove, say). */
 	private boolean launchBargeAt(PostmanEntity rider, ServerLevel level, Vec3 spot, Vec3 target, boolean pushOff) {
-		BargeEntity barge = ModEntities.BARGE.get().create(level);
+		BargeEntity barge = ModEntities.BARGE.get().create(level, EntitySpawnReason.MOB_SUMMONED);
 		if (barge == null)
 			return false;
 		Vec3 shore = rider.position();
-		barge.moveTo(spot.x, Crossing.restHeight(level, Mth.floor(spot.x), Mth.floor(spot.z), spot.y), spot.z, yawToward(spot, target), 0);
+		barge.snapTo(spot.x, Crossing.restHeight(level, Mth.floor(spot.x), Mth.floor(spot.z), spot.y), spot.z, yawToward(spot, target), 0);
 		level.addFreshEntity(barge);
 		PostmanEffects.puff(level, barge);
 		PostmanHorse horse = rider.getHorse();
@@ -628,8 +630,8 @@ public class DeliveryRun {
 			PostmanEffects.puff(level, horse);
 		}
 		if (horse != null)
-			horse.startRiding(barge, true);
-		rider.startRiding(barge, true);
+			horse.startRiding(barge, true, true);
+		rider.startRiding(barge, true, true);
 		rider.setActivity(PostmanEntity.Activity.ROW);
 		crossedWater = true;
 		aimCooldown = 0;
@@ -639,7 +641,7 @@ public class DeliveryRun {
 		navigator.launched(level, spot, destination != null ? destination : target);
 		if (pushOff) {
 			Vec3 out = Journey.horizontalDistance(shore, spot) < 1e-6 ? spot : spot.add(spot.subtract(shore).multiply(1, 0, 1).normalize().scale(PUSH_OFF_DISTANCE));
-			barge.moveTo(spot.x, barge.getY(), spot.z, yawToward(spot, out), 0);
+			barge.snapTo(spot.x, barge.getY(), spot.z, yawToward(spot, out), 0);
 			barge.steer(out);
 			aimCooldown = PUSH_OFF_TICKS_AWAY;
 		}
@@ -831,16 +833,16 @@ public class DeliveryRun {
 		float yaw = yawToward(ground, target);
 		rider.stopRiding();
 		rider.setActivity(PostmanEntity.Activity.NONE);
-		rider.moveTo(ground.x, ground.y, ground.z, yaw, 0);
+		rider.snapTo(ground.x, ground.y, ground.z, yaw, 0);
 		keepChunksLoaded(rider, level);
 		String horseWhere = "";
 		if (horse != null) {
 			Vec3 room = HorseSpots.find(ground, yaw, s -> HorseSpots.fits(level, type, s));
 			horse.stopRiding();
 			if (room != null) {
-				horse.moveTo(room.x, room.y, room.z, yaw, 0);
+				horse.snapTo(room.x, room.y, room.z, yaw, 0);
 				PostmanEffects.puff(level, horse);
-				rider.startRiding(horse, true);
+				rider.startRiding(horse, true, true);
 				horseWhere = ", his horse put down at " + Navigator.spot(room);
 			} else {
 				// No room for it ashore here (a ledge, a niche under a cliff): put down it would be wedged in the rock. It
@@ -946,7 +948,7 @@ public class DeliveryRun {
 		navigator.putDoorsBack(level);
 		if (stepTicks % 20 == 0)
 			tendFire(level);
-		if (PostOfficeHours.isOpen(level.getDayTime())) {
+		if (PostOfficeHours.isOpen(level.getOverworldClockTime())) {
 			// Up with the sun: out comes the map and the route is worked out afresh, then he whistles for his horse
 			breakCamp(rider, level);
 			navigator.clearStretch();
@@ -970,7 +972,7 @@ public class DeliveryRun {
 				Vec3 seat = campSite.seatPos();
 				if (Journey.horizontalDistance(rider.position(), seat) < 0.6 || stepTicks >= WALK_TO_CAMP_TICKS) {
 					rider.getNavigation().stop();
-					rider.moveTo(seat.x, seat.y, seat.z, campSite.yaw() + 180, 0);
+					rider.snapTo(seat.x, seat.y, seat.z, campSite.yaw() + 180, 0);
 					face(rider, campSite.yaw() + 180);
 					rider.setActivity(PostmanEntity.Activity.CAMP_HAMMER);
 					step(CampStep.HAMMERING);
@@ -1000,14 +1002,14 @@ public class DeliveryRun {
 				if (stepTicks == 1)
 					rider.playGesture(PostmanEntity.Gesture.LIGHT_FIRE);
 				if (stepTicks == STRIKES[0] || stepTicks == STRIKES[1] || stepTicks == STRIKES[2])
-					level.playSound(null, rider, SoundEvents.FLINTANDSTEEL_USE, SoundSource.NEUTRAL, 1.0F, 0.9F + level.random.nextFloat() * 0.2F);
+					level.playSound(null, rider, SoundEvents.FLINTANDSTEEL_USE, SoundSource.NEUTRAL, 1.0F, 0.9F + level.getRandom().nextFloat() * 0.2F);
 				if (stepTicks == STRIKES[2])
 					lightFire(level);
 				if (stepTicks >= LIGHTING_TICKS)
 					startEvening(rider, level);
 			}
 			case PLAYING -> {
-				if (PostOfficeHours.isBedtime(level.getDayTime()))
+				if (PostOfficeHours.isBedtime(level.getOverworldClockTime()))
 					turnIn(rider, level);
 				else if (shiversNow(coldCamp, stepTicks, rider.isBusy()))
 					rider.playGesture(PostmanEntity.Gesture.SHIVER);
@@ -1018,7 +1020,7 @@ public class DeliveryRun {
 
 	/** The harmonica until monsters come out (sat shivering at a cold camp instead); straight to bed if they already have. */
 	private void startEvening(PostmanEntity rider, ServerLevel level) {
-		if (PostOfficeHours.isBedtime(level.getDayTime())) {
+		if (PostOfficeHours.isBedtime(level.getOverworldClockTime())) {
 			turnIn(rider, level);
 			return;
 		}
@@ -1049,11 +1051,11 @@ public class DeliveryRun {
 
 	/** The tent goes up on the pitch behind him, open end towards him. */
 	private void pitchTent(PostmanEntity rider, ServerLevel level) {
-		TentEntity tent = campSite == null ? null : ModEntities.TENT.get().create(level);
+		TentEntity tent = campSite == null ? null : ModEntities.TENT.get().create(level, EntitySpawnReason.MOB_SUMMONED);
 		if (tent == null)
 			return;
 		Vec3 spot = campSite.tentPos();
-		tent.moveTo(spot.x, spot.y, spot.z, campSite.yaw(), 0);
+		tent.snapTo(spot.x, spot.y, spot.z, campSite.yaw(), 0);
 		tent.setRider(rider.getUUID());
 		level.addFreshEntity(tent);
 		PostmanEffects.puff(level, tent);
@@ -1065,7 +1067,7 @@ public class DeliveryRun {
 		nightsOut++;
 		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent) {
 			Vec3 soles = sleepingSpot(tent.position(), tent.getYRot());
-			rider.moveTo(soles.x, soles.y, soles.z, tent.getYRot(), 0);
+			rider.snapTo(soles.x, soles.y, soles.z, tent.getYRot(), 0);
 			face(rider, tent.getYRot());
 			rider.setInTent(true);
 			rider.setActivity(PostmanEntity.Activity.SLEEP);
@@ -1094,7 +1096,7 @@ public class DeliveryRun {
 		if (spot == null || !CampfireBlock.canLightAt(level, spot))
 			return;
 		campfire = spot;
-		fireLitAt = PostOfficeHours.timeOfDay(level.getDayTime());
+		fireLitAt = PostOfficeHours.timeOfDay(level.getOverworldClockTime());
 		level.setBlock(spot, ModBlocks.CAMPFIRE.get().defaultBlockState(), Block.UPDATE_ALL);
 		level.playSound(null, spot, SoundEvents.FIRECHARGE_USE, SoundSource.BLOCKS, 0.6F, 1.2F);
 	}
@@ -1108,7 +1110,7 @@ public class DeliveryRun {
 			campfire = null;
 			return;
 		}
-		int light = CampfireBlock.lightAt(PostOfficeHours.timeOfDay(level.getDayTime()), fireLitAt);
+		int light = CampfireBlock.lightAt(PostOfficeHours.timeOfDay(level.getOverworldClockTime()), fireLitAt);
 		if (state.getValue(CampfireBlock.LIGHT) != light)
 			level.setBlock(campfire, state.setValue(CampfireBlock.LIGHT, light), Block.UPDATE_ALL);
 	}
@@ -1126,7 +1128,7 @@ public class DeliveryRun {
 		rider.setHealth(rider.getMaxHealth());
 		if (rider.isInTent() && campSite != null) {
 			Vec3 seat = campSite.seatPos();
-			rider.moveTo(seat.x, seat.y, seat.z, rider.getYRot(), 0);
+			rider.snapTo(seat.x, seat.y, seat.z, rider.getYRot(), 0);
 		}
 		rider.setInTent(false);
 		rider.setActivity(PostmanEntity.Activity.NONE);
@@ -1182,7 +1184,7 @@ public class DeliveryRun {
 
 	private void flee(PostmanEntity rider, ServerLevel level) {
 		progress.pause(level.getGameTime());
-		if (PostOfficeHours.isOpen(level.getDayTime())) {
+		if (PostOfficeHours.isOpen(level.getOverworldClockTime())) {
 			// Daylight: he's run off his route, so out comes the map before he whistles for his horse
 			rider.setSprinting(false);
 			attacker = null;
@@ -1249,7 +1251,7 @@ public class DeliveryRun {
 			return false;
 		}
 		long travelTicks = level.getGameTime() - delivery.sentAt();
-		ItemStack mail = Mail.wrap(delivery, Mail.day(level.getDayTime()), travelTicks, new JourneyNotes(crossedWater, nightsOut));
+		ItemStack mail = Mail.wrap(delivery, Mail.day(level.getOverworldClockTime()), travelTicks, new JourneyNotes(crossedWater, nightsOut));
 		ItemStack delivered = mail.copy();
 		if (!mailbox.deliver(mail)) {
 			fail(rider, level, LostCause.UNDELIVERABLE, name + " found the mailbox at " + delivery.toName() + " too full to take it.", null, box);
@@ -1388,7 +1390,7 @@ public class DeliveryRun {
 				logRoute(rider, stuck + "; on the water; the barge is pushed off to open water " + Math.round(hop) + " blocks on, at " + Navigator.spot(water));
 				jumps.add(new Jump(stage, why, BlockPos.containing(barge.position()), BlockPos.containing(water), false, "pushed off " + Math.round(hop) + " blocks"));
 				PostmanEffects.puff(level, barge);
-				barge.moveTo(water.x, Crossing.restHeight(level, Mth.floor(water.x), Mth.floor(water.z), water.y), water.z, yawToward(water, target), 0);
+				barge.snapTo(water.x, Crossing.restHeight(level, Mth.floor(water.x), Mth.floor(water.z), water.y), water.z, yawToward(water, target), 0);
 				PostmanEffects.puff(level, barge);
 				jumpsFree++;
 				aimCooldown = 0;
@@ -1598,7 +1600,7 @@ public class DeliveryRun {
 		UUID recipient = entry != null ? entry.owner() : null;
 		putOutFire(level);
 		BlockPos at = LostParcels.place(level, near, delivery, cause, recipient, killer, killerName);
-		Notices.failed(level.getServer(), delivery, reason, at != null ? at : near, at != null, Mail.day(level.getDayTime()));
+		Notices.failed(level.getServer(), delivery, reason, at != null ? at : near, at != null, Mail.day(level.getOverworldClockTime()));
 		rider.setCarrying(false);
 		finish(rider, level);
 		if (cause != LostCause.KILLED)
@@ -1642,7 +1644,7 @@ public class DeliveryRun {
 		tag.putBoolean("horse_lost", horseLost);
 		tag.putInt("nights_out", nightsOut);
 		if (loadedChunk != null)
-			tag.putLong("loaded_chunk", loadedChunk.toLong());
+			tag.putLong("loaded_chunk", loadedChunk.pack());
 		tag.putString("camp_step", campStep.name());
 		tag.putInt("step_ticks", stepTicks);
 		if (campSite != null) {
@@ -1650,7 +1652,7 @@ public class DeliveryRun {
 			tag.putString("camp_facing", campSite.facing().getName());
 		}
 		if (tentId != null)
-			tag.putUUID("tent", tentId);
+			tag.store("tent", UUIDUtil.CODEC, tentId);
 		if (campfire != null) {
 			tag.putLong("campfire", campfire.asLong());
 			tag.putLong("fire_lit_at", fireLitAt);
@@ -1658,7 +1660,7 @@ public class DeliveryRun {
 		if (coldCamp)
 			tag.putBoolean("cold_camp", true);
 		if (attacker != null)
-			tag.putUUID("attacker", attacker);
+			tag.store("attacker", UUIDUtil.CODEC, attacker);
 		return tag;
 	}
 
@@ -1672,45 +1674,43 @@ public class DeliveryRun {
 			? GlobalPos.CODEC.parse(NbtOps.INSTANCE, tag.get("destination")).result().orElse(null) : null;
 		DeliveryRun run = new DeliveryRun(delivery, destination);
 		try {
-			run.stage = Stage.valueOf(tag.getString("stage"));
+			run.stage = Stage.valueOf(tag.getStringOr("stage", ""));
 		} catch (IllegalArgumentException e) {
 			run.stage = Stage.RIDING;
 		}
-		run.stageTicks = tag.getInt("stage_ticks");
+		run.stageTicks = tag.getIntOr("stage_ticks", 0);
 		try {
-			run.afterPlanning = Stage.valueOf(tag.getString("after_planning"));
+			run.afterPlanning = Stage.valueOf(tag.getStringOr("after_planning", ""));
 		} catch (IllegalArgumentException e) {
 			run.afterPlanning = Stage.CALLING_HORSE;
 		}
 		// The map comes out again and the route is worked out afresh
 		if (run.stage == Stage.PLANNING)
 			run.stageTicks = 0;
-		run.crossedWater = tag.getBoolean("crossed_water");
-		run.horseLost = tag.getBoolean("horse_lost");
-		run.nightsOut = tag.getInt("nights_out");
+		run.crossedWater = tag.getBooleanOr("crossed_water", false);
+		run.horseLost = tag.getBooleanOr("horse_lost", false);
+		run.nightsOut = tag.getIntOr("nights_out", 0);
 		if (tag.contains("loaded_chunk"))
-			run.loadedChunk = new ChunkPos(tag.getLong("loaded_chunk"));
+			run.loadedChunk = ChunkPos.unpack(tag.getLongOr("loaded_chunk", 0));
 		try {
-			run.campStep = CampStep.valueOf(tag.getString("camp_step"));
+			run.campStep = CampStep.valueOf(tag.getStringOr("camp_step", ""));
 		} catch (IllegalArgumentException e) {
 			run.campStep = CampStep.FINDING;
 		}
-		run.stepTicks = tag.getInt("step_ticks");
-		Direction facing = Direction.byName(tag.getString("camp_facing"));
+		run.stepTicks = tag.getIntOr("step_ticks", 0);
+		Direction facing = Direction.byName(tag.getStringOr("camp_facing", ""));
 		if (tag.contains("camp_seat") && facing != null)
-			run.campSite = new CampSites.Site(BlockPos.of(tag.getLong("camp_seat")), facing);
+			run.campSite = new CampSites.Site(BlockPos.of(tag.getLongOr("camp_seat", 0)), facing);
 		// A pitch that didn't survive saving: start the evening over
 		if (run.campSite == null && (run.campStep == CampStep.WALKING || run.campStep == CampStep.HAMMERING))
 			run.campStep = CampStep.FINDING;
-		if (tag.hasUUID("tent"))
-			run.tentId = tag.getUUID("tent");
+		run.tentId = tag.read("tent", UUIDUtil.CODEC).orElse(null);
 		if (tag.contains("campfire")) {
-			run.campfire = BlockPos.of(tag.getLong("campfire"));
-			run.fireLitAt = tag.getLong("fire_lit_at");
+			run.campfire = BlockPos.of(tag.getLongOr("campfire", 0));
+			run.fireLitAt = tag.getLongOr("fire_lit_at", 0);
 		}
-		run.coldCamp = tag.getBoolean("cold_camp");
-		if (tag.hasUUID("attacker"))
-			run.attacker = tag.getUUID("attacker");
+		run.coldCamp = tag.getBooleanOr("cold_camp", false);
+		run.attacker = tag.read("attacker", UUIDUtil.CODEC).orElse(null);
 		return run;
 	}
 }

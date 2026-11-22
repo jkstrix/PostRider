@@ -1,25 +1,25 @@
 package com.comedymonkey.postrider.gametest;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.content.postman.Hazards;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.PostmanHorse;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.gametest.framework.GameTest;
-import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SweetBerryBushBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Deliveries through ground that hurts: lava, fire, magma, cactus, dripstone, berry bushes and powder snow. Each
@@ -27,8 +27,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * horse is burnt, set alight, frozen or hurt in any way, saying where and by what. Run with
  * {@code ./gradlew runGameTestServer}; each test is its own batch.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class HazardGameTests {
 	/** Room to study the map, pick a way round the hazards (and be sent round again), and deliver. */
 	private static final int TRIAL_TICKS = 6000;
@@ -70,14 +68,22 @@ public final class HazardGameTests {
 			DamageSource source = who.getLastDamageSource();
 			String harm = who.isOnFire() ? "is on fire"
 				: who.getTicksFrozen() > 0 ? "is freezing"
-				: before != null && who.getHealth() < before && source != null ? "lost " + (before - who.getHealth()) + " health to " + source.getMsgId()
+				: before != null && who.getHealth() < before && source != null
+					? "lost " + (before - who.getHealth()) + " health to " + source.typeHolder().getRegisteredName()
 				: null;
 			if (harm == null)
 				return;
 			BlockPos feet = who.blockPosition();
+			// Whatever could have done it, within half a block of him
+			List<String> near = new ArrayList<>();
+			BlockPos.betweenClosedStream(who.getBoundingBox().inflate(0.5)).forEach(pos -> {
+				if (Hazards.isDangerous(scene.level.getBlockState(pos)))
+					near.add(scene.level.getBlockState(pos).getBlock() + " at " + scene.helper.relativePos(pos));
+			});
 			Trials.record(trial, watch, false);
-			throw new GameTestAssertException(trial + ": the " + what + " " + harm + " at " + scene.helper.relativeVec(who.position())
-				+ ", feet in " + scene.level.getBlockState(feet) + " on " + scene.level.getBlockState(feet.below()) + " (" + watch.run + ")");
+			throw scene.helper.assertionException(Component.literal(trial + ": the " + what + " " + harm + " at " + scene.helper.relativeVec(who.position())
+				+ " (box " + who.getBoundingBox().move(scene.helper.relativeVec(Vec3.ZERO)) + "), feet in " + scene.level.getBlockState(feet)
+				+ " on " + scene.level.getBlockState(feet.below()) + ", hazards beside: " + near + " (" + watch.run + ")"));
 		}
 	}
 

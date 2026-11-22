@@ -7,8 +7,8 @@ import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.animal.horse.Markings;
-import net.minecraft.world.entity.animal.horse.Variant;
+import net.minecraft.world.entity.animal.equine.Markings;
+import net.minecraft.world.entity.animal.equine.Variant;
 
 /**
  * The Post Rider crew: twenty riders, each with their own face (textures/entity/rider/&lt;id&gt;.png, made by

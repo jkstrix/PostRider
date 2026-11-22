@@ -186,7 +186,7 @@ public final class CoarsePlanner {
 	}
 
 	public static long key(int cx, int cz) {
-		return ChunkPos.asLong(cx, cz);
+		return ChunkPos.pack(cx, cz);
 	}
 
 	public Status status() {

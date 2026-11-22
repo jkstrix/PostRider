@@ -1,12 +1,10 @@
 package com.comedymonkey.postrider.client.model;
 
-import com.comedymonkey.postrider.content.postman.PostmanHorse;
-
-import net.minecraft.client.model.HorseModel;
+import net.minecraft.client.model.animal.equine.HorseModel;
 import net.minecraft.client.model.geom.ModelPart;
 
 /** The vanilla horse model, letting the mochila layer see where the body is. */
-public class PostmanHorseModel extends HorseModel<PostmanHorse> {
+public class PostmanHorseModel extends HorseModel {
 	public PostmanHorseModel(ModelPart root) {
 		super(root);
 	}

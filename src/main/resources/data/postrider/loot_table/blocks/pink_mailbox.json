@@ -3,25 +3,22 @@
   "pools": [
     {
       "rolls": 1,
-      "bonus_rolls": 0,
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "postrider:pink_mailbox"
-        }
-      ],
-      "conditions": [
-        {
-          "condition": "minecraft:survives_explosion"
-        },
-        {
-          "condition": "minecraft:block_state_property",
-          "block": "postrider:pink_mailbox",
-          "properties": {
-            "half": "lower"
+          "name": "postrider:pink_mailbox",
+          "condition": {
+            "type": "minecraft:match_block",
+            "blocks": "postrider:pink_mailbox",
+            "state": {
+              "half": "lower"
+            }
           }
         }
-      ]
+      ],
+      "condition": {
+        "type": "minecraft:survives_explosion"
+      }
     }
   ]
 }

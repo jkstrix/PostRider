@@ -7,15 +7,9 @@
     " F "
   ],
   "key": {
-    "I": {
-      "item": "minecraft:iron_ingot"
-    },
-    "C": {
-      "tag": "c:chests/wooden"
-    },
-    "F": {
-      "tag": "minecraft:wooden_fences"
-    }
+    "I": "minecraft:iron_ingot",
+    "C": "#c:chests/wooden",
+    "F": "#minecraft:wooden_fences"
   },
   "result": {
     "id": "postrider:white_mailbox",

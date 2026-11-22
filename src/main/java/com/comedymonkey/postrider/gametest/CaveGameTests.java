@@ -4,15 +4,12 @@ import com.comedymonkey.postrider.PostRider;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.gametest.framework.GameTest;
-import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Riders underground: each test walls the arena in with rock, puts a mountain across it between the two mailboxes,
@@ -20,8 +17,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * steep ground, so these trials are about whether the plan through the blocks ahead finds its way in, through and
  * out, without wading, being teleported free, going round in circles or standing about.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class CaveGameTests {
 	/** Caves can take a while: he may try the wrong branch first and the plan is redone when a stretch won't go. */
 	private static final int CAVE_TICKS = 6000;
@@ -144,7 +139,7 @@ public final class CaveGameTests {
 		noteTheWay(scene, watch, "Cave through", 36, 59, 95);
 		Trials.deliver("Cave through", scene, to, watch, () -> {
 			if (watch.rowed)
-				throw new GameTestAssertException("He took the barge with no water about");
+				throw helper.assertionException(Component.literal("He took the barge with no water about"));
 		});
 	}
 
@@ -168,7 +163,7 @@ public final class CaveGameTests {
 		noteTheWay(scene, watch, "Cave or round", 36, 59, 75);
 		Trials.deliver("Cave or round", scene, to, watch, () -> {
 			if (watch.rowed)
-				throw new GameTestAssertException("He took the barge with no water about");
+				throw helper.assertionException(Component.literal("He took the barge with no water about"));
 		});
 	}
 
@@ -205,7 +200,7 @@ public final class CaveGameTests {
 		});
 		Trials.deliver("Cave branches", scene, to, watch, () -> {
 			if (watch.rowed)
-				throw new GameTestAssertException("He took the barge with no water about");
+				throw helper.assertionException(Component.literal("He took the barge with no water about"));
 		});
 	}
 
@@ -231,7 +226,7 @@ public final class CaveGameTests {
 		Watch watch = post(scene, from, fromName, toName);
 		Trials.deliver("Cave pool", scene, to, watch, () -> {
 			if (watch.rowed)
-				throw new GameTestAssertException("He took the barge in a cave");
+				throw helper.assertionException(Component.literal("He took the barge in a cave"));
 		});
 	}
 
@@ -259,7 +254,7 @@ public final class CaveGameTests {
 		Watch watch = post(scene, from, fromName, toName);
 		Trials.deliver("Cave loop", scene, to, watch, () -> {
 			if (watch.rowed)
-				throw new GameTestAssertException("He took the barge with no water about");
+				throw helper.assertionException(Component.literal("He took the barge with no water about"));
 		});
 	}
 }

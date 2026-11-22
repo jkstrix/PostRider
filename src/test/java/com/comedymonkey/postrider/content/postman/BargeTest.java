@@ -18,6 +18,7 @@ import java.util.UUID;
 import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.comedymonkey.postrider.client.model.BargeAnimations;
 import com.comedymonkey.postrider.client.model.BargeModel;
@@ -25,6 +26,7 @@ import com.comedymonkey.postrider.client.model.PostmanAnimations;
 import com.comedymonkey.postrider.post.PendingDelivery;
 import com.comedymonkey.postrider.registry.ModEntities;
 import com.comedymonkey.postrider.testutil.ModResourceFiles;
+import com.comedymonkey.postrider.testutil.LoadedGameData;
 
 import net.minecraft.client.animation.AnimationDefinition;
 import net.minecraft.client.model.geom.ModelPart;
@@ -37,6 +39,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+@ExtendWith(LoadedGameData.class)
 class BargeTest {
 	private static void collect(ModelPart part, Set<String> names) {
 		for (String child : new String[] {"barge", "hull", "bow", "stern", "railings", "fenders", "bench", "oar_left", "oar_right", "cargo",
@@ -105,7 +108,7 @@ class BargeTest {
 
 	@Test
 	void aRunOnTheWaterSurvivesSaving() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		PendingDelivery delivery = new PendingDelivery(UUID.randomUUID(), UUID.randomUUID(), "Steve", "Ranch",
 			GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO), "Island", List.of(new ItemStack(Items.BREAD)), 0);
 		CompoundTag tag = new DeliveryRun(delivery, GlobalPos.of(Level.OVERWORLD, new BlockPos(900, 64, 0))).save(registries);

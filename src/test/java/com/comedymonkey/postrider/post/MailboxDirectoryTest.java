@@ -12,7 +12,8 @@ import org.junit.jupiter.api.Test;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.data.registries.VanillaRegistries;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.Level;
 
 class MailboxDirectoryTest {
@@ -91,9 +92,10 @@ class MailboxDirectoryTest {
 		MailboxDirectory directory = new MailboxDirectory();
 		directory.register("Steve's Ranch", RANCH, STEVE);
 		directory.register("Fortress", FORTRESS, ALEX);
-		var registries = VanillaRegistries.createLookup();
-		CompoundTag saved = directory.save(new CompoundTag(), registries);
-		MailboxDirectory loaded = MailboxDirectory.load(saved, registries);
+		var registries = VanillaRegistries.createWorldLookup();
+		var ops = registries.createSerializationContext(NbtOps.INSTANCE);
+		Tag saved = MailboxDirectory.CODEC.encodeStart(ops, directory).getOrThrow();
+		MailboxDirectory loaded = MailboxDirectory.CODEC.parse(ops, saved).getOrThrow();
 		assertEquals(2, loaded.size());
 		assertEquals(RANCH, loaded.find("steve's ranch").pos());
 		assertEquals(ALEX, loaded.find("Fortress").owner());

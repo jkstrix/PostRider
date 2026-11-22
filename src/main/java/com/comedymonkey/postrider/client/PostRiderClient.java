@@ -1,5 +1,7 @@
 package com.comedymonkey.postrider.client;
 
+import java.util.List;
+
 import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.client.gui.LetterEditScreen;
 import com.comedymonkey.postrider.client.gui.LetterReadScreen;
@@ -19,7 +21,6 @@ import com.comedymonkey.postrider.registry.ModEntities;
 import com.comedymonkey.postrider.content.letter.LetterScreens;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
 import com.comedymonkey.postrider.registry.ModBlocks;
-import com.comedymonkey.postrider.registry.ModItems;
 import com.comedymonkey.postrider.registry.ModMenus;
 
 import net.minecraft.client.Minecraft;
@@ -42,12 +43,12 @@ public class PostRiderClient {
 		LetterScreens.setOpener(new LetterScreens.Opener() {
 			@Override
 			public void openEditor(Player player, InteractionHand hand, ItemStack letter) {
-				Minecraft.getInstance().setScreen(new LetterEditScreen(player, hand, letter));
+				Minecraft.getInstance().gui.setScreen(new LetterEditScreen(player, hand, letter));
 			}
 
 			@Override
 			public void openReader(ItemStack letter) {
-				Minecraft.getInstance().setScreen(new LetterReadScreen(letter));
+				Minecraft.getInstance().gui.setScreen(new LetterReadScreen(letter));
 			}
 		});
 		NeoForge.EVENT_BUS.addListener(HarmonicaSound::onEntityTick);
@@ -57,7 +58,6 @@ public class PostRiderClient {
 		modBus.addListener(this::registerLayers);
 		modBus.addListener(this::registerRenderers);
 		modBus.addListener(this::registerBlockColors);
-		modBus.addListener(this::registerItemColors);
 		registerDailies();
 	}
 
@@ -79,7 +79,7 @@ public class PostRiderClient {
 	private void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
 		event.registerLayerDefinition(PostmanModel.LAYER, PostmanModel::createBodyLayer);
 		event.registerLayerDefinition(PostmanModel.SLIM_LAYER, PostmanModel::createSlimBodyLayer);
-		event.registerLayerDefinition(MochilaModel.LAYER, MochilaModel::createBodyLayer);
+		event.registerLayerDefinition(MochilaModel.LAYER, MochilaModel::createHorseLayer);
 		event.registerLayerDefinition(TentModel.LAYER, TentModel::createBodyLayer);
 		event.registerLayerDefinition(BargeModel.LAYER, BargeModel::createBodyLayer);
 		event.registerLayerDefinition(IceHopperModel.LAYER, IceHopperModel::createBodyLayer);
@@ -98,15 +98,10 @@ public class PostRiderClient {
 	}
 
 	/** The mailbox box faces are tint index 0; one white texture covers every dye colour. */
-	private void registerBlockColors(RegisterColorHandlersEvent.Block event) {
+	private void registerBlockColors(RegisterColorHandlersEvent.BlockTintSources event) {
 		for (DyeColor color : DyeColor.values()) {
 			MailboxBlock block = ModBlocks.mailbox(color).get();
-			event.register((state, level, pos, tint) -> tint == 0 ? color.getTextureDiffuseColor() : -1, block);
+			event.register(List.of(state -> color.getTextureDiffuseColor()), block);
 		}
-	}
-
-	private void registerItemColors(RegisterColorHandlersEvent.Item event) {
-		for (DyeColor color : DyeColor.values())
-			event.register((stack, tint) -> tint == 0 ? color.getTextureDiffuseColor() : -1, ModItems.mailbox(color).get());
 	}
 }

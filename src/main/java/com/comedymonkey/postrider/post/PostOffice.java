@@ -13,29 +13,25 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.postman.Roster;
 
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
 
 /**
- * Sent mail, oldest first, waiting for a rider, and the mail riders are carrying right now. Kept with the overworld's
+ * Sent mail, oldest first, waiting for a rider, and the mail riders are carrying right now. Kept with the server's
  * saved data so nothing is lost across restarts.
  */
 public class PostOffice extends SavedData {
+	/** The file name worlds from before Minecraft 26.1 kept it under. */
 	public static final String ID = "postrider_post_office";
-	private static final SavedData.Factory<PostOffice> FACTORY = new SavedData.Factory<>(PostOffice::new, PostOffice::load, null);
 
 	/**
 	 * A delivery a rider has set out with: the rider entity, which of the crew it is (see {@link Roster}), and where he
@@ -50,11 +46,26 @@ public class PostOffice extends SavedData {
 		).apply(i, Active::new));
 	}
 
+	public static final Codec<PostOffice> CODEC = RecordCodecBuilder.create(i -> i.group(
+		PendingDelivery.CODEC.listOf().optionalFieldOf("queue", List.of()).forGetter(PostOffice::waiting),
+		Active.CODEC.listOf().optionalFieldOf("active", List.of()).forGetter(o -> List.copyOf(o.active.values()))
+	).apply(i, PostOffice::new));
+	public static final SavedDataType<PostOffice> TYPE =
+		new SavedDataType<>(PostRider.asResource("post_office"), PostOffice::new, CODEC);
+
 	private final Deque<PendingDelivery> queue = new ArrayDeque<>();
 	private final Map<UUID, Active> active = new LinkedHashMap<>();
 
+	public PostOffice() {}
+
+	private PostOffice(List<PendingDelivery> waiting, List<Active> out) {
+		queue.addAll(waiting);
+		for (Active each : out)
+			active.put(each.delivery().id(), each);
+	}
+
 	public static PostOffice get(MinecraftServer server) {
-		return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+		return LegacySavedData.get(server, TYPE, ID);
 	}
 
 	public void enqueue(PendingDelivery delivery) {
@@ -146,29 +157,5 @@ public class PostOffice extends SavedData {
 
 	public int activeCount() {
 		return active.size();
-	}
-
-	@Override
-	public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-		DynamicOps<Tag> ops = registries.createSerializationContext(NbtOps.INSTANCE);
-		ListTag waiting = new ListTag();
-		for (PendingDelivery delivery : queue)
-			PendingDelivery.CODEC.encodeStart(ops, delivery).result().ifPresent(waiting::add);
-		tag.put("queue", waiting);
-		ListTag out = new ListTag();
-		for (Active each : active.values())
-			Active.CODEC.encodeStart(ops, each).result().ifPresent(out::add);
-		tag.put("active", out);
-		return tag;
-	}
-
-	public static PostOffice load(CompoundTag tag, HolderLookup.Provider registries) {
-		DynamicOps<Tag> ops = registries.createSerializationContext(NbtOps.INSTANCE);
-		PostOffice office = new PostOffice();
-		for (Tag entry : tag.getList("queue", Tag.TAG_COMPOUND))
-			PendingDelivery.CODEC.parse(ops, entry).result().ifPresent(office.queue::addLast);
-		for (Tag entry : tag.getList("active", Tag.TAG_COMPOUND))
-			Active.CODEC.parse(ops, entry).result().ifPresent(a -> office.active.put(a.delivery().id(), a));
-		return office;
 	}
 }

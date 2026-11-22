@@ -10,9 +10,9 @@ import com.comedymonkey.postrider.content.lost.LostParcelBlock;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.level.Explosion;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 class CreeperTest {
@@ -38,7 +38,7 @@ class CreeperTest {
 
 	@Test
 	void explosionsNeverDestroyLostParcelsOrMailboxes() throws NoSuchMethodException {
-		Class<?>[] args = {BlockState.class, Level.class, BlockPos.class, Explosion.class};
+		Class<?>[] args = {BlockState.class, ServerLevel.class, BlockPos.class, Explosion.class};
 		assertEquals(LostParcelBlock.class, LostParcelBlock.class.getMethod("onBlockExploded", args).getDeclaringClass());
 		assertEquals(MailboxBlock.class, MailboxBlock.class.getMethod("onBlockExploded", args).getDeclaringClass());
 	}

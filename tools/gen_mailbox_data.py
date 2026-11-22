@@ -1,4 +1,8 @@
-"""Writes the mailbox loot tables, recipes and tags into the mod's data folder."""
+"""Writes the mailbox loot tables, recipes and tags into the mod's data folder.
+
+Usage: gen_mailbox_data.py src/main/resources   (run from the repository root)
+Only the lower half drops the mailbox, as with vanilla doors: survives_explosion on the pool, match_block on the entry.
+"""
 import json
 import os
 import sys
@@ -23,19 +27,19 @@ for c in COLOURS:
         "type": "minecraft:block",
         "pools": [{
             "rolls": 1,
-            "bonus_rolls": 0,
-            "entries": [{"type": "minecraft:item", "name": block}],
-            "conditions": [
-                {"condition": "minecraft:survives_explosion"},
-                {"condition": "minecraft:block_state_property", "block": block, "properties": {"half": "lower"}}
-            ]
+            "entries": [{
+                "type": "minecraft:item",
+                "name": block,
+                "condition": {"type": "minecraft:match_block", "blocks": block, "state": {"half": "lower"}}
+            }],
+            "condition": {"type": "minecraft:survives_explosion"}
         }]
     })
     write(f"data/{NS}/recipe/dye_{c}_mailbox.json", {
         "type": "minecraft:crafting_shapeless",
         "category": "misc",
         "group": "postrider_dye_mailbox",
-        "ingredients": [{"tag": f"{NS}:mailboxes"}, {"tag": f"c:dyes/{c}"}],
+        "ingredients": [f"#{NS}:mailboxes", f"#c:dyes/{c}"],
         "result": {"id": block, "count": 1}
     })
 
@@ -44,9 +48,9 @@ write(f"data/{NS}/recipe/mailbox.json", {
     "category": "misc",
     "pattern": ["III", "ICI", " F "],
     "key": {
-        "I": {"item": "minecraft:iron_ingot"},
-        "C": {"tag": "c:chests/wooden"},
-        "F": {"tag": "minecraft:wooden_fences"}
+        "I": "minecraft:iron_ingot",
+        "C": "#c:chests/wooden",
+        "F": "#minecraft:wooden_fences"
     },
     "result": {"id": f"{NS}:white_mailbox", "count": 1}
 })

@@ -2,18 +2,58 @@
 
 The model is two blocks tall. Each half gets its own block model (the upper one shifted down by 16) so that
 Minecraft lights every part from the block it is actually in; the item model keeps the whole mailbox.
+Each colour's item definition (items/<colour>_mailbox.json) points at its item model and tints the box (tintindex 0)
+with that dye's colour, DyeColor.getTextureDiffuseColor().
+
+Usage: split_mailbox.py EXPORT.json ASSETS_DIR
+       split_mailbox.py --items ASSETS_DIR   (only the item definitions, which need no export)
 """
 import json
 import os
 import sys
 
-export_path, assets = sys.argv[1], sys.argv[2]
-with open(export_path, encoding="utf-8") as f:
-    export = json.load(f)
-
 NS = "postrider"
 COLOURS = ["white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray",
            "light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black"]
+# DyeColor's texture diffuse colours (RGB), which tint the box.
+DYE_RGB = {"white": 0xF9FFFE, "orange": 0xF9801D, "magenta": 0xC74EBD, "light_blue": 0x3AB3DA, "yellow": 0xFED83D,
+           "lime": 0x80C71F, "pink": 0xF38BAA, "gray": 0x474F52, "light_gray": 0x9D9D97, "cyan": 0x169C9C,
+           "purple": 0x8932B8, "blue": 0x3C44AA, "brown": 0x835432, "green": 0x5E7C16, "red": 0xB02E26,
+           "black": 0x1D1D21}
+
+export_path, assets = sys.argv[1], sys.argv[2]
+
+
+def write(rel, data):
+    path = os.path.join(assets, rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+
+
+def opaque(rgb):
+    """The colour as the signed ARGB int vanilla writes for a constant tint."""
+    argb = 0xFF000000 | rgb
+    return argb - (1 << 32) if argb >= 1 << 31 else argb
+
+
+def write_item_definitions():
+    for colour in COLOURS:
+        write(f"items/{colour}_mailbox.json", {"model": {
+            "type": "minecraft:model",
+            "model": f"{NS}:item/{colour}_mailbox",
+            "tints": [{"type": "minecraft:constant", "value": opaque(DYE_RGB[colour])}],
+        }})
+
+
+if export_path == "--items":
+    write_item_definitions()
+    print("wrote item definitions for", len(COLOURS), "colours")
+    sys.exit()
+
+with open(export_path, encoding="utf-8") as f:
+    export = json.load(f)
 
 elements = export["elements"]
 groups = {g["name"]: g["children"] for g in export["groups"]}
@@ -44,14 +84,6 @@ def pick(*group_names, half=None):
 
 def tex(name):
     return f"{NS}:block/{name}"
-
-
-def write(rel, data):
-    path = os.path.join(assets, rel)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
 
 
 credit = "Made with Blockbench"
@@ -96,4 +128,5 @@ for colour in COLOURS:
     write(f"models/item/{colour}_mailbox.json",
           {"parent": f"{NS}:item/mailbox" + ("_yellow_flag" if yellow else "")})
 
+write_item_definitions()
 print("wrote models for", len(COLOURS), "colours")

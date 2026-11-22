@@ -16,7 +16,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.RelativeMovement;
+import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
@@ -101,8 +101,9 @@ public final class RiderWatch {
 		if (state.letGo)
 			return;
 		Vec3 at = viewpoint(followed.getEyePosition(), player.getLookAngle());
-		player.teleportTo((ServerLevel) followed.level(), at.x, at.y - player.getEyeHeight(), at.z, Set.of(RelativeMovement.X_ROT, RelativeMovement.Y_ROT),
-			player.getYRot(), player.getXRot());
+		// Relative turns of nothing leave the player looking wherever they were
+		player.teleportTo((ServerLevel) followed.level(), at.x, at.y - player.getEyeHeight(), at.z, Set.of(Relative.X_ROT, Relative.Y_ROT),
+			0, 0, false);
 	}
 
 	@Nullable

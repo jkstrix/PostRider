@@ -1,14 +1,14 @@
 package com.comedymonkey.postrider.content.lost;
 
-import com.mojang.serialization.MapCodec;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.SimpleWaterloggedBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -25,7 +25,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * stays round it, and leaves water behind when it's taken.
  */
 public class LostParcelWreckBlock extends LostParcelBlock implements SimpleWaterloggedBlock {
-	public static final MapCodec<LostParcelWreckBlock> WRECK_CODEC = simpleCodec(LostParcelWreckBlock::new);
 	public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 	/** The raft riding at the water line, with the parcel on it. */
 	private static final VoxelShape SHAPE = Block.box(0, 13, 0, 16, 16, 16);
@@ -33,11 +32,6 @@ public class LostParcelWreckBlock extends LostParcelBlock implements SimpleWater
 	public LostParcelWreckBlock(Properties properties) {
 		super(properties);
 		registerDefaultState(defaultBlockState().setValue(WATERLOGGED, true));
-	}
-
-	@Override
-	protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-		return WRECK_CODEC;
 	}
 
 	@Override
@@ -57,10 +51,11 @@ public class LostParcelWreckBlock extends LostParcelBlock implements SimpleWater
 	}
 
 	@Override
-	protected BlockState updateShape(BlockState state, Direction direction, BlockState neighbour, LevelAccessor level, BlockPos pos, BlockPos neighbourPos) {
+	protected BlockState updateShape(BlockState state, LevelReader level, ScheduledTickAccess ticks, BlockPos pos,
+			Direction direction, BlockPos neighbourPos, BlockState neighbour, RandomSource random) {
 		if (state.getValue(WATERLOGGED))
-			level.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
-		return super.updateShape(state, direction, neighbour, level, pos, neighbourPos);
+			ticks.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
+		return super.updateShape(state, level, ticks, pos, direction, neighbourPos, neighbour, random);
 	}
 
 	@Override

@@ -8,15 +8,13 @@ import com.comedymonkey.postrider.content.postman.DeliveryRun;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Riders in woodland: trees built block by block (vanilla trees would come out different every run), spaced for a
@@ -24,8 +22,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * delivery judged by {@link Trials}, plus a check on whether he got down from his horse where he should (and
  * shouldn't) and got back on again. Run with {@code ./gradlew runGameTestServer}; each is in its own batch.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class WoodlandGameTests {
 	/** Studying the map, riding across a big arena with detours, getting down and whistling the horse back. */
 	private static final int DELIVERY_TICKS = 6000;
@@ -166,14 +162,14 @@ public final class WoodlandGameTests {
 
 	private static void neverGotDown(String trial, Trip trip) {
 		if (trip.saddle().dismounts > 0)
-			throw new GameTestAssertException(trial + ": he got down from his horse " + trip.saddle().dismounts + " times where he could have ridden");
+			throw trip.scene().helper.assertionException(Component.literal(trial + ": he got down from his horse " + trip.saddle().dismounts + " times where he could have ridden"));
 	}
 
 	private static void gotDownAndBackOn(String trial, Trip trip) {
 		if (trip.saddle().dismounts == 0)
-			throw new GameTestAssertException(trial + ": he never got down, yet no horse fits through");
+			throw trip.scene().helper.assertionException(Component.literal(trial + ": he never got down, yet no horse fits through"));
 		if (trip.saddle().remounts == 0)
-			throw new GameTestAssertException(trial + ": he got down " + trip.saddle().dismounts + " times and never got back on his horse");
+			throw trip.scene().helper.assertionException(Component.literal(trial + ": he got down " + trip.saddle().dismounts + " times and never got back on his horse"));
 	}
 
 	// ---------------------------------------------------------------- the trials
@@ -256,7 +252,7 @@ public final class WoodlandGameTests {
 		deliver("Fallen logs", trip, () -> {
 			neverGotDown("Fallen logs", trip);
 			if (highest[0] >= 2.5)
-				throw new GameTestAssertException("Fallen logs: he got up to y " + highest[0] + " at the log two high, instead of going round it");
+				throw helper.assertionException(Component.literal("Fallen logs: he got up to y " + highest[0] + " at the log two high, instead of going round it"));
 		});
 	}
 

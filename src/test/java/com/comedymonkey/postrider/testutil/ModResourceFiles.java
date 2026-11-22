@@ -3,8 +3,10 @@ package com.comedymonkey.postrider.testutil;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -25,15 +27,20 @@ public final class ModResourceFiles {
 		try {
 			IModFileInfo info = ModList.get().getModFileById(PostRider.MOD_ID);
 			if (info != null) {
-				Path found = info.getFile().findResource(path);
-				if (found != null && Files.exists(found))
-					return found;
+				Optional<URI> found = info.getFile().getContents().findFile(String.join("/", path));
+				if (found.isPresent() && Files.exists(Path.of(found.get())))
+					return Path.of(found.get());
 			}
 		} catch (RuntimeException ignored) {
 			// Fall back to the source tree
 		}
-		Path source = Path.of("src", "main", "resources").resolve(String.join("/", path));
-		return Files.exists(source) ? source : null;
+		// The tests may run in a folder below the project's (a run folder), so look up from there for src/main/resources
+		for (Path dir = Path.of("").toAbsolutePath(); dir != null; dir = dir.getParent()) {
+			Path source = dir.resolve("src/main/resources").resolve(String.join("/", path));
+			if (Files.exists(source))
+				return source;
+		}
+		return null;
 	}
 
 	public static JsonElement readJson(Path file) {

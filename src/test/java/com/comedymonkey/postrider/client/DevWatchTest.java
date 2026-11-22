@@ -9,12 +9,12 @@ import net.minecraft.world.phys.Vec3;
 class DevWatchTest {
 	@Test
 	void allTheTestsUnlessOneIsNamed() {
-		assertEquals("test runall", DevWatch.command("all"));
-		assertEquals("test runall", DevWatch.command("true"), "the property on its own");
-		assertEquals("test runall", DevWatch.command(null));
-		assertEquals("test run heopensthedoorsonhiswayandleavesthemashefoundthem", DevWatch.command("heOpensTheDoorsOnHisWayAndLeavesThemAsHeFoundThem"),
-			"a test is registered by its method name in lower case");
-		assertEquals("test run x", DevWatch.command(" postrider:x "), "a namespace in front is dropped: the command takes the bare name");
+		assertEquals("test run postrider:*", DevWatch.command("all"));
+		assertEquals("test run postrider:*", DevWatch.command("true"), "the property on its own");
+		assertEquals("test run postrider:*", DevWatch.command(null));
+		assertEquals("test run postrider:heopensthedoorsonhiswayandleavesthemashefoundthem",
+			DevWatch.command("heOpensTheDoorsOnHisWayAndLeavesThemAsHeFoundThem"), "a test is registered by its method name in lower case");
+		assertEquals("test run postrider:x", DevWatch.command(" postrider:x "), "a namespace in front is taken as read: the test ids are Post Rider's");
 	}
 
 	@Test

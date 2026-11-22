@@ -13,15 +13,12 @@ import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.gametest.framework.GameTest;
-import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Riders on rivers and shores: where he crosses a river, when he rides round by a bridge or leaps it at a narrows
@@ -38,8 +35,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * at least 10, so they read as water and land in the plan's cells however the scene happens to line up with them;
  * a bridge is 12 wide for the same reason.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class RiverGameTests {
 	private static final int DELIVERY_TICKS = 6000;
 	private static final String ARENA = "gametest/arena_128x64";
@@ -210,14 +205,14 @@ public final class RiverGameTests {
 		Trials.deliver("River mouth", scene, boxes.to(), boxes.watch(), () -> {
 			PostRider.LOGGER.info("Trial River mouth: {}", crossings.describe());
 			if (crossings.launches.size() != 1 || crossings.landings.size() != 1)
-				throw new GameTestAssertException("He should have crossed once: " + crossings.describe());
+				throw helper.assertionException(Component.literal("He should have crossed once: " + crossings.describe()));
 			Vec3 launch = crossings.launches.get(0), landing = crossings.landings.get(0);
 			if (launch.x < 36)
-				throw new GameTestAssertException("He put out into the sea rather than the river: " + crossings.describe());
+				throw helper.assertionException(Component.literal("He put out into the sea rather than the river: " + crossings.describe()));
 			if (launch.z < MIDSTREAM || landing.z > BANK_NORTH + 1)
-				throw new GameTestAssertException("He didn't cross from the south bank to the north: " + crossings.describe());
+				throw helper.assertionException(Component.literal("He didn't cross from the south bank to the north: " + crossings.describe()));
 			if (Journey.horizontalDistance(launch, landing) > SENSIBLE_CROSSING)
-				throw new GameTestAssertException("He rowed along the river rather than across it: " + crossings.describe());
+				throw helper.assertionException(Component.literal("He rowed along the river rather than across it: " + crossings.describe()));
 		});
 	}
 
@@ -261,11 +256,11 @@ public final class RiverGameTests {
 		Trials.deliver("Ice field", scene, boxes.to(), boxes.watch(), () -> {
 			PostRider.LOGGER.info("Trial Ice field: {}", crossings.describe());
 			if (rodeIce[0] != null)
-				throw new GameTestAssertException("He rode the ice (last seen on it at " + spot(rodeIce[0]) + ") rather than slide across it in the barge");
+				throw helper.assertionException(Component.literal("He rode the ice (last seen on it at " + spot(rodeIce[0]) + ") rather than slide across it in the barge"));
 			if (crossings.launches.size() != 1 || crossings.landings.size() != 1)
-				throw new GameTestAssertException("He should have crossed the ice once in the barge: " + crossings.describe());
+				throw helper.assertionException(Component.literal("He should have crossed the ice once in the barge: " + crossings.describe()));
 			if (!slid[0])
-				throw new GameTestAssertException("The barge never slid on the ice: " + crossings.describe());
+				throw helper.assertionException(Component.literal("The barge never slid on the ice: " + crossings.describe()));
 		});
 	}
 
@@ -281,12 +276,12 @@ public final class RiverGameTests {
 		Ride ride = new Ride(scene, boxes.watch());
 		Trials.deliver("River bridge", scene, boxes.to(), boxes.watch(), () -> {
 			if (boxes.watch().rowed)
-				throw new GameTestAssertException("He took the barge with a bridge upstream");
+				throw helper.assertionException(Component.literal("He took the barge with a bridge upstream"));
 			if (ride.crossedAt.size() != 1)
-				throw new GameTestAssertException("He crossed the river " + ride.crossedAt.size() + " times, at x " + ride.crossedAt);
+				throw helper.assertionException(Component.literal("He crossed the river " + ride.crossedAt.size() + " times, at x " + ride.crossedAt));
 			double x = ride.crossedAt.get(0);
 			if (x < bridgeX0 || x >= bridgeX1 + 1)
-				throw new GameTestAssertException("He crossed the river at x " + x + ", off the bridge");
+				throw helper.assertionException(Component.literal("He crossed the river at x " + x + ", off the bridge"));
 		});
 	}
 
@@ -310,12 +305,12 @@ public final class RiverGameTests {
 		Ride ride = new Ride(scene, boxes.watch(), new Patch(barX0, barZ0, barX1, barZ1));
 		scene.helper.onEachTick(() -> {
 			if (ride.onPatch != null)
-				throw new GameTestAssertException("He landed on the sandbar, at " + spot(ride.onPatch) + ": " + crossings.describe());
+				throw helper.assertionException(Component.literal("He landed on the sandbar, at " + spot(ride.onPatch) + ": " + crossings.describe()));
 		});
 		Trials.deliver("Sandbar bend", scene, boxes.to(), boxes.watch(), () -> {
 			PostRider.LOGGER.info("Trial Sandbar bend: {}", crossings.describe());
 			if (boxes.watch().launches != 1)
-				throw new GameTestAssertException("He put out " + boxes.watch().launches + " times: " + crossings.describe());
+				throw helper.assertionException(Component.literal("He put out " + boxes.watch().launches + " times: " + crossings.describe()));
 		});
 	}
 
@@ -340,12 +335,12 @@ public final class RiverGameTests {
 		Ride ride = new Ride(scene, boxes.watch());
 		Trials.deliver("Narrows leap", scene, boxes.to(), boxes.watch(), () -> {
 			if (boxes.watch().rowed)
-				throw new GameTestAssertException("He took the barge rather than leaping the narrows");
+				throw helper.assertionException(Component.literal("He took the barge rather than leaping the narrows"));
 			if (ride.crossedAt.size() != 1)
-				throw new GameTestAssertException("He crossed the river " + ride.crossedAt.size() + " times, at x " + ride.crossedAt);
+				throw helper.assertionException(Component.literal("He crossed the river " + ride.crossedAt.size() + " times, at x " + ride.crossedAt));
 			double x = ride.crossedAt.get(0);
 			if (x < narrowsX0 - 1 || x >= narrowsX1 + 2)
-				throw new GameTestAssertException("He crossed the river at x " + x + ", not at the narrows");
+				throw helper.assertionException(Component.literal("He crossed the river at x " + x + ", not at the narrows"));
 		});
 	}
 
@@ -369,11 +364,11 @@ public final class RiverGameTests {
 		Trials.deliver("Two channels", scene, boxes.to(), boxes.watch(), () -> {
 			PostRider.LOGGER.info("Trial Two channels: {}", crossings.describe());
 			if (ride.onPatch == null)
-				throw new GameTestAssertException("He never set foot on the island: " + crossings.describe());
+				throw helper.assertionException(Component.literal("He never set foot on the island: " + crossings.describe()));
 			if (boxes.watch().launches != 2)
-				throw new GameTestAssertException("He put out " + boxes.watch().launches + " times: " + crossings.describe());
+				throw helper.assertionException(Component.literal("He put out " + boxes.watch().launches + " times: " + crossings.describe()));
 			if (!boxes.watch().horseAboard)
-				throw new GameTestAssertException("His horse didn't cross with him");
+				throw helper.assertionException(Component.literal("His horse didn't cross with him"));
 		});
 	}
 }

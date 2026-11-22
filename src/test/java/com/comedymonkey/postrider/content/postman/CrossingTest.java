@@ -11,7 +11,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.monster.Drowned;
+import net.minecraft.world.entity.monster.zombie.Drowned;
 import net.minecraft.world.entity.monster.ElderGuardian;
 import net.minecraft.world.entity.monster.Guardian;
 import net.minecraft.world.phys.Vec3;
@@ -145,7 +145,7 @@ class CrossingTest {
 			}
 
 			@Override
-			public int getMinBuildHeight() {
+			public int getMinY() {
 				return -64;
 			}
 		};

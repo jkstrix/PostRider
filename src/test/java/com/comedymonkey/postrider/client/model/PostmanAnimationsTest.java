@@ -129,8 +129,9 @@ class PostmanAnimationsTest {
 
 	@Test
 	void hisRootBonePivotsAtHisFeetSoHeLiesOnTheGround() {
-		// HierarchicalModel sends "root" animations to root(); that must be the bone at ground level (24 pixels down)
-		ModelPart root = new PostmanModel(PostmanModel.createBodyLayer().bakeRoot()).root();
+		// "root" animations go to the bone the animations are baked against; that must be the bone at ground level (24
+		// pixels down)
+		ModelPart root = new PostmanModel(PostmanModel.createBodyLayer().bakeRoot()).animationRoot();
 		assertEquals(24.0F, root.y);
 		assertTrue(root.hasChild("body") && root.hasChild("right_leg"));
 	}

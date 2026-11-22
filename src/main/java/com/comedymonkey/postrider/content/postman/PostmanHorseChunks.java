@@ -10,7 +10,7 @@ public final class PostmanHorseChunks {
 	private PostmanHorseChunks() {}
 
 	public static void hold(ServerLevel level, UUID owner, long chunk, boolean hold) {
-		ChunkPos pos = new ChunkPos(chunk);
-		RiderChunks.CONTROLLER.forceChunk(level, owner, pos.x, pos.z, hold, false);
+		ChunkPos pos = ChunkPos.unpack(chunk);
+		RiderChunks.CONTROLLER.forceChunk(level, owner, pos.x(), pos.z(), hold, false);
 	}
 }

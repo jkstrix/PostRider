@@ -1,6 +1,5 @@
 {
   "credit": "Made with Blockbench",
-  "render_type": "minecraft:cutout",
   "ambientocclusion": false,
   "textures": {
     "2": "postrider:block/campfire_log_charred",

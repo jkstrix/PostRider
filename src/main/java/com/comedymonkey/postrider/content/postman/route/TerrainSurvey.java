@@ -27,6 +27,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeResolver;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Blocks;
@@ -111,7 +112,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	@Nullable
 	public CoarsePlanner.Cell cell(int cx, int cz) {
 		int tx = Math.floorDiv(cx, TILE_CELLS), tz = Math.floorDiv(cz, TILE_CELLS);
-		long key = ChunkPos.asLong(tx, tz);
+		long key = ChunkPos.pack(tx, tz);
 		Tile tile = tiles.get(key);
 		long now = level.getGameTime();
 		if (tile != null && tile.isDone() && now - tile.since > tile.lifetime) {
@@ -128,16 +129,19 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		return tile.isDone() ? tile.cells[Math.floorMod(cz, TILE_CELLS) * TILE_CELLS + Math.floorMod(cx, TILE_CELLS)] : null;
 	}
 
-	/** Any chunk of a tile that was estimated (or read off disk) and has since been loaded is read from the real ground. */
+	/**
+	 * Every chunk of a tile that's loaded now is read afresh from the real ground: one that was estimated (or read off
+	 * disk) and has since been loaded, and one that was loaded already, which may have changed since (a bridge or a
+	 * canal built, a lake filled in). A tile that was only partly loaded is kept for ten minutes, and its loaded chunks
+	 * were once left as they were read all that time.
+	 */
 	private void refresh(Tile tile, int tx, int tz, long now) {
 		tile.refreshedAt = now;
 		for (int dx = 0; dx < TILE_CHUNKS; dx++)
 			for (int dz = 0; dz < TILE_CHUNKS; dz++) {
 				int chunk = dz * TILE_CHUNKS + dx;
-				if (!tile.guessed[chunk])
-					continue;
 				ChunkPos pos = new ChunkPos(tx * TILE_CHUNKS + dx, tz * TILE_CHUNKS + dz);
-				LevelChunk loaded = level.getChunkSource().getChunkNow(pos.x, pos.z);
+				LevelChunk loaded = level.getChunkSource().getChunkNow(pos.x(), pos.z());
 				if (loaded == null)
 					continue;
 				tile.guessed[chunk] = false;
@@ -162,7 +166,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		for (int dx = 0; dx < TILE_CHUNKS; dx++)
 			for (int dz = 0; dz < TILE_CHUNKS; dz++) {
 				ChunkPos pos = new ChunkPos(tx * TILE_CHUNKS + dx, tz * TILE_CHUNKS + dz);
-				LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
+				LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
 				if (chunk != null) {
 					int[][] ground = groundOf(chunk);
 					fill(tile, pos, ground[0], ground[1], ground[2]);
@@ -181,7 +185,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	}
 
 	private void readSaved(ChunkPos pos) {
-		int minY = level.getMinBuildHeight();
+		int minY = level.getMinY();
 		// Read off disk on the disk thread; a chunk that was never generated comes back without heights and is
 		// estimated on the server thread (the generator's noise is sampled there, and nothing can go missing)
 		level.getChunkSource().chunkMap.read(pos).whenComplete((saved, error) -> {
@@ -196,13 +200,13 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		if (error != null || saved == null || saved.isEmpty())
 			return null;
 		CompoundTag tag = saved.get();
-		if (!tag.getString("Status").endsWith("full"))
+		if (!tag.getStringOr("Status", "").endsWith("full"))
 			return null;
-		CompoundTag heightmaps = tag.getCompound("Heightmaps");
+		CompoundTag heightmaps = tag.getCompoundOrEmpty("Heightmaps");
 		try {
 			// (Its biomes aren't read off disk: an ice field there is known once the chunk is loaded and read afresh)
-			return new Arrival(pos, heights(heightmaps.getLongArray("OCEAN_FLOOR"), bits, minY),
-				heights(heightmaps.getLongArray("MOTION_BLOCKING_NO_LEAVES"), bits, minY), new int[256]);
+			return new Arrival(pos, heights(heightmaps.getLongArray("OCEAN_FLOOR").orElse(new long[0]), bits, minY),
+				heights(heightmaps.getLongArray("MOTION_BLOCKING_NO_LEAVES").orElse(new long[0]), bits, minY), new int[256]);
 		} catch (RuntimeException e) {
 			return null;
 		}
@@ -217,6 +221,9 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		final ChunkPos pos;
 		final int[] floors = new int[256], tops = new int[256], icy = new int[256];
 		int next;
+		/** The generator's biomes, from its climate noise (made for the first column). */
+		@Nullable
+		BiomeResolver biomes;
 
 		Estimate(ChunkPos pos) {
 			this.pos = pos;
@@ -228,9 +235,11 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 			int x = pos.getMinBlockX() + column % 16, z = pos.getMinBlockZ() + column / 16;
 			// One pass of the noise for both heights, where asking for each would build it twice
 			NoiseColumn blocks = generator.getBaseColumn(x, z, heights, random);
-			floors[column] = firstFree(blocks, heights.getMinBuildHeight(), heights.getMaxBuildHeight(), Heightmap.Types.OCEAN_FLOOR_WG.isOpaque());
-			tops[column] = firstFree(blocks, heights.getMinBuildHeight(), heights.getMaxBuildHeight(), Heightmap.Types.WORLD_SURFACE_WG.isOpaque());
-			icy[column] = isIceField(generator.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(tops[column]), QuartPos.fromBlock(z), random.sampler())) ? 1 : 0;
+			floors[column] = firstFree(blocks, heights.getMinY(), heights.getMaxY() + 1, Heightmap.Types.OCEAN_FLOOR_WG.isOpaque());
+			tops[column] = firstFree(blocks, heights.getMinY(), heights.getMaxY() + 1, Heightmap.Types.WORLD_SURFACE_WG.isOpaque());
+			if (biomes == null)
+				biomes = generator.getBiomeSource().createUncachedResolver(random);
+			icy[column] = isIceField(biomes.getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(tops[column]), QuartPos.fromBlock(z))) ? 1 : 0;
 			return next >= SAMPLED_COLUMNS.length;
 		}
 	}
@@ -296,24 +305,24 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 
 	/** Whether a chunk's tile is still waiting to hear about it: one forgotten, or already filled in, isn't estimated. */
 	private boolean awaited(ChunkPos pos) {
-		Tile tile = tiles.get(ChunkPos.asLong(Math.floorDiv(pos.x, TILE_CHUNKS), Math.floorDiv(pos.z, TILE_CHUNKS)));
-		return tile != null && !tile.filled[Math.floorMod(pos.z, TILE_CHUNKS) * TILE_CHUNKS + Math.floorMod(pos.x, TILE_CHUNKS)];
+		Tile tile = tiles.get(ChunkPos.pack(Math.floorDiv(pos.x(), TILE_CHUNKS), Math.floorDiv(pos.z(), TILE_CHUNKS)));
+		return tile != null && !tile.filled[Math.floorMod(pos.z(), TILE_CHUNKS) * TILE_CHUNKS + Math.floorMod(pos.x(), TILE_CHUNKS)];
 	}
 
 	private void fill(ChunkPos pos, int[] floors, int[] tops, int[] icy) {
-		Tile tile = tiles.get(ChunkPos.asLong(Math.floorDiv(pos.x, TILE_CHUNKS), Math.floorDiv(pos.z, TILE_CHUNKS)));
+		Tile tile = tiles.get(ChunkPos.pack(Math.floorDiv(pos.x(), TILE_CHUNKS), Math.floorDiv(pos.z(), TILE_CHUNKS)));
 		if (tile != null) {
 			// Off disk or estimated: to be read from the real ground once the chunk is loaded
-			tile.guessed[Math.floorMod(pos.z, TILE_CHUNKS) * TILE_CHUNKS + Math.floorMod(pos.x, TILE_CHUNKS)] = true;
+			tile.guessed[Math.floorMod(pos.z(), TILE_CHUNKS) * TILE_CHUNKS + Math.floorMod(pos.x(), TILE_CHUNKS)] = true;
 			fill(tile, pos, floors, tops, icy);
 		}
 	}
 
 	private void fill(Tile tile, ChunkPos pos, int[] floors, int[] tops, int[] icy) {
-		CoarsePlanner.Cell[] chunkCells = cellsOfChunk(floors, tops, icy, level.getMinBuildHeight());
+		CoarsePlanner.Cell[] chunkCells = cellsOfChunk(floors, tops, icy, level.getMinY());
 		if (!claim(tile.filled, pos))
 			return;
-		int baseX = Math.floorMod(pos.x, TILE_CHUNKS) * CELLS_PER_CHUNK, baseZ = Math.floorMod(pos.z, TILE_CHUNKS) * CELLS_PER_CHUNK;
+		int baseX = Math.floorMod(pos.x(), TILE_CHUNKS) * CELLS_PER_CHUNK, baseZ = Math.floorMod(pos.z(), TILE_CHUNKS) * CELLS_PER_CHUNK;
 		for (int cx = 0; cx < CELLS_PER_CHUNK; cx++)
 			for (int cz = 0; cz < CELLS_PER_CHUNK; cz++)
 				tile.cells[(baseZ + cz) * TILE_CELLS + baseX + cx] = chunkCells[cz * CELLS_PER_CHUNK + cx];
@@ -328,7 +337,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	 */
 	static int[][] groundOf(LevelChunk chunk) {
 		int[] floors = new int[256], tops = new int[256], icy = new int[256];
-		int minY = chunk.getMinBuildHeight();
+		int minY = chunk.getMinY();
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 		for (int column : SAMPLED_COLUMNS) {
 			int x = column % 16, z = column / 16;
@@ -341,7 +350,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 			boolean iceUnderfoot = y >= minY && chunk.getBlockState(pos.set(x, y, z)).is(BlockTags.ICE);
 			icy[column] = iceUnderfoot || isIceField(chunk.getNoiseBiome(QuartPos.fromBlock(chunk.getPos().getMinBlockX() + x), QuartPos.fromBlock(y), QuartPos.fromBlock(chunk.getPos().getMinBlockZ() + z))) ? 1 : 0;
 			// And on down through the water to its floor
-			while (y >= minY && !chunk.getBlockState(pos.set(x, y, z)).blocksMotion())
+			while (y >= minY && !chunk.getBlockState(pos.set(x, y, z)).is(BlockTags.BLOCKS_MOTION_IN_HEIGHTMAP))
 				y--;
 			floors[column] = y + 1;
 		}
@@ -355,7 +364,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 
 	/** Whether a block is ground, or water, as the survey sees it: anything that blocks motion but a tree, or any liquid. */
 	static boolean holdsUp(BlockState state) {
-		return !state.getFluidState().isEmpty() || state.blocksMotion() && !isGrowth(state);
+		return !state.getFluidState().isEmpty() || state.is(BlockTags.BLOCKS_MOTION_IN_HEIGHTMAP) && !isGrowth(state);
 	}
 
 	/** A tree's trunk or leaves, a giant mushroom or fungus, bamboo: stood under, not on, and no cliff. */
@@ -372,7 +381,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	 * again can still hear back about its chunks from the time before.
 	 */
 	static boolean claim(boolean[] filled, ChunkPos pos) {
-		int chunk = Math.floorMod(pos.z, TILE_CHUNKS) * TILE_CHUNKS + Math.floorMod(pos.x, TILE_CHUNKS);
+		int chunk = Math.floorMod(pos.z(), TILE_CHUNKS) * TILE_CHUNKS + Math.floorMod(pos.x(), TILE_CHUNKS);
 		if (filled[chunk])
 			return false;
 		filled[chunk] = true;

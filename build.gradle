@@ -11,7 +11,8 @@ base {
     archivesName = "${mod_id}-${minecraft_version}"
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+// Minecraft 26.x runs on Java 25
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 neoForge {
     version = project.neo_version
@@ -64,11 +65,15 @@ neoForge {
         }
         // The in-world tests (src/main/java/.../gametest): ./gradlew runGameTestServer runs them all and exits,
         // failing if any do, in a world of its own
+        // Just some of them with -Ptests=<selector> (postrider:heclimbs*, say), and each rider traced the whole way, not
+        // only when stuck, with -PtraceAll
         gameTestServer {
             type = "gameTestServer"
             gameDirectory = project.file('run-gametest')
-            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            programArguments.addAll '--tests', (project.findProperty('tests') ?: "${mod_id}:*").toString()
             systemProperty 'postrider.trace', 'true'
+            if (project.hasProperty('traceAll'))
+                systemProperty 'postrider.traceAll', 'true'
         }
         configureEach {
             systemProperty 'forge.logging.markers', 'REGISTRIES'
@@ -89,8 +94,9 @@ neoForge {
     }
 }
 
+
 // The version of Dailies' API jar in libs/
-def dailiesApiVersion = '1.1.0'
+def dailiesApiVersion = '26.3-1.2.0'
 
 repositories {
     exclusiveContent {
@@ -102,14 +108,15 @@ repositories {
 }
 
 dependencies {
-    // Runs alongside the mod in every run (client, watch, headless, in-world tests): the Concurrent Chunk Management
-    // Engine, spreading chunk generation and loading across cores, as players are likely to have it. Not compiled
-    // against. (Alpha builds only exist for NeoForge 1.21.1.)
-    runtimeOnly 'maven.modrinth:c2me-neoforge:0.4.0-alpha.0.123+1.21.1'
-    // And Distant Horizons, for the same reason: far terrain drawn as low-detail chunks, which loads chunks of its own.
+    // Post Rider is standalone, and every run is the mod alone unless asked otherwise. To check it alongside the mods
+    // that change how chunks are loaded under the riders, add -Pc2me (the Concurrent Chunk Management Engine, which
+    // players are recommended to run with it) and/or -Pdh (Distant Horizons) to any run. Neither is compiled against.
     // (A mod has to be on the ordinary runtime classpath to be found: a run's additionalRuntimeClasspath is taken
-    // for libraries, and a mod put there never loads.) Kept out of the in-world tests' run below
-    runtimeOnly 'maven.modrinth:distanthorizons:3.3.3-1.21.1'
+    // for libraries, and a mod put there never loads.) Distant Horizons is kept out of the in-world tests' run below
+    if (project.hasProperty('c2me'))
+        runtimeOnly 'maven.modrinth:c2me-neoforge:0.4.2-alpha.0.110+26.3'
+    if (project.hasProperty('dh'))
+        runtimeOnly 'maven.modrinth:distanthorizons:3.3.4-26.3'
     // Dailies' compat API, so the mailbox and letters are drawn in Dailies' recordings (client/dailies). Only compiled
     // against, from a copy of Dailies' API jar (its gradlew apiJar) kept in libs/, so it builds anywhere and is never
     // packed in: Post Rider runs without Dailies, and touches the hooks only when Dailies is loaded
@@ -200,7 +207,6 @@ var generateModMetadata = tasks.register('generateModMetadata', ProcessResources
     var replaceProperties = [
             minecraft_version_range: minecraft_version_range,
             neo_version_range      : neo_version_range,
-            loader_version_range   : loader_version_range,
             mod_id                 : mod_id,
             mod_name               : mod_name,
             mod_license            : mod_license,

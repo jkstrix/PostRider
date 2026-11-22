@@ -7,16 +7,17 @@ import java.util.List;
 import java.util.function.ToIntFunction;
 
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * The look shared by every Post Rider screen: walnut panelling, a parchment work surface, brass fittings and
  * postage-stamp tabs, all drawn from one sheet (textures/gui/post_office.png) so the screens stay consistent.
  */
 public final class PostOfficeStyle {
-	public static final ResourceLocation SHEET = PostRider.asResource("textures/gui/post_office.png");
+	public static final Identifier SHEET = PostRider.asResource("textures/gui/post_office.png");
 	public static final int SHEET_SIZE = 256;
 
 	public static final int PANEL_WIDTH = 176;
@@ -82,16 +83,16 @@ public final class PostOfficeStyle {
 
 	private PostOfficeStyle() {}
 
-	private static void blit(GuiGraphics graphics, int x, int y, int u, int v, int width, int height) {
-		graphics.blit(SHEET, x, y, u, v, width, height, SHEET_SIZE, SHEET_SIZE);
+	private static void blit(GuiGraphicsExtractor graphics, int x, int y, int u, int v, int width, int height) {
+		graphics.blit(RenderPipelines.GUI_TEXTURED, SHEET, x, y, u, v, width, height, SHEET_SIZE, SHEET_SIZE);
 	}
 
-	public static void panel(GuiGraphics graphics, int x, int y) {
+	public static void panel(GuiGraphicsExtractor graphics, int x, int y) {
 		panel(graphics, x, y, PANEL_WIDTH);
 	}
 
 	/** The panel at any width from its own up: its two ends as drawn, the parchment and planks between drawn on. */
-	public static void panel(GuiGraphics graphics, int x, int y, int width) {
+	public static void panel(GuiGraphicsExtractor graphics, int x, int y, int width) {
 		stretch(graphics, x, y, width, 0, 0, PANEL_WIDTH, PANEL_HEIGHT, 64);
 	}
 
@@ -99,7 +100,7 @@ public final class PostOfficeStyle {
 	 * Draws a piece of the sheet ({@code u, v}, {@code pieceWidth} wide) at another width: its left and right
 	 * {@code ends} as they are, and the middle repeated across the gap.
 	 */
-	private static void stretch(GuiGraphics graphics, int x, int y, int width, int u, int v, int pieceWidth, int height, int ends) {
+	private static void stretch(GuiGraphicsExtractor graphics, int x, int y, int width, int u, int v, int pieceWidth, int height, int ends) {
 		if (width <= pieceWidth) {
 			blit(graphics, x, y, u, v, width, height);
 			return;
@@ -112,12 +113,12 @@ public final class PostOfficeStyle {
 	}
 
 	/** An 18x18 slot frame; pass the slot's own position, the frame goes one pixel outside it. */
-	public static void slot(GuiGraphics graphics, Slot style, int slotX, int slotY) {
+	public static void slot(GuiGraphicsExtractor graphics, Slot style, int slotX, int slotY) {
 		blit(graphics, slotX - 1, slotY - 1, style.u, 0, 18, 18);
 	}
 
 	/** A postage-stamp tab sitting on the panel's top edge at panelY, with its icon. */
-	public static void tab(GuiGraphics graphics, int x, int panelY, int index, int icon, boolean active) {
+	public static void tab(GuiGraphicsExtractor graphics, int x, int panelY, int index, int icon, boolean active) {
 		if (active) {
 			blit(graphics, x, panelY - 26, 206, 18 + index * 28, TAB_WIDTH, TAB_ACTIVE_HEIGHT);
 			blit(graphics, x + 7, panelY - 21, 176 + icon * 16, 104, 16, 16);
@@ -128,18 +129,18 @@ public final class PostOfficeStyle {
 	}
 
 	/** The brass name plaque, centred on the panel, with its text engraved in the middle. */
-	public static void plaque(GuiGraphics graphics, Font font, int panelX, int panelY, Component text) {
+	public static void plaque(GuiGraphicsExtractor graphics, Font font, int panelX, int panelY, Component text) {
 		plaque(graphics, font, panelX, panelY, PANEL_WIDTH, text);
 	}
 
 	/** The brass name plaque, in the middle of the top of a panel this wide, stretched to fit the name. */
-	public static void plaque(GuiGraphics graphics, Font font, int panelX, int panelY, int panelWidth, Component text) {
+	public static void plaque(GuiGraphicsExtractor graphics, Font font, int panelX, int panelY, int panelWidth, Component text) {
 		int width = plaqueWidth(font.width(text.getString()), panelWidth);
 		int x = panelX + (panelWidth - width) / 2;
 		stretch(graphics, x, panelY + 3, width, 100, 210, PLAQUE_WIDTH, PLAQUE_HEIGHT, 6);
 		List<String> shown = clamp(text.getString(), width - 12, 1, font::width);
 		String line = shown.isEmpty() ? "" : shown.get(0);
-		graphics.drawString(font, line, x + (width - font.width(line)) / 2, panelY + 6, ENGRAVED, false);
+		graphics.text(font, line, x + (width - font.width(line)) / 2, panelY + 6, ENGRAVED, false);
 	}
 
 	/** How wide the plaque is for a name this wide: its own width at least, and no wider than leaves wood either side. */
@@ -147,35 +148,35 @@ public final class PostOfficeStyle {
 		return Math.max(PLAQUE_WIDTH, Math.min(textWidth + 16, panelWidth - 64));
 	}
 
-	public static void textField(GuiGraphics graphics, int x, int y) {
+	public static void textField(GuiGraphicsExtractor graphics, int x, int y) {
 		textField(graphics, x, y, TEXT_FIELD_WIDTH);
 	}
 
-	public static void textField(GuiGraphics graphics, int x, int y, int width) {
+	public static void textField(GuiGraphicsExtractor graphics, int x, int y, int width) {
 		stretch(graphics, x, y, width, 0, 194, TEXT_FIELD_WIDTH, TEXT_FIELD_HEIGHT, 4);
 	}
 
 	/** A ruled ledger page with a red margin, as used for lists of addresses. */
-	public static void ledger(GuiGraphics graphics, int x, int y) {
+	public static void ledger(GuiGraphicsExtractor graphics, int x, int y) {
 		ledger(graphics, x, y, LEDGER_WIDTH);
 	}
 
 	/** The ledger page at any width: its red margin as drawn, the ruled page carried on to the right. */
-	public static void ledger(GuiGraphics graphics, int x, int y, int width) {
+	public static void ledger(GuiGraphicsExtractor graphics, int x, int y, int width) {
 		stretch(graphics, x, y, width, 0, 210, LEDGER_WIDTH, LEDGER_HEIGHT, 16);
 	}
 
-	public static void button(GuiGraphics graphics, Font font, ButtonStyle style, int x, int y, Component label,
+	public static void button(GuiGraphicsExtractor graphics, Font font, ButtonStyle style, int x, int y, Component label,
 			boolean active, boolean hovered) {
 		int v = !active ? style.disabledV : hovered ? style.hoverV : style.v;
 		blit(graphics, x, y, 176, v, BUTTON_WIDTH, BUTTON_HEIGHT);
 		int color = active ? style.textColor : 0xFF4E4636;
-		graphics.drawString(font, label, x + (BUTTON_WIDTH - font.width(label)) / 2, y + 4, color, false);
+		graphics.text(font, label, x + (BUTTON_WIDTH - font.width(label)) / 2, y + 4, color, false);
 	}
 
 	// ---------------------------------------------------------------- the letter page sheet
 
-	public static final ResourceLocation PAGE_SHEET = PostRider.asResource("textures/gui/letter_page.png");
+	public static final Identifier PAGE_SHEET = PostRider.asResource("textures/gui/letter_page.png");
 	public static final int PAGE_WIDTH = 148;
 	public static final int PAGE_HEIGHT = 182;
 	/** Where writing starts on the page, how wide it may run, and the line spacing of the ruled lines. */
@@ -187,24 +188,24 @@ public final class PostOfficeStyle {
 	public static final int ARROW_SIZE = 9;
 	public static final int POSTMARK_SIZE = 41;
 
-	public static void page(GuiGraphics graphics, int x, int y) {
-		graphics.blit(PAGE_SHEET, x, y, 0, 0, PAGE_WIDTH, PAGE_HEIGHT, SHEET_SIZE, SHEET_SIZE);
+	public static void page(GuiGraphicsExtractor graphics, int x, int y) {
+		graphics.blit(RenderPipelines.GUI_TEXTURED, PAGE_SHEET, x, y, 0, 0, PAGE_WIDTH, PAGE_HEIGHT, SHEET_SIZE, SHEET_SIZE);
 	}
 
 	/** An inked page-turn arrow; previous points left, next points right. */
-	public static void arrow(GuiGraphics graphics, int x, int y, boolean next, boolean hovered) {
-		graphics.blit(PAGE_SHEET, x, y, next ? 162 : 150, hovered ? 60 : 48, ARROW_SIZE, ARROW_SIZE, SHEET_SIZE, SHEET_SIZE);
+	public static void arrow(GuiGraphicsExtractor graphics, int x, int y, boolean next, boolean hovered) {
+		graphics.blit(RenderPipelines.GUI_TEXTURED, PAGE_SHEET, x, y, next ? 162 : 150, hovered ? 60 : 48, ARROW_SIZE, ARROW_SIZE, SHEET_SIZE, SHEET_SIZE);
 	}
 
 	/** The round Post Rider postmark, with the day it was posted in the middle. */
-	public static void postmark(GuiGraphics graphics, Font font, int x, int y, long day) {
-		graphics.blit(PAGE_SHEET, x, y, 152, 2, POSTMARK_SIZE, POSTMARK_SIZE, SHEET_SIZE, SHEET_SIZE);
+	public static void postmark(GuiGraphicsExtractor graphics, Font font, int x, int y, long day) {
+		graphics.blit(RenderPipelines.GUI_TEXTURED, PAGE_SHEET, x, y, 152, 2, POSTMARK_SIZE, POSTMARK_SIZE, SHEET_SIZE, SHEET_SIZE);
 		Component dayText = Component.translatable("gui.postrider.letter.postmark_day", day);
-		graphics.pose().pushPose();
-		graphics.pose().translate(x + POSTMARK_SIZE / 2.0F, y + POSTMARK_SIZE / 2.0F - 2, 0);
-		graphics.pose().scale(0.75F, 0.75F, 1);
-		graphics.drawString(font, dayText, -font.width(dayText) / 2, 0, 0xFF3C5A8A, false);
-		graphics.pose().popPose();
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(x + POSTMARK_SIZE / 2.0F, y + POSTMARK_SIZE / 2.0F - 2);
+		graphics.pose().scale(0.75F, 0.75F);
+		graphics.text(font, dayText, -font.width(dayText) / 2, 0, 0xFF3C5A8A, false);
+		graphics.pose().popMatrix();
 	}
 
 	/** Writing on the parchment, without the drop shadow vanilla text has. */
@@ -250,7 +251,7 @@ public final class PostOfficeStyle {
 		return kept;
 	}
 
-	public static void write(GuiGraphics graphics, Font font, Component text, int x, int y, int color) {
-		graphics.drawString(font, text, x, y, color, false);
+	public static void write(GuiGraphicsExtractor graphics, Font font, Component text, int x, int y, int color) {
+		graphics.text(font, text, x, y, color, false);
 	}
 }

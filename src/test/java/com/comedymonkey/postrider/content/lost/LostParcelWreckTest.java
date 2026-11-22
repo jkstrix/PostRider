@@ -46,7 +46,7 @@ class LostParcelWreckTest {
 	void itBehavesLikeAnyLostParcel() {
 		assertTrue(ModBlocks.LOST_PARCEL_WRECK.get() instanceof LostParcelBlock, "the same opening rules");
 		assertTrue(ModBlockEntities.LOST_PARCEL.get().isValid(ModBlocks.LOST_PARCEL_WRECK.get().defaultBlockState()));
-		assertEquals(PushReaction.BLOCK, ModBlocks.LOST_PARCEL_WRECK.get().defaultBlockState().getPistonPushReaction());
+		assertEquals(PushReaction.IMMOVEABLE, ModBlocks.LOST_PARCEL_WRECK.get().defaultBlockState().getPistonPushReaction());
 		assertTrue(ModBlocks.LOST_PARCEL_WRECK.get().getExplosionResistance() >= 1200.0F);
 	}
 

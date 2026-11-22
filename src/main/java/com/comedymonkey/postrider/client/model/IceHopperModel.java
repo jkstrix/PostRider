@@ -1,9 +1,9 @@
 package com.comedymonkey.postrider.client.model;
 
 import com.comedymonkey.postrider.PostRider;
-import com.comedymonkey.postrider.content.hopper.IceHopperEntity;
+import com.comedymonkey.postrider.client.renderer.state.IceHopperRenderState;
 
-import net.minecraft.client.model.HierarchicalModel;
+import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
@@ -13,23 +13,22 @@ import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.vehicle.Boat;
 
 /**
  * The ice hopper. Geometry is Blockbench's Mojang-mappings export of blockbench/ice_hopper.bbmodel; the oars swing
  * with the boat's own rowing time, as a vanilla boat's paddles do.
  */
-public class IceHopperModel extends HierarchicalModel<IceHopperEntity> {
+public class IceHopperModel extends EntityModel<IceHopperRenderState> {
 	public static final ModelLayerLocation LAYER = new ModelLayerLocation(PostRider.asResource("ice_hopper"), "main");
 
-	private final ModelPart root;
 	private final ModelPart oarLeft;
 	private final ModelPart oarRight;
 
 	public IceHopperModel(ModelPart root) {
-		this.root = root.getChild("boat");
-		this.oarLeft = this.root.getChild("oar_left");
-		this.oarRight = this.root.getChild("oar_right");
+		super(root);
+		ModelPart boat = root.getChild("boat");
+		this.oarLeft = boat.getChild("oar_left");
+		this.oarRight = boat.getChild("oar_right");
 	}
 
 	public static LayerDefinition createBodyLayer() {
@@ -60,16 +59,11 @@ public class IceHopperModel extends HierarchicalModel<IceHopperEntity> {
 		return LayerDefinition.create(mesh, 128, 128);
 	}
 
+	/** The oars follow the boat's own rowing time. */
 	@Override
-	public ModelPart root() {
-		return root;
-	}
-
-	/** {@code limbSwing} carries the partial tick: the oars follow the boat's rowing time. */
-	@Override
-	public void setupAnim(IceHopperEntity hopper, float partialTick, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
-		swing(oarLeft, hopper.getRowingTime(Boat.PADDLE_LEFT, partialTick), 1, hopper.getPaddleState(Boat.PADDLE_LEFT));
-		swing(oarRight, hopper.getRowingTime(Boat.PADDLE_RIGHT, partialTick), -1, hopper.getPaddleState(Boat.PADDLE_RIGHT));
+	public void setupAnim(IceHopperRenderState state) {
+		swing(oarLeft, state.rowingTimeLeft, 1, state.rowingLeft);
+		swing(oarRight, state.rowingTimeRight, -1, state.rowingRight);
 	}
 
 	/** How far the blade dips and sweeps in a stroke. */

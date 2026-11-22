@@ -1,20 +1,14 @@
 package com.comedymonkey.postrider.gametest;
 
-import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.hopper.IceHopperEntity;
 import com.comedymonkey.postrider.registry.ModEntities;
 
-import net.minecraft.gametest.framework.GameTest;
-import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /** The ice hopper in a real world: a pool with sea ice beyond it, and the boat driven at the ice. */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class IceHopperGameTests {
 	private static final String ARENA = "gametest/arena_128x64";
 
@@ -38,7 +32,7 @@ public final class IceHopperGameTests {
 		helper.succeedWhen(() -> {
 			Vec3 at = helper.relativeVec(hopper.position());
 			if (hopper.getY() < iceTop - 0.05 || at.x < 34)
-				throw new GameTestAssertException("Not up on the ice and sliding yet: at " + at + " (ice top " + (iceTop - helper.absolutePos(net.minecraft.core.BlockPos.ZERO).getY()) + ")");
+				throw helper.assertionException(Component.literal("Not up on the ice and sliding yet: at " + at + " (ice top " + (iceTop - helper.absolutePos(net.minecraft.core.BlockPos.ZERO).getY()) + ")"));
 		});
 	}
 
@@ -59,7 +53,7 @@ public final class IceHopperGameTests {
 		helper.succeedWhen(() -> {
 			Vec3 at = helper.relativeVec(hopper.position());
 			if (hopper.getY() < stepTop - 0.05 || at.x < 44)
-				throw new GameTestAssertException("Not up the step and sliding yet: at " + at);
+				throw helper.assertionException(Component.literal("Not up the step and sliding yet: at " + at));
 		});
 	}
 }

@@ -8,15 +8,20 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.comedymonkey.postrider.registry.ModBlocks;
+import com.comedymonkey.postrider.testutil.LoadedGameData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.storage.TagValueInput;
 
+@ExtendWith(LoadedGameData.class)
 class LostParcelBlockEntityTest {
 	private static final UUID SENDER = UUID.fromString("00000000-0000-0000-0000-00000000000a");
 	private static final UUID RECIPIENT = UUID.fromString("00000000-0000-0000-0000-00000000000b");
@@ -56,10 +61,10 @@ class LostParcelBlockEntityTest {
 
 	@Test
 	void survivesSaving() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		CompoundTag saved = parcel(KILLER).saveWithoutMetadata(registries);
 		LostParcelBlockEntity loaded = new LostParcelBlockEntity(BlockPos.ZERO, ModBlocks.LOST_PARCEL.get().defaultBlockState());
-		loaded.loadCustomOnly(saved, registries);
+		loaded.loadCustomOnly(TagValueInput.create(ProblemReporter.DISCARDING, registries, saved));
 		assertEquals(2, loaded.getContents().size());
 		assertEquals("Steve", loaded.getSenderName());
 		assertEquals("Steve's Ranch", loaded.getFromName());

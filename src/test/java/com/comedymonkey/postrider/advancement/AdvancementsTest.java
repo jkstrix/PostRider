@@ -25,7 +25,7 @@ import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.DyeColor;
 
 class AdvancementsTest {
@@ -70,7 +70,7 @@ class AdvancementsTest {
 				assertTrue(lang.has(key), entry.getKey() + " is missing " + key);
 			}
 			String icon = display.getAsJsonObject("icon").get("id").getAsString();
-			assertTrue(BuiltInRegistries.ITEM.containsKey(ResourceLocation.parse(icon)), entry.getKey() + "'s icon " + icon);
+			assertTrue(BuiltInRegistries.ITEM.containsKey(Identifier.parse(icon)), entry.getKey() + "'s icon " + icon);
 		}
 	}
 
@@ -131,9 +131,9 @@ class AdvancementsTest {
 
 	@Test
 	void theTriggerAndTheLettersSentStatisticAreRegistered() {
-		assertTrue(BuiltInRegistries.TRIGGER_TYPES.containsKey(ResourceLocation.parse("postrider:post_event")));
+		assertTrue(BuiltInRegistries.TRIGGER_TYPES.containsKey(Identifier.parse("postrider:post_event")));
 		assertNotNull(ModTriggers.POST_EVENT.get());
-		assertEquals(ResourceLocation.parse("postrider:letters_sent"), ModTriggers.LETTERS_SENT.get());
+		assertEquals(Identifier.parse("postrider:letters_sent"), ModTriggers.LETTERS_SENT.get());
 		assertTrue(lang().has("stat.postrider.letters_sent"));
 	}
 }

@@ -30,7 +30,7 @@ def has_item(item):
 # id: (parent, icon, title, description, frame, criteria, requirements or None for all, extra display, rewards)
 ADVANCEMENTS = [
     ("open_for_business", None, "postrider:red_mailbox", "Open for Business", "Get hold of a mailbox", "task",
-     {"mailbox": has_item("#postrider:mailboxes")}, None, {"background": "minecraft:textures/block/spruce_planks.png"}, None),
+     {"mailbox": has_item("#postrider:mailboxes")}, None, {"background": "minecraft:block/spruce_planks"}, None),
     ("hang_out_your_shingle", "open_for_business", "minecraft:oak_sign", "Hang Out Your Shingle", "Give a mailbox an address", "task",
      {"named": post_event("named_mailbox")}, None, {}, None),
     ("paint_the_town", "open_for_business", "minecraft:red_dye", "Paint the Town", "Dye a mailbox", "task",

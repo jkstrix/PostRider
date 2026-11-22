@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.comedymonkey.postrider.content.postman.Crossing;
 import com.comedymonkey.postrider.content.postman.DeliveryRun;
+import com.comedymonkey.postrider.content.postman.Hazards;
 import com.comedymonkey.postrider.content.postman.Journey;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.PostmanHorse;
@@ -489,8 +490,8 @@ public final class Navigator {
 	/** Whether every chunk held ahead is loaded now (and so its real ground is in the survey, or about to be). */
 	public boolean aheadLoaded(ServerLevel level) {
 		for (long chunk : ahead) {
-			ChunkPos pos = new ChunkPos(chunk);
-			if (level.getChunkSource().getChunkNow(pos.x, pos.z) == null)
+			ChunkPos pos = ChunkPos.unpack(chunk);
+			if (level.getChunkSource().getChunkNow(pos.x(), pos.z()) == null)
 				return false;
 		}
 		return true;
@@ -523,7 +524,7 @@ public final class Navigator {
 			for (Vec3 point : pointsAhead(plan.legs(), leg, here, distance, CoarsePlanner.CELL))
 				for (int dx = -AHEAD_WIDTH; dx <= AHEAD_WIDTH; dx++)
 					for (int dz = -AHEAD_WIDTH; dz <= AHEAD_WIDTH; dz++)
-						wanted.add(ChunkPos.asLong((Mth.floor(point.x) >> 4) + dx, (Mth.floor(point.z) >> 4) + dz));
+						wanted.add(ChunkPos.pack((Mth.floor(point.x) >> 4) + dx, (Mth.floor(point.z) >> 4) + dz));
 		for (long chunk : new ArrayList<>(ahead))
 			if (!wanted.contains(chunk)) {
 				PostmanHorseChunks.hold(level, owner, chunk, false);
@@ -695,12 +696,14 @@ public final class Navigator {
 			startStretch(rider, level, target, now);
 		}
 		skipPassed(rider);
-		boolean descending = descendingAhead(rider);
-		rider.setDescending(descending);
-		// On foot likewise: a walk going down, a run on the flat
+		// At a walk where the way goes down, and beside fire and the like
+		Entity body = rider.getVehicle() != null ? rider.getVehicle() : rider;
+		boolean walk = descendingAhead(rider) || Hazards.near(level, body.getBoundingBox());
+		rider.setHeldToWalk(walk);
+		// On foot likewise: a walk there, a run elsewhere
 		if (rider.getVehicle() == null && !steps.isEmpty() && !rider.getNavigation().isDone()) {
-			rider.setSprinting(!descending);
-			rider.getNavigation().setSpeedModifier(descending ? DeliveryRun.WALK_SPEED : DeliveryRun.RUN_SPEED);
+			rider.setSprinting(!walk);
+			rider.getNavigation().setSpeedModifier(walk ? DeliveryRun.WALK_SPEED : DeliveryRun.RUN_SPEED);
 		}
 		nudgeIntoClimb(rider, level);
 		nudgeOffTheLip(rider);
@@ -1931,7 +1934,7 @@ public final class Navigator {
 	private WaterPlanner.Water water(ServerLevel level, int nearY) {
 		Long2ByteOpenHashMap known = new Long2ByteOpenHashMap();
 		return (x, z) -> {
-			long key = ChunkPos.asLong(x, z);
+			long key = ChunkPos.pack(x, z);
 			byte open = known.getOrDefault(key, (byte) -1);
 			if (open < 0) {
 				boolean blockedCell = noShore.contains(CoarsePlanner.key(CoarsePlanner.cellOf(x), CoarsePlanner.cellOf(z)));
@@ -1948,7 +1951,7 @@ public final class Navigator {
 		return (x, z) -> {
 			Vec3 spot = new Vec3(x + 0.5, 0, z + 0.5);
 			double extra = Crossing.nearAny(spot, drowned, Crossing.DROWNED_BERTH) ? DROWNED_EXTRA : 0;
-			long chunk = ChunkPos.asLong(x >> 4, z >> 4);
+			long chunk = ChunkPos.pack(x >> 4, z >> 4);
 			byte near = monuments.getOrDefault(chunk, (byte) -1);
 			if (near < 0) {
 				near = (byte) (Crossing.nearMonument(level, new Vec3((x & ~15) + 8, 0, (z & ~15) + 8)) ? 1 : 0);

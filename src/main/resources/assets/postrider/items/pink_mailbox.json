@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "postrider:item/pink_mailbox",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": -816214
+      }
+    ]
+  }
+}

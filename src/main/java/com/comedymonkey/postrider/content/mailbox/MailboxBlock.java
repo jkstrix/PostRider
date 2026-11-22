@@ -3,23 +3,23 @@ package com.comedymonkey.postrider.content.mailbox;
 import org.jetbrains.annotations.Nullable;
 
 import com.comedymonkey.postrider.advancement.PostEvents;
-import com.comedymonkey.postrider.post.MailboxDirectory;
 import com.comedymonkey.postrider.registry.ModBlocks;
-import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.GlobalPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.Permissions;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
@@ -29,8 +29,8 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
@@ -42,6 +42,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -51,11 +52,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * upper half is only there for its shape. Only the owner can open or break it (operators can also break it).
  */
 public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBlock {
-	public static final MapCodec<MailboxBlock> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
-		DyeColor.CODEC.fieldOf("color").forGetter(MailboxBlock::getColor),
-		propertiesCodec()
-	).apply(i, MailboxBlock::new));
-
 	public static final EnumProperty<DoubleBlockHalf> HALF = BlockStateProperties.DOUBLE_BLOCK_HALF;
 	/** Up when the inbox has mail in it. */
 	public static final BooleanProperty FLAG = BooleanProperty.create("flag");
@@ -76,11 +72,6 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 	}
 
 	@Override
-	protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-		return CODEC;
-	}
-
-	@Override
 	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
 		builder.add(FACING, HALF, FLAG);
 	}
@@ -97,7 +88,7 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 	public BlockState getStateForPlacement(BlockPlaceContext context) {
 		BlockPos pos = context.getClickedPos();
 		Level level = context.getLevel();
-		if (pos.getY() >= level.getMaxBuildHeight() - 1 || !level.getBlockState(pos.above()).canBeReplaced(context))
+		if (pos.getY() >= level.getMaxY() || !level.getBlockState(pos.above()).canBeReplaced(context))
 			return null;
 		return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
 	}
@@ -105,7 +96,7 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 	@Override
 	public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
 		level.setBlock(pos.above(), state.setValue(HALF, DoubleBlockHalf.UPPER), Block.UPDATE_ALL);
-		if (level.isClientSide || !(placer instanceof ServerPlayer player))
+		if (level.isClientSide() || !(placer instanceof ServerPlayer player))
 			return;
 		if (level.getBlockEntity(pos) instanceof MailboxBlockEntity mailbox)
 			mailbox.setOwner(player);
@@ -123,20 +114,20 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 	}
 
 	@Override
-	protected BlockState updateShape(BlockState state, Direction direction, BlockState neighbor, LevelAccessor level,
-			BlockPos pos, BlockPos neighborPos) {
+	protected BlockState updateShape(BlockState state, LevelReader level, ScheduledTickAccess ticks, BlockPos pos,
+			Direction direction, BlockPos neighborPos, BlockState neighbor, RandomSource random) {
 		DoubleBlockHalf half = state.getValue(HALF);
 		if (direction.getAxis() == Direction.Axis.Y && (half == DoubleBlockHalf.LOWER) == (direction == Direction.UP)) {
 			boolean otherHalf = neighbor.getBlock() instanceof MailboxBlock && neighbor.getValue(HALF) != half;
 			return otherHalf ? state : Blocks.AIR.defaultBlockState();
 		}
-		return super.updateShape(state, direction, neighbor, level, pos, neighborPos);
+		return super.updateShape(state, level, ticks, pos, direction, neighborPos, neighbor, random);
 	}
 
 	@Override
 	public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
 		// Breaking the top in creative would otherwise drop the mailbox from the bottom half
-		if (!level.isClientSide && player.isCreative() && state.getValue(HALF) == DoubleBlockHalf.UPPER) {
+		if (!level.isClientSide() && player.isCreative() && state.getValue(HALF) == DoubleBlockHalf.UPPER) {
 			BlockPos lowerPos = pos.below();
 			BlockState lower = level.getBlockState(lowerPos);
 			if (lower.getBlock() instanceof MailboxBlock && lower.getValue(HALF) == DoubleBlockHalf.LOWER) {
@@ -145,18 +136,6 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 			}
 		}
 		return super.playerWillDestroy(level, pos, state, player);
-	}
-
-	@Override
-	protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-		// Recolouring swaps one mailbox block for another and keeps everything; anything else empties it
-		if (state.getValue(HALF) == DoubleBlockHalf.LOWER && !(newState.getBlock() instanceof MailboxBlock)
-				&& !level.isClientSide && level.getBlockEntity(pos) instanceof MailboxBlockEntity mailbox) {
-			mailbox.dropContents();
-			if (level.getServer() != null)
-				MailboxDirectory.get(level.getServer()).remove(GlobalPos.of(level.dimension(), pos));
-		}
-		super.onRemove(state, level, pos, newState, movedByPiston);
 	}
 
 	// ---------------------------------------------------------------- ownership
@@ -174,12 +153,12 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 	/** The owner can break their mailbox, and so can operators. */
 	public static boolean canBreak(Player player, BlockGetter level, BlockState state, BlockPos pos) {
 		MailboxBlockEntity mailbox = mailboxAt(level, state, pos);
-		return mailbox == null || mailbox.isOwner(player) || player.hasPermissions(2);
+		return mailbox == null || mailbox.isOwner(player) || player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER);
 	}
 
 	/** Only its owner (or an operator) can take it down; explosions never do, whatever their size. */
 	@Override
-	public void onBlockExploded(BlockState state, Level level, BlockPos pos, Explosion explosion) {}
+	public void onBlockExploded(BlockState state, ServerLevel level, BlockPos pos, Explosion explosion) {}
 
 	@Override
 	protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
@@ -193,10 +172,10 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 		MailboxBlockEntity mailbox = mailboxAt(level, state, pos);
 		if (mailbox == null)
 			return InteractionResult.PASS;
-		if (level.isClientSide)
+		if (level.isClientSide())
 			return InteractionResult.SUCCESS;
 		if (!mailbox.isOwner(player)) {
-			player.displayClientMessage(Component.translatable("message.postrider.mailbox.not_owner", mailbox.getOwnerName()), true);
+			player.sendOverlayMessage(Component.translatable("message.postrider.mailbox.not_owner", mailbox.getOwnerName()));
 			return InteractionResult.CONSUME;
 		}
 		if (player instanceof ServerPlayer serverPlayer)
@@ -205,21 +184,22 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 	}
 
 	@Override
-	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
+	protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
 			InteractionHand hand, BlockHitResult hit) {
-		if (!(stack.getItem() instanceof DyeItem dye) || dye.getDyeColor() == color)
-			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+		DyeColor dye = stack.getItem() instanceof DyeItem ? stack.get(DataComponents.DYE) : null;
+		if (dye == null || dye == color)
+			return InteractionResult.TRY_WITH_EMPTY_HAND;
 		MailboxBlockEntity mailbox = mailboxAt(level, state, pos);
 		if (mailbox == null || !mailbox.isOwner(player))
-			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-		if (!level.isClientSide) {
-			recolour(level, lowerPos(state, pos), ModBlocks.mailbox(dye.getDyeColor()).get());
+			return InteractionResult.TRY_WITH_EMPTY_HAND;
+		if (!level.isClientSide()) {
+			recolour(level, lowerPos(state, pos), ModBlocks.mailbox(dye).get());
 			level.playSound(null, pos, SoundEvents.DYE_USE, SoundSource.BLOCKS, 1, 1);
 			stack.consume(1, player);
 			if (player instanceof ServerPlayer serverPlayer)
 				PostEvents.fire(serverPlayer, PostEvents.DYED_MAILBOX);
 		}
-		return ItemInteractionResult.sidedSuccess(level.isClientSide);
+		return level.isClientSide() ? InteractionResult.SUCCESS : InteractionResult.CONSUME;
 	}
 
 	/** Swaps both halves for the mailbox of another colour, keeping its name, owner and mail. */
@@ -234,7 +214,7 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 		if (upper.getBlock() instanceof MailboxBlock)
 			level.setBlock(lowerPos.above(), recoloured(upper, target), flags);
 		if (data != null && level.getBlockEntity(lowerPos) instanceof MailboxBlockEntity mailbox) {
-			mailbox.loadCustomOnly(data, level.registryAccess());
+			mailbox.loadCustomOnly(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), data));
 			mailbox.setChanged();
 			level.sendBlockUpdated(lowerPos, mailbox.getBlockState(), mailbox.getBlockState(), Block.UPDATE_CLIENTS);
 		}

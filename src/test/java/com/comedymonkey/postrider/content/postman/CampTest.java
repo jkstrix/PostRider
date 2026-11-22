@@ -56,7 +56,7 @@ class CampTest {
 	void heSleepsWithHisBootsOutOfTheDoorAndHisHeadInside() {
 		Vec3 tent = new Vec3(100.5, 64, -20.5);
 		for (Direction facing : Direction.Plane.HORIZONTAL) {
-			Vec3 door = Vec3.atLowerCornerOf(facing.getNormal());
+			Vec3 door = Vec3.atLowerCornerOf(facing.getUnitVec3i());
 			// How far along the tent from its middle towards the door
 			double soles = DeliveryRun.sleepingSpot(tent, facing.toYRot()).subtract(tent).dot(door);
 			double crown = soles - DeliveryRun.SLEEPER_LENGTH;

@@ -5,19 +5,23 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.comedymonkey.postrider.registry.ModBlocks;
+import com.comedymonkey.postrider.testutil.LoadedGameData;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.EntityEquipment;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
+@ExtendWith(LoadedGameData.class)
 class MailboxMenuTest {
 	private final MailboxBlockEntity mailbox =
 		new MailboxBlockEntity(BlockPos.ZERO, ModBlocks.mailbox(DyeColor.WHITE).get().defaultBlockState());
-	private final Inventory inventory = new Inventory(null);
+	private final Inventory inventory = new Inventory(null, new EntityEquipment());
 	private final MailboxMenu menu = new MailboxMenu(1, inventory, mailbox);
 
 	@Test

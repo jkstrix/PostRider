@@ -36,7 +36,7 @@ public final class PostRiderCommand {
 	private PostRiderCommand() {}
 
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-		LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("postrider").requires(source -> source.hasPermission(2));
+		LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("postrider").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS));
 		LiteralArgumentBuilder<CommandSourceStack> spawn = Commands.literal("spawn");
 		spawn.executes(ctx -> spawn(ctx.getSource(), null));
 		for (Roster.Rider each : Roster.ALL)
@@ -111,9 +111,9 @@ public final class PostRiderCommand {
 	/** One of the crew in front of you: whoever you name, or anyone at random. */
 	private static int spawn(CommandSourceStack source, @Nullable Roster.Rider who) throws CommandSyntaxException {
 		ServerPlayer player = source.getPlayerOrException();
-		ServerLevel level = player.serverLevel();
+		ServerLevel level = player.level();
 		Vec3 ahead = player.position().add(player.getLookAngle().multiply(3, 0, 3));
-		Roster.Rider rider = who != null ? who : Roster.ALL.get(level.random.nextInt(Roster.ALL.size()));
+		Roster.Rider rider = who != null ? who : Roster.ALL.get(level.getRandom().nextInt(Roster.ALL.size()));
 		PostmanEntity postman = PostmanEntity.appear(ModEntities.POSTMAN.get(), level, ahead.x, player.getY(), ahead.z, player.getYRot() + 180, rider);
 		if (postman == null)
 			return 0;
@@ -123,7 +123,7 @@ public final class PostRiderCommand {
 
 	private static int withNearest(CommandSourceStack source, Consumer<PostmanEntity> action) throws CommandSyntaxException {
 		ServerPlayer player = source.getPlayerOrException();
-		PostmanEntity nearest = player.serverLevel()
+		PostmanEntity nearest = player.level()
 			.getEntitiesOfClass(PostmanEntity.class, new AABB(player.blockPosition()).inflate(SEARCH_RANGE))
 			.stream().min(Comparator.comparingDouble(p -> p.distanceToSqr(player))).orElse(null);
 		if (nearest == null) {

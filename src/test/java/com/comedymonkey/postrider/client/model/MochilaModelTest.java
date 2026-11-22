@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import com.comedymonkey.postrider.testutil.ModResourceFiles;
 
-import net.minecraft.client.model.HorseModel;
+import net.minecraft.client.model.animal.equine.HorseModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.builders.CubeDeformation;
 import net.minecraft.client.model.geom.builders.LayerDefinition;

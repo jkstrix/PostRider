@@ -8,14 +8,19 @@ import com.comedymonkey.postrider.content.letter.LetterText;
 import com.comedymonkey.postrider.network.EditLetterPayload;
 import com.comedymonkey.postrider.registry.ModDataComponents;
 
-import net.minecraft.client.gui.GuiGraphics;
+import com.mojang.blaze3d.platform.InputConstants;
+
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /** Writing a letter on a sheet of parchment: up to four pages, saved as a draft until it's sealed. */
 public class LetterEditScreen extends Screen {
@@ -35,7 +40,7 @@ public class LetterEditScreen extends Screen {
 
 	public LetterEditScreen(Player player, InteractionHand hand, ItemStack letter) {
 		super(Component.translatable("gui.postrider.letter.write"));
-		slot = hand == InteractionHand.MAIN_HAND ? player.getInventory().selected : Inventory.SLOT_OFFHAND;
+		slot = hand == InteractionHand.MAIN_HAND ? player.getInventory().getSelectedSlot() : Inventory.SLOT_OFFHAND;
 		readOnly = false;
 		LetterDraft draft = letter.get(ModDataComponents.LETTER_DRAFT.get());
 		if (draft != null)
@@ -98,6 +103,10 @@ public class LetterEditScreen extends Screen {
 
 	@Override
 	protected void init() {
+		// Typed characters only come while the window takes text input, which is asked for (a text box asks when it's
+		// focused; the whole page takes typing here). A read-only copy takes none.
+		if (!readOnly)
+			minecraft.textInputManager().startTextInput(this);
 		editor = new LetterText(font::width, PostOfficeStyle.PAGE_TEXT_WIDTH, PostOfficeStyle.PAGE_LINES, LetterDraft.MAX_PAGE_LENGTH);
 		editor.setText(pages.get(page));
 		// The text puts the cursor at its end; a read-only copy moves it back to where it was recorded
@@ -139,7 +148,7 @@ public class LetterEditScreen extends Screen {
 		}
 		send(true);
 		if (minecraft != null)
-			minecraft.setScreen(null);
+			minecraft.gui.setScreen(null);
 	}
 
 	private void storePage() {
@@ -162,7 +171,7 @@ public class LetterEditScreen extends Screen {
 			return;
 		sent = true;
 		storePage();
-		PacketDistributor.sendToServer(new EditLetterPayload(slot, LetterDraft.sanitize(pages), seal));
+		ClientPacketDistributor.sendToServer(new EditLetterPayload(slot, LetterDraft.sanitize(pages), seal));
 	}
 
 	@Override
@@ -177,6 +186,18 @@ public class LetterEditScreen extends Screen {
 	}
 
 	@Override
+	public void removed() {
+		minecraft.textInputManager().stopTextInput(this);
+		super.removed();
+	}
+
+	/** Keys are for writing, so none of them opens another screen over the letter. */
+	@Override
+	public boolean isInputCaptured() {
+		return true;
+	}
+
+	@Override
 	public boolean isPauseScreen() {
 		return false;
 	}
@@ -184,36 +205,37 @@ public class LetterEditScreen extends Screen {
 	// ---------------------------------------------------------------- drawing
 
 	@Override
-	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-		super.render(graphics, mouseX, mouseY, partialTick);
+	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+		super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 		int x = pageX(), y = pageY();
 		PostOfficeStyle.page(graphics, x, y);
 		int textX = x + PostOfficeStyle.PAGE_TEXT_X, textY = y + PostOfficeStyle.PAGE_TEXT_Y;
 
 		if (confirmingSeal) {
-			graphics.drawWordWrap(font, Component.translatable("gui.postrider.letter.seal_warning"), textX, textY + 40,
-				PostOfficeStyle.PAGE_TEXT_WIDTH, PostOfficeStyle.INK);
+			graphics.textWithWordWrap(font, Component.translatable("gui.postrider.letter.seal_warning"), textX, textY + 40,
+				PostOfficeStyle.PAGE_TEXT_WIDTH, PostOfficeStyle.INK, false);
 			return;
 		}
 		List<LetterText.Line> lines = editor.lines();
 		for (int i = 0; i < lines.size(); i++)
-			graphics.drawString(font, editor.lineText(lines.get(i)), textX, textY + i * PostOfficeStyle.PAGE_LINE_HEIGHT, PostOfficeStyle.INK, false);
+			graphics.text(font, editor.lineText(lines.get(i)), textX, textY + i * PostOfficeStyle.PAGE_LINE_HEIGHT, PostOfficeStyle.INK, false);
 		if (frame / 6 % 2 == 0) {
 			int cx = textX + editor.cursorX(), cy = textY + editor.cursorLine() * PostOfficeStyle.PAGE_LINE_HEIGHT;
 			graphics.fill(cx, cy - 1, cx + 1, cy + 9, PostOfficeStyle.INK);
 		}
 
 		Component number = Component.translatable("gui.postrider.letter.page", page + 1, pages.size());
-		graphics.drawString(font, number, x + (PostOfficeStyle.PAGE_WIDTH - font.width(number)) / 2, y + 164, PostOfficeStyle.PENCIL, false);
+		graphics.text(font, number, x + (PostOfficeStyle.PAGE_WIDTH - font.width(number)) / 2, y + 164, PostOfficeStyle.PENCIL, false);
 		if (page > 0)
 			PostOfficeStyle.arrow(graphics, prevArrowX(), arrowY(), false, overArrow(mouseX, mouseY, prevArrowX()));
 		if (page < LetterDraft.MAX_PAGES - 1)
 			PostOfficeStyle.arrow(graphics, nextArrowX(), arrowY(), true, overArrow(mouseX, mouseY, nextArrowX()));
 	}
 
+	/** Over the world, dimmed, as vanilla's books are, rather than on the menu background. */
 	@Override
-	public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-		renderTransparentBackground(graphics);
+	public boolean isInGameUi() {
+		return true;
 	}
 
 	private int prevArrowX() {
@@ -236,8 +258,9 @@ public class LetterEditScreen extends Screen {
 	// ---------------------------------------------------------------- input
 
 	@Override
-	public boolean mouseClicked(double mouseX, double mouseY, int button) {
-		if (!confirmingSeal && button == 0) {
+	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+		double mouseX = event.x(), mouseY = event.y();
+		if (!confirmingSeal && event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
 			if (page > 0 && overArrow(mouseX, mouseY, prevArrowX())) {
 				turnTo(page - 1);
 				return true;
@@ -247,14 +270,14 @@ public class LetterEditScreen extends Screen {
 				return true;
 			}
 		}
-		return super.mouseClicked(mouseX, mouseY, button);
+		return super.mouseClicked(event, doubleClick);
 	}
 
 	@Override
-	public boolean charTyped(char codePoint, int modifiers) {
+	public boolean charTyped(CharacterEvent event) {
 		if (confirmingSeal)
 			return false;
-		type(String.valueOf(codePoint));
+		type(event.codepointAsString());
 		return true;
 	}
 
@@ -268,27 +291,27 @@ public class LetterEditScreen extends Screen {
 	}
 
 	@Override
-	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-		if (super.keyPressed(keyCode, scanCode, modifiers))
+	public boolean keyPressed(KeyEvent event) {
+		if (super.keyPressed(event))
 			return true;
 		if (confirmingSeal)
 			return false;
-		if (Screen.isPaste(keyCode) && minecraft != null) {
+		if (event.isPaste() && minecraft != null) {
 			type(minecraft.keyboardHandler.getClipboard());
 			return true;
 		}
-		switch (keyCode) {
-			case 259 -> editor.backspace();
-			case 261 -> editor.delete();
-			case 257, 335 -> type("\n");
-			case 263 -> editor.left();
-			case 262 -> editor.right();
-			case 265 -> editor.up();
-			case 264 -> editor.down();
-			case 268 -> editor.home();
-			case 269 -> editor.end();
-			case 266 -> turnTo(page - 1);
-			case 267 -> turnTo(page + 1);
+		switch (event.input()) {
+			case InputConstants.KEY_BACKSPACE -> editor.backspace();
+			case InputConstants.KEY_DELETE -> editor.delete();
+			case InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER -> type("\n");
+			case InputConstants.KEY_LEFT -> editor.left();
+			case InputConstants.KEY_RIGHT -> editor.right();
+			case InputConstants.KEY_UP -> editor.up();
+			case InputConstants.KEY_DOWN -> editor.down();
+			case InputConstants.KEY_HOME -> editor.home();
+			case InputConstants.KEY_END -> editor.end();
+			case InputConstants.KEY_PAGEUP -> turnTo(page - 1);
+			case InputConstants.KEY_PAGEDOWN -> turnTo(page + 1);
 			default -> {
 				return false;
 			}

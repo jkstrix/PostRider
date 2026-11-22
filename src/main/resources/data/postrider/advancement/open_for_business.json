@@ -13,7 +13,7 @@
     "show_toast": true,
     "announce_to_chat": true,
     "hidden": false,
-    "background": "minecraft:textures/block/spruce_planks.png"
+    "background": "minecraft:block/spruce_planks"
   },
   "criteria": {
     "mailbox": {

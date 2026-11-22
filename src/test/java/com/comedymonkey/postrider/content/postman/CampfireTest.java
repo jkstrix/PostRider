@@ -11,10 +11,12 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.comedymonkey.postrider.post.PendingDelivery;
 import com.comedymonkey.postrider.registry.ModBlocks;
 import com.comedymonkey.postrider.testutil.ModResourceFiles;
+import com.comedymonkey.postrider.testutil.LoadedGameData;
 import com.google.gson.JsonObject;
 
 import net.minecraft.core.BlockPos;
@@ -22,7 +24,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.EmptyBlockGetter;
@@ -30,8 +32,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.PushReaction;
-import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 
+@ExtendWith(LoadedGameData.class)
 class CampfireTest {
 	private static final long DUSK = 12500;
 
@@ -83,14 +85,14 @@ class CampfireTest {
 		BlockState state = ModBlocks.CAMPFIRE.get().defaultBlockState();
 		assertEquals(-1.0F, state.getDestroySpeed(EmptyBlockGetter.INSTANCE, BlockPos.ZERO), "unbreakable, like bedrock");
 		assertTrue(ModBlocks.CAMPFIRE.get().getExplosionResistance() >= 3600000);
-		assertEquals(PushReaction.BLOCK, state.getPistonPushReaction());
-		assertEquals(BuiltInLootTables.EMPTY, ModBlocks.CAMPFIRE.get().getLootTable());
+		assertEquals(PushReaction.IMMOVEABLE, state.getPistonPushReaction());
+		assertTrue(ModBlocks.CAMPFIRE.get().getLootTable().isEmpty());
 	}
 
 	@Test
 	void itsHarmlessAndNothingSpawnsOnIt() {
 		BlockState state = ModBlocks.CAMPFIRE.get().defaultBlockState();
-		assertFalse(state.isValidSpawn(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, EntityType.ZOMBIE));
+		assertFalse(state.isValidSpawn(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, EntityTypes.ZOMBIE));
 		// Not a vanilla campfire or fire, so nothing burns, spreads, cooks or can be doused
 		assertEquals(Block.class, CampfireBlock.class.getSuperclass());
 		assertTrue(CampfireBlock.CAMP_RANGE > DeliveryRun.TENT_DISTANCE + 1, "his own tent keeps it lit");
@@ -113,7 +115,7 @@ class CampfireTest {
 
 	@Test
 	void theFireIsRememberedWhenTheGameSaves() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		DeliveryRun run = new DeliveryRun(new PendingDelivery(UUID.randomUUID(), UUID.randomUUID(), "Steve", "Steve's Ranch",
 			GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO), "Alex's Inn", List.of(new ItemStack(Items.BREAD)), 0), null);
 		assertNull(DeliveryRun.load(run.save(registries), registries).campfire());
@@ -122,7 +124,7 @@ class CampfireTest {
 		saved.putLong("fire_lit_at", DUSK);
 		DeliveryRun loaded = DeliveryRun.load(saved, registries);
 		assertEquals(new BlockPos(5, 70, -3), loaded.campfire());
-		assertEquals(DUSK, loaded.save(registries).getLong("fire_lit_at"));
+		assertEquals(DUSK, loaded.save(registries).getLongOr("fire_lit_at", -1));
 	}
 
 	@Test
