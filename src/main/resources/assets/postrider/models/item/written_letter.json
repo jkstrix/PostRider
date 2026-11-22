@@ -4,7 +4,8 @@
 	"textures": {
 		"seal": "postrider:item/wax_seal",
 		"stamp": "postrider:item/stamp",
-		"envelope": "postrider:item/envelope"
+		"envelope": "postrider:item/envelope",
+		"particle": "postrider:item/envelope"
 	},
 	"elements": [
 		{
@@ -25,7 +26,6 @@
 			"from": [10.5, 9, 8.5],
 			"to": [13.5, 11.5, 8.6],
 			"faces": {
-				"north": {"uv": [0, 0, 1, 1], "texture": "#missing"},
 				"east": {"uv": [0, 0, 1, 16], "texture": "#stamp"},
 				"south": {"uv": [0, 0, 16, 16], "texture": "#stamp"},
 				"west": {"uv": [0, 0, 1, 16], "texture": "#stamp"},
@@ -40,7 +40,6 @@
 			"faces": {
 				"north": {"uv": [0, 0, 16, 16], "texture": "#seal"},
 				"east": {"uv": [0, 0, 4, 16], "texture": "#seal"},
-				"south": {"uv": [0, 0, 1, 1], "texture": "#missing"},
 				"west": {"uv": [0, 0, 4, 16], "texture": "#seal"},
 				"up": {"uv": [0, 0, 16, 4], "texture": "#seal"},
 				"down": {"uv": [0, 0, 16, 4], "texture": "#seal"}
@@ -53,7 +52,6 @@
 			"faces": {
 				"north": {"uv": [0, 0, 16, 16], "texture": "#seal"},
 				"east": {"uv": [0, 0, 4, 16], "texture": "#seal"},
-				"south": {"uv": [0, 0, 1, 1], "texture": "#missing"},
 				"west": {"uv": [0, 0, 4, 16], "texture": "#seal"},
 				"up": {"uv": [0, 0, 16, 4], "texture": "#seal"},
 				"down": {"uv": [0, 0, 16, 4], "texture": "#seal"}

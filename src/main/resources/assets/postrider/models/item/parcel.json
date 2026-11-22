@@ -5,7 +5,8 @@
 		"paper": "postrider:item/parcel_paper",
 		"twine": "postrider:item/parcel_twine",
 		"label": "postrider:item/parcel_label",
-		"paper_top": "postrider:item/parcel_paper_top"
+		"paper_top": "postrider:item/parcel_paper_top",
+		"particle": "postrider:item/parcel_paper"
 	},
 	"elements": [
 		{
@@ -125,8 +126,7 @@
 				"east": {"uv": [0, 0, 16, 1], "texture": "#label"},
 				"south": {"uv": [0, 0, 16, 1], "texture": "#label"},
 				"west": {"uv": [0, 0, 16, 1], "texture": "#label"},
-				"up": {"uv": [0, 0, 16, 16], "texture": "#label"},
-				"down": {"uv": [0, 0, 1, 1], "texture": "#missing"}
+				"up": {"uv": [0, 0, 16, 16], "texture": "#label"}
 			}
 		}
 	],
