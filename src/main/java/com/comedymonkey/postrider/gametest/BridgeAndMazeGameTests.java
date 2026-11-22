@@ -6,16 +6,13 @@ import com.comedymonkey.postrider.content.postman.PostmanHorse;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.gametest.framework.GameTest;
-import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Deliveries over narrow bridges and through mazes: the only way on is a snaking footbridge over a chasm or a
@@ -23,8 +20,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * long-range plan (its 8x8 cells can't see a one-block bridge or a hedge) and the block-by-block plan (which looks
  * about 40 blocks ahead, less than a maze's way round). Each is judged by {@link Trials#deliver}.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class BridgeAndMazeGameTests {
 	/** Mazes take a while: the map, a few stretches of planning, the way round the dead ends. */
 	private static final int TRIAL_TICKS = 6000;
@@ -78,10 +73,10 @@ public final class BridgeAndMazeGameTests {
 		double top = BANK_TOP + 0.5;
 		scene.helper.onEachTick(() -> {
 			if (watch.rider != null && watch.rider.isAlive() && bodyAt(scene, watch).y < top)
-				throw new GameTestAssertException("He fell into the chasm, at " + bodyAt(scene, watch));
+				throw scene.helper.assertionException(Component.literal("He fell into the chasm, at " + bodyAt(scene, watch)));
 			for (PostmanHorse horse : scene.level.getEntitiesOfClass(PostmanHorse.class, scene.helper.getBounds()))
 				if (scene.helper.relativeVec(horse.position()).y < top)
-					throw new GameTestAssertException("A horse fell into the chasm, at " + scene.helper.relativeVec(horse.position()));
+					throw scene.helper.assertionException(Component.literal("A horse fell into the chasm, at " + scene.helper.relativeVec(horse.position())));
 		});
 	}
 
@@ -129,15 +124,15 @@ public final class BridgeAndMazeGameTests {
 		GapCrossing crossing = watchTheGap(scene, watch);
 		helper.onEachTick(() -> {
 			if (crossing.rodeTheGap)
-				throw new GameTestAssertException("He rode out onto a one-block bridge, at " + bodyAt(scene, watch));
+				throw helper.assertionException(Component.literal("He rode out onto a one-block bridge, at " + bodyAt(scene, watch)));
 		});
 		Trials.deliver("Snake bridge", scene, to, watch, () -> {
 			if (!crossing.walkedTheGap)
-				throw new GameTestAssertException("He never walked the bridge");
+				throw helper.assertionException(Component.literal("He never walked the bridge"));
 			if (!crossing.mountedBeyond)
-				throw new GameTestAssertException("He never whistled his horse back on the far side");
+				throw helper.assertionException(Component.literal("He never whistled his horse back on the far side"));
 			if (watch.rowed)
-				throw new GameTestAssertException("He took the barge over a dry chasm");
+				throw helper.assertionException(Component.literal("He took the barge over a dry chasm"));
 		});
 	}
 
@@ -153,11 +148,11 @@ public final class BridgeAndMazeGameTests {
 		GapCrossing crossing = watchTheGap(scene, watch);
 		helper.onEachTick(() -> {
 			if (crossing.walkedTheGap)
-				throw new GameTestAssertException("He got down for a bridge he could ride, at " + crossing.gotDownAt);
+				throw helper.assertionException(Component.literal("He got down for a bridge he could ride, at " + crossing.gotDownAt));
 		});
 		Trials.deliver("Ride bridge", scene, to, watch, () -> {
 			if (!crossing.rodeTheGap)
-				throw new GameTestAssertException("He never rode the bridge");
+				throw helper.assertionException(Component.literal("He never rode the bridge"));
 		});
 	}
 
@@ -185,11 +180,11 @@ public final class BridgeAndMazeGameTests {
 		Trials.deliver("Snake bridge water", scene, to, watch, () -> {
 			PostRider.LOGGER.info("Trial Snake bridge water: he crossed by the {}", watch.rowed ? "barge" : "bridge");
 			if (watch.launches > 1)
-				throw new GameTestAssertException("He put out in the barge " + watch.launches + " times");
+				throw helper.assertionException(Component.literal("He put out in the barge " + watch.launches + " times"));
 			if (!watch.rowed && !crossing.walkedTheGap)
-				throw new GameTestAssertException("He neither rowed nor walked the bridge");
+				throw helper.assertionException(Component.literal("He neither rowed nor walked the bridge"));
 			if (watch.rowed && !watch.hadHorseAfterLanding)
-				throw new GameTestAssertException("He never had his horse again once he was over");
+				throw helper.assertionException(Component.literal("He never had his horse again once he was over"));
 		});
 	}
 
@@ -346,7 +341,7 @@ public final class BridgeAndMazeGameTests {
 				scene.fill(x, 1, z, x + w - 1, HEDGE_HEIGHT, z + d - 1, maze[row].charAt(column) == '#' ? hedge : air);
 			}
 		if (offset(maze.length / 2, width) + z0 != BOX_ROW)
-			throw new GameTestAssertException("The maze's doors aren't on row " + BOX_ROW);
+			throw scene.helper.assertionException(Component.literal("The maze's doors aren't on row " + BOX_ROW));
 		return new BlockPos[] {scene.mailbox(BOX_WEST, BOX_ROW, Direction.EAST, fromName), scene.mailbox(BOX_EAST, BOX_ROW, Direction.WEST, toName)};
 	}
 
@@ -384,9 +379,9 @@ public final class BridgeAndMazeGameTests {
 		MazeRun run = mazeRun(helper, HEDGE_MAZE, 2, "GT Hedge");
 		Trials.deliver("Hedge maze", run.scene(), run.to(), run.watch(), () -> {
 			if (!run.rodeInside()[0])
-				throw new GameTestAssertException("He never rode into the maze");
+				throw helper.assertionException(Component.literal("He never rode into the maze"));
 			if (run.walkedInside()[0])
-				throw new GameTestAssertException("He got down in a maze with room for his horse");
+				throw helper.assertionException(Component.literal("He got down in a maze with room for his horse"));
 		});
 	}
 
@@ -395,9 +390,9 @@ public final class BridgeAndMazeGameTests {
 		MazeRun run = mazeRun(helper, FOOT_MAZE, 1, "GT Foot Maze");
 		Trials.deliver("Foot maze", run.scene(), run.to(), run.watch(), () -> {
 			if (!run.walkedInside()[0])
-				throw new GameTestAssertException("He never walked into the maze");
+				throw helper.assertionException(Component.literal("He never walked into the maze"));
 			if (run.rodeInside()[0])
-				throw new GameTestAssertException("His horse was inside a maze it can't fit through");
+				throw helper.assertionException(Component.literal("His horse was inside a maze it can't fit through"));
 		});
 	}
 
@@ -407,7 +402,7 @@ public final class BridgeAndMazeGameTests {
 		MazeRun run = mazeRun(helper, LOOP_MAZE, 2, "GT Loop");
 		Trials.deliver("Loop maze", run.scene(), run.to(), run.watch(), () -> {
 			if (!run.rodeInside()[0])
-				throw new GameTestAssertException("He never rode into the maze");
+				throw helper.assertionException(Component.literal("He never rode into the maze"));
 		});
 	}
 }

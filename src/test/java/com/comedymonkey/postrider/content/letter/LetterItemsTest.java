@@ -10,19 +10,23 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.comedymonkey.postrider.content.parcel.ParcelLabel;
 import com.comedymonkey.postrider.network.EditLetterPayload;
 import com.comedymonkey.postrider.registry.ModDataComponents;
 import com.comedymonkey.postrider.registry.ModItems;
 import com.comedymonkey.postrider.testutil.ModResourceFiles;
+import com.comedymonkey.postrider.testutil.LoadedGameData;
 import com.google.gson.JsonObject;
 
 import net.minecraft.data.registries.VanillaRegistries;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
+@ExtendWith(LoadedGameData.class)
 class LetterItemsTest {
 	@Test
 	void blankLettersStackButWrittenLettersAndParcelsDoNot() {
@@ -33,16 +37,17 @@ class LetterItemsTest {
 
 	@Test
 	void lettersAndLabelsSurviveSavingOnAnItem() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		ItemStack letter = new ItemStack(ModItems.WRITTEN_LETTER.get());
 		letter.set(ModDataComponents.LETTER.get(), new LetterContent(List.of("Howdy"), "Steve", Optional.empty()));
-		Tag saved = letter.save(registries);
-		ItemStack loaded = ItemStack.parse(registries, saved).orElseThrow();
+		var ops = registries.createSerializationContext(NbtOps.INSTANCE);
+		Tag saved = ItemStack.CODEC.encodeStart(ops, letter).getOrThrow();
+		ItemStack loaded = ItemStack.CODEC.parse(ops, saved).getOrThrow();
 		assertEquals("Steve", loaded.get(ModDataComponents.LETTER.get()).author());
 
 		ItemStack parcel = new ItemStack(ModItems.PARCEL.get());
 		parcel.set(ModDataComponents.PARCEL_LABEL.get(), new ParcelLabel("Ranch", "Inn", "Steve", 4, 3500));
-		ItemStack parcelBack = ItemStack.parse(registries, parcel.save(registries)).orElseThrow();
+		ItemStack parcelBack = ItemStack.CODEC.parse(ops, ItemStack.CODEC.encodeStart(ops, parcel).getOrThrow()).getOrThrow();
 		assertEquals("Inn", parcelBack.get(ModDataComponents.PARCEL_LABEL.get()).to());
 	}
 

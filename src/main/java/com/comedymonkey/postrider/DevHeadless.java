@@ -18,6 +18,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.clock.WorldClocks;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -80,7 +81,7 @@ public final class DevHeadless {
 			server.halt(false);
 			return;
 		}
-		server.overworld().setDayTime(MORNING);
+		server.clockManager().setTotalTicks(server.registryAccess().getOrThrow(WorldClocks.OVERWORLD), MORNING);
 		try {
 			delivery = postNamed(server, names);
 		} catch (IllegalArgumentException e) {
@@ -107,11 +108,11 @@ public final class DevHeadless {
 		if (names[1].startsWith("random:") || names[1].startsWith("at:"))
 			names[1] = putDownFarBox(server, names[0], names[1]);
 		PendingDelivery posted = Posting.post(server, names[0], names[1]);
-		ChunkPos box = new ChunkPos(posted.from().pos());
+		ChunkPos box = ChunkPos.containing(posted.from().pos());
 		ServerLevel level = server.getLevel(posted.from().dimension());
 		for (int dx = -1; dx <= 1; dx++)
 			for (int dz = -1; dz <= 1; dz++)
-				(level != null ? level : server.overworld()).setChunkForced(box.x + dx, box.z + dz, true);
+				(level != null ? level : server.overworld()).setChunkForced(box.x() + dx, box.z() + dz, true);
 		return posted;
 	}
 
@@ -123,7 +124,7 @@ public final class DevHeadless {
 	/** Puts a box down on dry land as near the world's spawn as can be found (a fresh world: {@code -Pfrom=spawn}). The box's name. */
 	static String putDownSpawnBox(MinecraftServer server) {
 		ServerLevel level = server.overworld();
-		BlockPos spawn = level.getSharedSpawnPos();
+		BlockPos spawn = level.getWorldBorderAdjustedRespawnData(level.getRespawnData()).pos();
 		BlockPos spot = null;
 		for (int radius = 0; radius <= 64 && spot == null; radius += 4)
 			for (int dx = -radius; dx <= radius && spot == null; dx += 4)

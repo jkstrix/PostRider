@@ -13,7 +13,6 @@ import com.comedymonkey.postrider.content.postman.CampfireBlock;
 
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -26,35 +25,35 @@ public final class ModBlocks {
 
 	static {
 		for (DyeColor color : DyeColor.values()) {
-			MAILBOXES.put(color, BLOCKS.register(color.getSerializedName() + "_mailbox", () -> new MailboxBlock(color,
-				BlockBehaviour.Properties.of()
+			MAILBOXES.put(color, BLOCKS.registerBlock(color.getSerializedName() + "_mailbox", properties -> new MailboxBlock(color, properties),
+				properties -> properties
 					.mapColor(color.getMapColor())
 					.strength(2.5F, 1200.0F)
 					.sound(SoundType.LANTERN)
 					.noOcclusion()
-					.pushReaction(PushReaction.BLOCK))));
+					.pushReaction(PushReaction.IMMOVEABLE)));
 		}
 	}
 
-	public static final DeferredBlock<LostParcelBlock> LOST_PARCEL = BLOCKS.register("lost_parcel", () -> new LostParcelBlock(
-		BlockBehaviour.Properties.of()
+	public static final DeferredBlock<LostParcelBlock> LOST_PARCEL = BLOCKS.registerBlock("lost_parcel", LostParcelBlock::new,
+		properties -> properties
 			.mapColor(MapColor.WOOD)
 			.strength(1.0F, 1200.0F)
 			.sound(SoundType.WOOL)
 			.noOcclusion()
 			.noLootTable()
-			.pushReaction(PushReaction.BLOCK)));
-	public static final DeferredBlock<LostParcelWreckBlock> LOST_PARCEL_WRECK = BLOCKS.register("lost_parcel_wreck", () -> new LostParcelWreckBlock(
-		BlockBehaviour.Properties.of()
+			.pushReaction(PushReaction.IMMOVEABLE));
+	public static final DeferredBlock<LostParcelWreckBlock> LOST_PARCEL_WRECK = BLOCKS.registerBlock("lost_parcel_wreck", LostParcelWreckBlock::new,
+		properties -> properties
 			.mapColor(MapColor.WOOD)
 			.strength(1.0F, 1200.0F)
 			.sound(SoundType.WET_GRASS)
 			.noOcclusion()
 			.noLootTable()
-			.pushReaction(PushReaction.BLOCK)));
+			.pushReaction(PushReaction.IMMOVEABLE));
 
-	public static final DeferredBlock<CampfireBlock> CAMPFIRE = BLOCKS.register("campfire", () -> new CampfireBlock(
-		BlockBehaviour.Properties.of()
+	public static final DeferredBlock<CampfireBlock> CAMPFIRE = BLOCKS.registerBlock("campfire", CampfireBlock::new,
+		properties -> properties
 			.mapColor(MapColor.PODZOL)
 			.strength(-1.0F, 3600000.0F)
 			.sound(SoundType.WOOD)
@@ -62,7 +61,7 @@ public final class ModBlocks {
 			.noOcclusion()
 			.noLootTable()
 			.isValidSpawn((state, level, pos, type) -> false)
-			.pushReaction(PushReaction.BLOCK)));
+			.pushReaction(PushReaction.IMMOVEABLE));
 
 	private ModBlocks() {}
 

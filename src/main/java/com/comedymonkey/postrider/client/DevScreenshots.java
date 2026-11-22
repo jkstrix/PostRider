@@ -24,7 +24,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.Difficulty;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
@@ -93,24 +92,24 @@ public final class DevScreenshots {
 		switch (step) {
 			case START -> {
 				// A new game folder opens on the accessibility welcome first: skip it
-				if (minecraft.screen instanceof AccessibilityOnboardingScreen) {
+				if (minecraft.gui.screen() instanceof AccessibilityOnboardingScreen) {
 					minecraft.options.onboardAccessibility = false;
 					minecraft.options.save();
-					minecraft.setScreen(new TitleScreen());
+					minecraft.gui.setScreen(new TitleScreen());
 					return;
 				}
-				if (!(minecraft.screen instanceof TitleScreen))
+				if (!(minecraft.gui.screen() instanceof TitleScreen))
 					return;
 				// No tutorial hints over the screens
 				minecraft.getTutorial().setStep(TutorialSteps.NONE);
 				step = Step.JOINING;
 				if (minecraft.getLevelSource().levelExists(WORLD)) {
-					minecraft.createWorldOpenFlows().openWorld(WORLD, () -> minecraft.setScreen(new TitleScreen()));
+					minecraft.createWorldOpenFlows().openWorld(WORLD, () -> minecraft.gui.setScreen(new TitleScreen()));
 				} else {
-					LevelSettings settings = new LevelSettings(WORLD, GameType.CREATIVE, false, Difficulty.PEACEFUL, true, new GameRules(),
+					LevelSettings settings = new LevelSettings(WORLD, GameType.CREATIVE, new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true,
 						WorldDataConfiguration.DEFAULT);
 					minecraft.createWorldOpenFlows().createFreshLevel(WORLD, settings, new WorldOptions(0, false, false),
-						access -> access.registryOrThrow(Registries.WORLD_PRESET).getHolderOrThrow(WorldPresets.FLAT).value().createWorldDimensions(),
+						access -> access.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(WorldPresets.FLAT).value().createWorldDimensions(),
 						new TitleScreen());
 				}
 			}
@@ -136,7 +135,7 @@ public final class DevScreenshots {
 				if (ticks < SHOW_TICKS)
 					return;
 				Shot shot = SHOTS.poll();
-				Screenshot.grab(minecraft.gameDirectory, "postrider/" + shot.file() + ".png", minecraft.getMainRenderTarget(),
+				Screenshot.grab(minecraft.gameDirectory, "postrider/" + shot.file() + ".png", minecraft.gameRenderer.mainRenderTarget(), 1,
 					message -> PostRider.LOGGER.info("Screenshot {}: {}", shot.file(), message.getString()));
 				ticks = 0;
 				if (SHOTS.isEmpty()) {
@@ -168,7 +167,7 @@ public final class DevScreenshots {
 		else
 			MailboxInfoCache.clearNotice();
 		MailboxScreen screen = new MailboxScreen(menu, minecraft.player.getInventory(), Component.translatable("container.postrider.mailbox"));
-		minecraft.setScreen(screen);
+		minecraft.gui.setScreen(screen);
 		if (shot.pickAddress())
 			screen.pickAddress(ADDRESSES.get(0));
 	}

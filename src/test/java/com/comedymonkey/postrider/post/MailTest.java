@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.comedymonkey.postrider.client.gui.PostOfficeStyle;
 import com.comedymonkey.postrider.content.letter.LetterContent;
@@ -18,6 +19,7 @@ import com.comedymonkey.postrider.content.parcel.ParcelItem;
 import com.comedymonkey.postrider.content.parcel.ParcelLabel;
 import com.comedymonkey.postrider.registry.ModDataComponents;
 import com.comedymonkey.postrider.registry.ModItems;
+import com.comedymonkey.postrider.testutil.LoadedGameData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
@@ -26,6 +28,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 
+@ExtendWith(LoadedGameData.class)
 class MailTest {
 	private static ItemStack letter(String words) {
 		ItemStack stack = new ItemStack(ModItems.WRITTEN_LETTER.get());

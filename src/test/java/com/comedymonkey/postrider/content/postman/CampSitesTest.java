@@ -9,8 +9,10 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.comedymonkey.postrider.post.PendingDelivery;
+import com.comedymonkey.postrider.testutil.LoadedGameData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -21,6 +23,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+@ExtendWith(LoadedGameData.class)
 class CampSitesTest {
 	private static final BlockPos HERE = new BlockPos(0, 64, 0);
 
@@ -76,7 +79,7 @@ class CampSitesTest {
 
 	@Test
 	void anEveningInProgressSurvivesSaving() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		PendingDelivery delivery = new PendingDelivery(UUID.randomUUID(), UUID.randomUUID(), "Steve", "Ranch",
 			GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO), "Inn", List.of(new ItemStack(Items.BREAD)), 0);
 		DeliveryRun run = new DeliveryRun(delivery, GlobalPos.of(Level.OVERWORLD, new BlockPos(900, 64, 0)));

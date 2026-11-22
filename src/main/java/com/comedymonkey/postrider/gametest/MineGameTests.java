@@ -3,19 +3,15 @@ package com.comedymonkey.postrider.gametest;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.gametest.ClimbingGameTests.Lookout;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.gametest.framework.GameTest;
-import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * A mine: a stair of blocks one wide at forty-five degrees (a block down for every block along, as a miner digs
@@ -26,8 +22,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * {@link Trials#deliver} and a {@link Lookout}: never moved, never hurt, and the stair walked, not ridden (it's a
  * block wide).
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class MineGameTests {
 	private static final int DELIVERY_TICKS = 6000;
 	private static final BlockState STONE = Blocks.STONE.defaultBlockState();
@@ -58,7 +52,7 @@ public final class MineGameTests {
 		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
 		Lookout lookout = new Lookout("Mine down", scene, watch, BEDROCK_FLOOR);
 		lookout.place("the stair", STAIR_X, BEDROCK_FLOOR + 1, STAIR_Z - 2, EAST_LANDING, PLATEAU - 2, BACK_Z + 2);
-		Trials.deliver("Mine down", scene, to, watch, () -> judge(lookout));
+		Trials.deliver("Mine down", scene, to, watch, () -> judge(scene, lookout));
 	}
 
 	@GameTest(skyAccess = true, template = "gametest/mine_96x96", batch = "mine_up", timeoutTicks = DELIVERY_TICKS)
@@ -72,21 +66,21 @@ public final class MineGameTests {
 		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
 		Lookout lookout = new Lookout("Mine up", scene, watch, PLATEAU + 1);
 		lookout.place("the stair", STAIR_X, BEDROCK_FLOOR + 1, STAIR_Z - 2, EAST_LANDING, PLATEAU - 2, BACK_Z + 2);
-		Trials.deliver("Mine up", scene, to, watch, () -> judge(lookout));
+		Trials.deliver("Mine up", scene, to, watch, () -> judge(scene, lookout));
 	}
 
-	private static void judge(Lookout lookout) {
+	private static void judge(Scene scene, Lookout lookout) {
 		if (!lookout.been("the stair"))
-			throw new GameTestAssertException("He never went by the stair");
+			throw scene.helper.assertionException(Component.literal("He never went by the stair"));
 		if (lookout.rodeAt("the stair"))
-			throw new GameTestAssertException("He rode a stair one block wide");
+			throw scene.helper.assertionException(Component.literal("He rode a stair one block wide"));
 		if (!lookout.gotDown)
-			throw new GameTestAssertException("He never got down from his horse");
+			throw scene.helper.assertionException(Component.literal("He never got down from his horse"));
 	}
 
 	/** No monsters in the dark (the tests are about finding the way, not fighting). */
 	private static void quiet(Scene scene) {
-		scene.level.getGameRules().getRule(GameRules.RULE_DOMOBSPAWNING).set(false, scene.level.getServer());
+		scene.level.getGameRules().set(GameRules.SPAWN_MOBS, false, scene.level.getServer());
 	}
 
 	/** The chamber at the foot of the stair: where its mailbox stands, facing back towards the stair. */

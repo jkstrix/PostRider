@@ -13,17 +13,21 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import com.comedymonkey.postrider.testutil.LoadedGameData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.data.registries.VanillaRegistries;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 
+@ExtendWith(LoadedGameData.class)
 class PostOfficeTest {
 	private static PendingDelivery delivery(String to, ItemStack... items) {
 		return new PendingDelivery(UUID.randomUUID(), UUID.randomUUID(), "Steve", "Steve's Ranch",
@@ -88,12 +92,12 @@ class PostOfficeTest {
 
 	@Test
 	void ridersOnTheRoadSurviveSaving() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		PostOffice office = new PostOffice();
 		PendingDelivery pending = delivery("Inn", new ItemStack(Items.APPLE));
 		UUID rider = UUID.randomUUID();
 		office.setOut(pending, rider, "nell");
-		PostOffice loaded = PostOffice.load(office.save(new CompoundTag(), registries), registries);
+		PostOffice loaded = saveAndLoad(office, registries);
 		assertTrue(loaded.isRider(rider));
 		assertEquals(Set.of("nell"), loaded.busyRiders());
 		assertEquals("Inn", loaded.active().iterator().next().delivery().toName());
@@ -101,14 +105,13 @@ class PostOfficeTest {
 
 	@Test
 	void queueSurvivesSavingAndLoadingWithItemData() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		ItemStack named = new ItemStack(Items.DIAMOND_SWORD);
 		named.set(DataComponents.CUSTOM_NAME, Component.literal("Old Faithful"));
 		PostOffice office = new PostOffice();
 		office.enqueue(delivery("Alex's Inn", new ItemStack(Items.IRON_INGOT, 32), named));
 
-		CompoundTag saved = office.save(new CompoundTag(), registries);
-		PostOffice loaded = PostOffice.load(saved, registries);
+		PostOffice loaded = saveAndLoad(office, registries);
 
 		assertEquals(1, loaded.size());
 		PendingDelivery back = loaded.poll();
@@ -122,14 +125,14 @@ class PostOfficeTest {
 
 	@Test
 	void itRemembersWhereEachRiderWasLastSeen() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		PostOffice office = new PostOffice();
 		PendingDelivery pending = delivery("Inn", new ItemStack(Items.APPLE));
 		UUID rider = UUID.randomUUID();
 		office.setOut(pending, rider, "ada");
 		assertTrue(office.active().iterator().next().lastSeen().isEmpty(), "not seen yet");
 		office.saw(pending.id(), new BlockPos(120, 70, -40));
-		PostOffice loaded = PostOffice.load(office.save(new CompoundTag(), registries), registries);
+		PostOffice loaded = saveAndLoad(office, registries);
 		assertEquals(new BlockPos(120, 70, -40), loaded.active().iterator().next().lastSeen().orElseThrow());
 	}
 
@@ -148,5 +151,10 @@ class PostOfficeTest {
 		assertEquals(Set.of("ada"), office.busyRiders());
 		assertEquals(1, office.activeCount(), "the same delivery, not a second one");
 		assertEquals(0, office.size(), "nothing put back on the queue");
+	}
+
+	private static PostOffice saveAndLoad(PostOffice office, HolderLookup.Provider registries) {
+		var ops = registries.createSerializationContext(NbtOps.INSTANCE);
+		return PostOffice.CODEC.parse(ops, PostOffice.CODEC.encodeStart(ops, office).getOrThrow()).getOrThrow();
 	}
 }

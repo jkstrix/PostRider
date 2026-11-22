@@ -18,6 +18,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -50,13 +51,13 @@ public record EditLetterPayload(int slot, List<String> pages, boolean seal) impl
 				return;
 			List<String> pages = LetterDraft.sanitize(payload.pages());
 			if (payload.seal() && pages.stream().allMatch(String::isBlank)) {
-				player.displayClientMessage(Component.translatable("message.postrider.letter.empty").withStyle(ChatFormatting.RED), true);
+				player.sendOverlayMessage(Component.translatable("message.postrider.letter.empty").withStyle(ChatFormatting.RED));
 				return;
 			}
 			ItemStack result;
 			if (payload.seal()) {
 				result = new ItemStack(ModItems.WRITTEN_LETTER.get());
-				result.set(ModDataComponents.LETTER.get(), new LetterContent(pages, player.getGameProfile().getName(), Optional.empty()));
+				result.set(ModDataComponents.LETTER.get(), new LetterContent(pages, player.getGameProfile().name(), Optional.empty()));
 				player.level().playSound(null, player.blockPosition(), SoundEvents.BOOK_PUT, SoundSource.PLAYERS, 1, 1.2F);
 			} else {
 				result = held.copyWithCount(1);
@@ -68,7 +69,7 @@ public record EditLetterPayload(int slot, List<String> pages, boolean seal) impl
 			// A stack of blank letters gives up just the one that was written on
 			if (held.getCount() > 1) {
 				held.shrink(1);
-				player.getInventory().placeItemBackInInventory(result);
+				player.getInventory().placeItemBackInInventory(result, Prediction.SERVER_ONLY);
 			} else {
 				player.getInventory().setItem(payload.slot(), result);
 			}

@@ -16,6 +16,7 @@ import com.comedymonkey.postrider.registry.ModItems;
 
 import comedymonkey.dailies.api.compat.DisplayTest;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -50,7 +51,7 @@ final class PostRiderDisplayTest implements DisplayTest {
 
 	/** A mailbox of the player's, named, standing where Post Rider would put one down. */
 	private static void mailbox(ServerPlayer player, BlockPos pos, String name) {
-		ServerLevel level = player.serverLevel();
+		ServerLevel level = player.level();
 		BlockState lower = ModBlocks.mailbox(DyeColor.RED).get().defaultBlockState().setValue(MailboxBlock.FACING, Direction.SOUTH);
 		level.setBlock(pos, lower, Block.UPDATE_ALL);
 		level.setBlock(pos.above(), lower.setValue(MailboxBlock.HALF, DoubleBlockHalf.UPPER), Block.UPDATE_ALL);
@@ -61,12 +62,12 @@ final class PostRiderDisplayTest implements DisplayTest {
 	/** Opens the first mailbox as using it does, then the given tab as clicking it does. */
 	private static void openMailbox(Stage stage, int tab) throws Exception {
 		stage.onServer(player -> {
-			if (player.serverLevel().getBlockEntity(MAILBOX) instanceof MailboxBlockEntity mailbox)
+			if (player.level().getBlockEntity(MAILBOX) instanceof MailboxBlockEntity mailbox)
 				mailbox.openFor(player);
 		});
 		stage.waitTicks(10);
 		stage.onClient(() -> {
-			if (Minecraft.getInstance().screen instanceof MailboxScreen mailbox)
+			if (Minecraft.getInstance().gui.screen() instanceof MailboxScreen mailbox)
 				mailbox.switchTab(tab);
 		});
 	}
@@ -79,7 +80,7 @@ final class PostRiderDisplayTest implements DisplayTest {
 			new Display("a mailbox on its Send tab", PostRider.MOD_ID + ":mailbox", stage -> {
 				openMailbox(stage, MailboxMenu.TAB_SEND);
 				stage.onClient(() -> {
-					if (minecraft.screen instanceof MailboxScreen mailbox)
+					if (minecraft.gui.screen() instanceof MailboxScreen mailbox)
 						mailbox.pickAddress(OTHER_ADDRESS);
 				});
 			}),
@@ -101,8 +102,8 @@ final class PostRiderDisplayTest implements DisplayTest {
 				stage.waitTicks(2);
 				for (char typed : TYPED.toCharArray()) {
 					stage.onClient(() -> {
-						if (minecraft.screen instanceof LetterEditScreen writing)
-							writing.charTyped(typed, 0);
+						if (minecraft.gui.screen() instanceof LetterEditScreen writing)
+							writing.charTyped(new CharacterEvent(typed));
 					});
 					stage.waitTicks(1);
 				}

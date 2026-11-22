@@ -1,6 +1,5 @@
 package com.comedymonkey.postrider.gametest;
 
-import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.postman.BargeEntity;
 import com.comedymonkey.postrider.content.postman.Crossing;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
@@ -9,14 +8,12 @@ import com.comedymonkey.postrider.registry.ModEntities;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.gametest.framework.GameTest;
-import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Riders in a real world: each test builds a small scene, sets a rider (or a barge) going and watches what he does.
@@ -24,8 +21,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * Run them with {@code ./gradlew runGameTestServer}. Each is in its own batch, so they run one at a time and riders
  * never meet.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class RiderGameTests {
 	/** Long enough for him to study his map (up to 20 s), whistle, ride a few dozen blocks, row and deliver. */
 	private static final int DELIVERY_TICKS = 3600;
@@ -36,16 +31,16 @@ public final class RiderGameTests {
 
 	/** A rider aboard a barge on a river one block deep, steered for its far end. */
 	private static BargeEntity launch(Scene scene, double x, double z) {
-		BargeEntity barge = ModEntities.BARGE.get().create(scene.level);
+		BargeEntity barge = ModEntities.BARGE.get().create(scene.level, EntitySpawnReason.STRUCTURE);
 		if (barge == null)
-			throw new GameTestAssertException("No barge");
+			throw scene.helper.assertionException(Component.literal("No barge"));
 		Vec3 spot = scene.at(x, 0, z);
-		barge.moveTo(spot.x, BargeEntity.floatHeight(scene.surface()), spot.z, -90, 0);
+		barge.snapTo(spot.x, BargeEntity.floatHeight(scene.surface()), spot.z, -90, 0);
 		scene.level.addFreshEntity(barge);
 		PostmanEntity rider = PostmanEntity.appear(ModEntities.POSTMAN.get(), scene.level, spot.x, barge.getY() + 1, spot.z, -90, Roster.ALL.get(0));
 		if (rider == null)
-			throw new GameTestAssertException("No rider");
-		rider.startRiding(barge, true);
+			throw scene.helper.assertionException(Component.literal("No rider"));
+		rider.startRiding(barge, true, true);
 		rider.setActivity(PostmanEntity.Activity.ROW);
 		return barge;
 	}
@@ -56,14 +51,14 @@ public final class RiderGameTests {
 		double bed = scene.at(0, 0, 0).getY();
 		scene.helper.onEachTick(() -> {
 			if (!barge.isAlive())
-				throw new GameTestAssertException("The barge went");
+				throw scene.helper.assertionException(Component.literal("The barge went"));
 			barge.steer(new Vec3(aim.x, barge.getY(), aim.z));
 			if (barge.getY() < bed + 0.5)
-				throw new GameTestAssertException("The barge sat on the river bed at y " + (barge.getY() - bed));
+				throw scene.helper.assertionException(Component.literal("The barge sat on the river bed at y " + (barge.getY() - bed)));
 		});
 		scene.helper.succeedWhen(() -> {
 			if (scene.helper.relativeVec(barge.position()).x < x)
-				throw new GameTestAssertException("Still rowing, at " + scene.helper.relativeVec(barge.position()));
+				throw scene.helper.assertionException(Component.literal("Still rowing, at " + scene.helper.relativeVec(barge.position())));
 			alsoCheck.run();
 			barge.getPassengers().forEach(p -> p.discard());
 			barge.discard();
@@ -95,7 +90,7 @@ public final class RiderGameTests {
 				for (int z = 5; z <= 6; z++) {
 					BlockPos at = new BlockPos(x, x == 19 ? 1 : 0, z);
 					if (Crossing.isWaterPlant(helper.getBlockState(at)))
-						throw new GameTestAssertException("A water plant still stands in its way at " + at);
+						throw helper.assertionException(Component.literal("A water plant still stands in its way at " + at));
 				}
 		});
 	}
@@ -117,7 +112,7 @@ public final class RiderGameTests {
 		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
 		deliver(scene, to, watch, () -> {
 			if (watch.rowed)
-				throw new GameTestAssertException("He took the barge with no water about");
+				throw helper.assertionException(Component.literal("He took the barge with no water about"));
 		});
 	}
 
@@ -144,9 +139,9 @@ public final class RiderGameTests {
 		Watch watch = island.watch();
 		deliver(island.scene(), island.to(), watch, () -> {
 			if (!watch.rowed)
-				throw new GameTestAssertException("He never took the barge");
+				throw helper.assertionException(Component.literal("He never took the barge"));
 			if (!watch.horseAboard)
-				throw new GameTestAssertException("His horse didn't cross with him");
+				throw helper.assertionException(Component.literal("His horse didn't cross with him"));
 		});
 	}
 
@@ -156,11 +151,11 @@ public final class RiderGameTests {
 		Watch watch = island.watch();
 		deliver(island.scene(), island.to(), watch, () -> {
 			if (!watch.rowed)
-				throw new GameTestAssertException("He never took the barge");
+				throw helper.assertionException(Component.literal("He never took the barge"));
 			if (watch.hadHorseBeforeWater)
-				throw new GameTestAssertException("He called his horse with the water only a few blocks off");
+				throw helper.assertionException(Component.literal("He called his horse with the water only a few blocks off"));
 			if (!watch.hadHorseAfterLanding)
-				throw new GameTestAssertException("He never called his horse once he was over");
+				throw helper.assertionException(Component.literal("He never called his horse once he was over"));
 		});
 	}
 
@@ -177,7 +172,7 @@ public final class RiderGameTests {
 		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
 		deliver(scene, to, watch, () -> {
 			if (!watch.rowed)
-				throw new GameTestAssertException("He never took the barge");
+				throw helper.assertionException(Component.literal("He never took the barge"));
 		});
 	}
 
@@ -194,7 +189,7 @@ public final class RiderGameTests {
 		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
 		deliver(scene, to, watch, () -> {
 			if (watch.rowed)
-				throw new GameTestAssertException("He rowed across the bay instead of riding round it");
+				throw helper.assertionException(Component.literal("He rowed across the bay instead of riding round it"));
 		});
 	}
 
@@ -210,7 +205,7 @@ public final class RiderGameTests {
 		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
 		deliver(scene, to, watch, () -> {
 			if (watch.rowed)
-				throw new GameTestAssertException("He took the barge over a stream with a bridge");
+				throw helper.assertionException(Component.literal("He took the barge over a stream with a bridge"));
 		});
 	}
 
@@ -237,7 +232,7 @@ public final class RiderGameTests {
 		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
 		deliver(scene, to, watch, () -> {
 			if (watch.launches > 2)
-				throw new GameTestAssertException("He put out in the barge " + watch.launches + " times");
+				throw helper.assertionException(Component.literal("He put out in the barge " + watch.launches + " times"));
 		});
 	}
 
@@ -258,7 +253,7 @@ public final class RiderGameTests {
 				return;
 			Vec3 at = helper.relativeVec(watch.rider.position());
 			if (at.y < 0)
-				throw new GameTestAssertException("He fell into the ditch at " + at);
+				throw helper.assertionException(Component.literal("He fell into the ditch at " + at));
 			int now = at.z < 14.5 ? -1 : at.z > 17.5 ? 1 : 0;
 			if (now != 0 && side[0] != 0 && now != side[0])
 				crossings[0]++;
@@ -267,7 +262,7 @@ public final class RiderGameTests {
 		});
 		deliver(scene, to, watch, () -> {
 			if (crossings[0] != 1)
-				throw new GameTestAssertException("He crossed the ditch " + crossings[0] + " times");
+				throw helper.assertionException(Component.literal("He crossed the ditch " + crossings[0] + " times"));
 		});
 	}
 }

@@ -1,10 +1,10 @@
 package com.comedymonkey.postrider.client.model;
 
-import com.comedymonkey.postrider.PostRider;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.client.model.Model;
+import com.comedymonkey.postrider.PostRider;
+
+import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
@@ -12,21 +12,32 @@ import net.minecraft.client.model.geom.builders.CubeDeformation;
 import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.model.geom.builders.MeshTransformer;
+import net.minecraft.client.renderer.entity.state.EquineRenderState;
 
 /**
  * The rider's mochila: a leather cover over the saddle with four mail pockets. Geometry is Blockbench's
  * Mojang-mappings export of blockbench/mochila.bbmodel (without its reference horse); its pivot is the vanilla horse
  * body's, so it can copy the body's pose and move with it.
  */
-public class MochilaModel extends Model {
+public class MochilaModel extends EntityModel<EquineRenderState> {
 	public static final ModelLayerLocation LAYER = new ModelLayerLocation(PostRider.asResource("mochila"), "main");
+	/** Vanilla draws a living horse a tenth bigger than its mesh; the mochila is scaled the same way to fit it. */
+	public static final MeshTransformer HORSE_SCALE = MeshTransformer.scaling(1.1F);
 
 	private final ModelPart mochila;
+	/** The horse this is worn by, posed for each frame to find where its body is; null to be posed by hand. */
+	@Nullable
+	private final PostmanHorseModel horse;
 
 	public MochilaModel(ModelPart root) {
-		super(RenderType::entityCutoutNoCull);
+		this(root, null);
+	}
+
+	public MochilaModel(ModelPart root, @Nullable PostmanHorseModel horse) {
+		super(root);
 		this.mochila = root.getChild("mochila");
+		this.horse = horse;
 	}
 
 	public static LayerDefinition createBodyLayer() {
@@ -43,17 +54,31 @@ public class MochilaModel extends Model {
 		return LayerDefinition.create(mesh, 64, 32);
 	}
 
+	/** The mochila as drawn on a horse: scaled up with it, as vanilla scales the horse's own mesh. */
+	public static LayerDefinition createHorseLayer() {
+		return createBodyLayer().apply(HORSE_SCALE);
+	}
+
 	/** Puts the mochila where the horse's body is this frame. */
 	public void followBody(ModelPart body) {
-		mochila.copyFrom(body);
+		mochila.setPos(body.x, body.y, body.z);
+		mochila.setRotation(body.xRot, body.yRot, body.zRot);
+		mochila.xScale = body.xScale;
+		mochila.yScale = body.yScale;
+		mochila.zScale = body.zScale;
 	}
 
 	ModelPart part() {
 		return mochila;
 	}
 
+	/** Puts the mochila where the horse's body is in this frame, the horse posed as it's drawn. */
 	@Override
-	public void renderToBuffer(PoseStack poseStack, VertexConsumer buffer, int packedLight, int packedOverlay, int color) {
-		mochila.render(poseStack, buffer, packedLight, packedOverlay, color);
+	public void setupAnim(EquineRenderState state) {
+		super.setupAnim(state);
+		if (horse != null) {
+			horse.setupAnim(state);
+			followBody(horse.body());
+		}
 	}
 }

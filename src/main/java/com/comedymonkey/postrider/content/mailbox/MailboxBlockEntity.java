@@ -14,22 +14,27 @@ import com.comedymonkey.postrider.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.Containers;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.items.ItemStackHandler;
+import net.minecraft.world.level.storage.TagValueOutput;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /** A mailbox's address, owner, inbox of up to 27 parcels and the 9 slots of the parcel being packed. */
@@ -37,24 +42,11 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 	public static final int INBOX_SIZE = 27;
 	public static final int PARCEL_SIZE = 9;
 
-	private final ItemStackHandler inbox = new ItemStackHandler(INBOX_SIZE) {
-		@Override
-		public int getSlotLimit(int slot) {
-			return 1;
-		}
-
-		@Override
-		protected void onContentsChanged(int slot) {
-			setChanged();
-			updateFlag();
-		}
-	};
-	private final ItemStackHandler parcel = new ItemStackHandler(PARCEL_SIZE) {
-		@Override
-		protected void onContentsChanged(int slot) {
-			setChanged();
-		}
-	};
+	private final MailboxSlots inbox = new MailboxSlots(INBOX_SIZE, 1, () -> {
+		setChanged();
+		updateFlag();
+	});
+	private final MailboxSlots parcel = new MailboxSlots(PARCEL_SIZE, Item.ABSOLUTE_MAX_STACK_SIZE, this::setChanged);
 
 	@Nullable
 	private UUID owner;
@@ -69,7 +61,7 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 
 	public void setOwner(Player player) {
 		owner = player.getUUID();
-		ownerName = player.getGameProfile().getName();
+		ownerName = player.getGameProfile().name();
 		syncToClients();
 	}
 
@@ -154,11 +146,11 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 
 	// ---------------------------------------------------------------- inbox and parcel
 
-	public ItemStackHandler getInbox() {
+	public MailboxSlots getInbox() {
 		return inbox;
 	}
 
-	public ItemStackHandler getParcel() {
+	public MailboxSlots getParcel() {
 		return parcel;
 	}
 
@@ -210,7 +202,7 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 	void dropContents() {
 		if (level == null)
 			return;
-		for (ItemStackHandler handler : List.of(inbox, parcel)) {
+		for (MailboxSlots handler : List.of(inbox, parcel)) {
 			for (int i = 0; i < handler.getSlots(); i++) {
 				Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), handler.getStackInSlot(i));
 				handler.setStackInSlot(i, ItemStack.EMPTY);
@@ -218,8 +210,20 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 		}
 	}
 
+	/** Recolouring swaps one mailbox block for another and keeps everything; anything else empties it. */
+	@Override
+	public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+		super.preRemoveSideEffects(pos, state);
+		// By now the level already holds the block taking this one's place
+		if (level == null || level.isClientSide() || level.getBlockState(pos).getBlock() instanceof MailboxBlock)
+			return;
+		dropContents();
+		if (level.getServer() != null)
+			MailboxDirectory.get(level.getServer()).remove(GlobalPos.of(level.dimension(), pos));
+	}
+
 	private void updateFlag() {
-		if (level == null || level.isClientSide)
+		if (level == null || level.isClientSide())
 			return;
 		boolean hasMail = !isInboxEmpty();
 		// The flag is drawn by the upper half, but both halves carry it so they stay alike
@@ -245,38 +249,35 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 	// ---------------------------------------------------------------- saving and syncing
 
 	@Override
-	protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-		super.saveAdditional(tag, registries);
-		saveIdentity(tag);
-		tag.put("inbox", inbox.serializeNBT(registries));
-		tag.put("parcel", parcel.serializeNBT(registries));
+	protected void saveAdditional(ValueOutput output) {
+		super.saveAdditional(output);
+		saveIdentity(output);
+		inbox.save(output.child("inbox"));
+		parcel.save(output.child("parcel"));
 	}
 
 	@Override
-	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-		super.loadAdditional(tag, registries);
-		owner = tag.hasUUID("owner") ? tag.getUUID("owner") : null;
-		ownerName = tag.getString("owner_name");
-		name = tag.getString("name");
-		if (tag.contains("inbox"))
-			inbox.deserializeNBT(registries, tag.getCompound("inbox"));
-		if (tag.contains("parcel"))
-			parcel.deserializeNBT(registries, tag.getCompound("parcel"));
+	protected void loadAdditional(ValueInput input) {
+		super.loadAdditional(input);
+		owner = input.read("owner", UUIDUtil.CODEC).orElse(null);
+		ownerName = input.getStringOr("owner_name", "");
+		name = input.getStringOr("name", "");
+		input.child("inbox").ifPresent(inbox::load);
+		input.child("parcel").ifPresent(parcel::load);
 	}
 
-	private void saveIdentity(CompoundTag tag) {
-		if (owner != null)
-			tag.putUUID("owner", owner);
-		tag.putString("owner_name", ownerName);
-		tag.putString("name", name);
+	private void saveIdentity(ValueOutput output) {
+		output.storeNullable("owner", UUIDUtil.CODEC, owner);
+		output.putString("owner_name", ownerName);
+		output.putString("name", name);
 	}
 
 	/** Clients only need to know who owns it (so non-owners can't crack it) and its address. */
 	@Override
 	public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-		CompoundTag tag = new CompoundTag();
-		saveIdentity(tag);
-		return tag;
+		TagValueOutput output = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
+		saveIdentity(output);
+		return output.buildResult();
 	}
 
 	@Override
@@ -286,7 +287,7 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 
 	private void syncToClients() {
 		setChanged();
-		if (level != null && !level.isClientSide)
+		if (level != null && !level.isClientSide())
 			level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
 	}
 }

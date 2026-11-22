@@ -11,7 +11,7 @@ import net.minecraft.world.phys.Vec3;
 
 import com.comedymonkey.postrider.registry.ModEntities;
 
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
 
 class PostmanHorseTest {
@@ -62,8 +62,8 @@ class PostmanHorseTest {
 
 	@Test
 	void isHorseSizedAndHasHorseAttributes() {
-		assertEquals(EntityType.HORSE.getWidth(), ModEntities.POSTMAN_HORSE.get().getWidth());
-		assertEquals(EntityType.HORSE.getHeight(), ModEntities.POSTMAN_HORSE.get().getHeight());
+		assertEquals(EntityTypes.HORSE.getWidth(), ModEntities.POSTMAN_HORSE.get().getWidth());
+		assertEquals(EntityTypes.HORSE.getHeight(), ModEntities.POSTMAN_HORSE.get().getHeight());
 		assertTrue(DefaultAttributes.hasSupplier(ModEntities.POSTMAN_HORSE.get()));
 		assertTrue(DefaultAttributes.hasSupplier(ModEntities.POSTMAN.get()));
 	}

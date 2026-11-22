@@ -1,11 +1,10 @@
 package com.comedymonkey.postrider.client.model;
 
 import com.comedymonkey.postrider.PostRider;
-import com.comedymonkey.postrider.content.postman.BargeEntity;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.comedymonkey.postrider.client.renderer.state.BargeRenderState;
 
-import net.minecraft.client.model.HierarchicalModel;
+import net.minecraft.client.animation.KeyframeAnimation;
+import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
@@ -14,21 +13,30 @@ import net.minecraft.client.model.geom.builders.CubeListBuilder;
 import net.minecraft.client.model.geom.builders.LayerDefinition;
 import net.minecraft.client.model.geom.builders.MeshDefinition;
 import net.minecraft.client.model.geom.builders.PartDefinition;
-import net.minecraft.client.renderer.LightTexture;
 
 /**
  * The ferry barge. Geometry is Blockbench's Mojang-mappings export of blockbench/barge.bbmodel, and the animations
  * (rowing, and the pennant and lantern stirring while it waits) come from {@link BargeAnimations}.
+ * <p>
+ * The lantern's flame is drawn on its own, at full brightness, so it glows at night: one of these models draws the
+ * barge without the flame, and another (made {@code glowOnly}) draws only the flame, posed the same way.
  */
-public class BargeModel extends HierarchicalModel<BargeEntity> {
+public class BargeModel extends EntityModel<BargeRenderState> {
 	public static final ModelLayerLocation LAYER = new ModelLayerLocation(PostRider.asResource("barge"), "main");
 
-	private final ModelPart root;
 	private final ModelPart glow;
+	private final boolean glowOnly;
+	private final KeyframeAnimation row;
+	private final KeyframeAnimation idle;
 
-	public BargeModel(ModelPart root) {
-		this.root = root;
+	public BargeModel(ModelPart root, boolean glowOnly) {
+		super(root);
 		this.glow = root.getChild("barge").getChild("lantern_post").getChild("lantern").getChild("lantern_glow");
+		this.glowOnly = glowOnly;
+		this.row = BargeAnimations.ROW.bake(root);
+		this.idle = BargeAnimations.IDLE.bake(root);
+		if (glowOnly)
+			allParts().forEach(part -> part.skipDraw = part != glow);
 	}
 
 	public static LayerDefinition createBodyLayer() {
@@ -117,27 +125,10 @@ public class BargeModel extends HierarchicalModel<BargeEntity> {
 	}
 
 	@Override
-	public ModelPart root() {
-		return root;
-	}
-
-	@Override
-	public void setupAnim(BargeEntity barge, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
-		root().getAllParts().forEach(ModelPart::resetPose);
-		animate(barge.rowAnimation, BargeAnimations.ROW, ageInTicks);
-		animate(barge.idleAnimation, BargeAnimations.IDLE, ageInTicks);
-	}
-
-	/** Leaves the lantern's flame out, for drawing everything else in the light around the barge. */
-	public void hideGlow(boolean hidden) {
-		glow.visible = !hidden;
-	}
-
-	/** Draws only the lantern's flame, at full brightness, so it glows at night. */
-	public void renderGlow(PoseStack poseStack, VertexConsumer buffer, int overlay) {
-		root().getAllParts().forEach(part -> part.skipDraw = part != glow);
-		glow.visible = true;
-		root().render(poseStack, buffer, LightTexture.FULL_BRIGHT, overlay);
-		root().getAllParts().forEach(part -> part.skipDraw = false);
+	public void setupAnim(BargeRenderState state) {
+		super.setupAnim(state);
+		row.apply(state.rowAnimation, state.ageInTicks);
+		idle.apply(state.idleAnimation, state.ageInTicks);
+		glow.visible = glowOnly;
 	}
 }

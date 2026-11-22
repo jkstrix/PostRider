@@ -10,8 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.vehicle.Boat;
-import net.minecraft.world.item.Item;
+import net.minecraft.world.entity.vehicle.boat.Boat;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -32,20 +31,13 @@ public class IceHopperEntity extends Boat {
 	public static final int HEADROOM = 2;
 
 	public IceHopperEntity(EntityType<? extends Boat> type, Level level) {
-		super(type, level);
+		// It comes back as its own item when broken
+		super(type, level, () -> ModItems.ICE_HOPPER.get());
 	}
 
 	public IceHopperEntity(Level level, double x, double y, double z) {
 		this(ModEntities.ICE_HOPPER.get(), level);
-		setPos(x, y, z);
-		xo = x;
-		yo = y;
-		zo = z;
-	}
-
-	@Override
-	public Item getDropItem() {
-		return ModItems.ICE_HOPPER.get();
+		setInitialPos(x, y, z);
 	}
 
 	/**
@@ -92,7 +84,7 @@ public class IceHopperEntity extends Boat {
 		// The way it had on before this tick's move: against the ice's edge the move itself stops it dead
 		Vec3 wayOn = getDeltaMovement();
 		super.tick();
-		if (isControlledByLocalInstance())
+		if (isLocalInstanceAuthoritative())
 			hop(wayOn);
 	}
 
@@ -131,7 +123,7 @@ public class IceHopperEntity extends Boat {
 			// Up and on with the way it had, or a push forward if it had none left
 			double speed = Math.max(motion.horizontalDistance(), MIN_HOP_SPEED * 2);
 			setDeltaMovement(dx * speed, 0, dz * speed);
-			hasImpulse = true;
+			needsSync = true;
 			return;
 		}
 	}

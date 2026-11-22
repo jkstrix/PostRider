@@ -10,13 +10,17 @@ import com.comedymonkey.postrider.network.RenameMailboxPayload;
 import com.comedymonkey.postrider.network.SendParcelPayload;
 import com.comedymonkey.postrider.post.MailboxNames;
 
-import net.minecraft.client.gui.GuiGraphics;
+import com.mojang.blaze3d.platform.InputConstants;
+
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /** The mailbox's three tabs: Inbox, Send and Settings, dressed as an old post office counter. */
 public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
@@ -66,9 +70,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	private int cutX, cutY, cutWidth, cutHeight;
 
 	public MailboxScreen(MailboxMenu menu, Inventory inventory, Component title) {
-		super(menu, inventory, title);
-		imageWidth = MailboxMenu.WIDTH;
-		imageHeight = MailboxMenu.HEIGHT;
+		super(menu, inventory, title, MailboxMenu.WIDTH, MailboxMenu.HEIGHT);
 		name = menu.getOpenedName();
 	}
 
@@ -144,7 +146,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	}
 
 	private void save() {
-		PacketDistributor.sendToServer(new RenameMailboxPayload(nameBox.getValue()));
+		ClientPacketDistributor.sendToServer(new RenameMailboxPayload(nameBox.getValue()));
 		nameBox.setFocused(false);
 	}
 
@@ -172,7 +174,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 
 	private void send() {
 		if (selected != null)
-			PacketDistributor.sendToServer(new SendParcelPayload(selected));
+			ClientPacketDistributor.sendToServer(new SendParcelPayload(selected));
 	}
 
 	@Override
@@ -185,7 +187,8 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	// ---------------------------------------------------------------- drawing
 
 	@Override
-	protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+	public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+		super.extractBackground(graphics, mouseX, mouseY, partialTick);
 		for (int k = 0; k < MailboxMenu.TAB_COUNT; k++)
 			if (k != menu.getTab())
 				PostOfficeStyle.tab(graphics, tabX(k), topPos, k, TAB_ICONS[k], false);
@@ -206,15 +209,15 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 			PostOfficeStyle.textField(graphics, leftPos + 8, topPos + 30, FIELD_WIDTH);
 	}
 
-	private void renderLedger(GuiGraphics graphics, int mouseX, int mouseY) {
+	private void renderLedger(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
 		int x = leftPos + LEDGER_X, y = topPos + LEDGER_Y;
 		PostOfficeStyle.ledger(graphics, x, y, LEDGER_WIDTH);
 		if (!hasName()) {
-			graphics.drawWordWrap(font, Component.translatable("gui.postrider.mailbox.name_first"), x + 12, y + 3, LEDGER_WIDTH - 16, PostOfficeStyle.INK_ERROR);
+			graphics.textWithWordWrap(font, Component.translatable("gui.postrider.mailbox.name_first"), x + 12, y + 3, LEDGER_WIDTH - 16, PostOfficeStyle.INK_ERROR, false);
 			return;
 		}
 		if (addresses.isEmpty()) {
-			graphics.drawWordWrap(font, Component.translatable("gui.postrider.mailbox.no_addresses"), x + 12, y + 3, LEDGER_WIDTH - 16, PostOfficeStyle.PENCIL);
+			graphics.textWithWordWrap(font, Component.translatable("gui.postrider.mailbox.no_addresses"), x + 12, y + 3, LEDGER_WIDTH - 16, PostOfficeStyle.PENCIL, false);
 			return;
 		}
 		int hovered = ledgerRowAt(mouseX, mouseY);
@@ -225,7 +228,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 				graphics.fill(x + 1, rowY, x + LEDGER_WIDTH - 1, rowY + PostOfficeStyle.LEDGER_ROW, PostOfficeStyle.LEDGER_SELECTED);
 			else if (row == hovered)
 				graphics.fill(x + 1, rowY, x + LEDGER_WIDTH - 1, rowY + PostOfficeStyle.LEDGER_ROW, PostOfficeStyle.LEDGER_HOVER);
-			graphics.drawString(font, font.plainSubstrByWidth(address, LEDGER_WIDTH - 16), x + 12, rowY + 1, PostOfficeStyle.INK, false);
+			graphics.text(font, font.plainSubstrByWidth(address, LEDGER_WIDTH - 16), x + 12, rowY + 1, PostOfficeStyle.INK, false);
 		}
 		if (addresses.size() > LEDGER_ROWS) {
 			int track = PostOfficeStyle.LEDGER_HEIGHT - 4;
@@ -236,7 +239,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	}
 
 	@Override
-	protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
+	protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
 		int tab = menu.getTab();
 		Component plaque = switch (tab) {
 			case MailboxMenu.TAB_SEND -> Component.translatable("gui.postrider.mailbox.tab.send");
@@ -282,7 +285,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	 * A message written in at most this many lines of this width; if it doesn't fit, it's cut short with "..." and
 	 * hovering over it shows the whole of it.
 	 */
-	private void writeLines(GuiGraphics graphics, Component message, int x, int y, int width, int maxLines, int color) {
+	private void writeLines(GuiGraphicsExtractor graphics, Component message, int x, int y, int width, int maxLines, int color) {
 		String text = message.getString();
 		List<String> lines = PostOfficeStyle.clamp(text, width, maxLines, font::width);
 		for (int i = 0; i < lines.size(); i++)
@@ -296,17 +299,17 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 		}
 	}
 
+	/** A tab's name over the tab, a message cut short in full over it, or else the item under the pointer. */
 	@Override
-	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-		super.render(graphics, mouseX, mouseY, partialTick);
+	protected void extractTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
 		int tab = tabAt(mouseX, mouseY);
 		if (tab >= 0)
-			graphics.renderTooltip(font, Component.translatable("gui.postrider.mailbox.tab." + TAB_KEYS[tab]), mouseX, mouseY);
+			graphics.setTooltipForNextFrame(font, Component.translatable("gui.postrider.mailbox.tab." + TAB_KEYS[tab]), mouseX, mouseY);
 		else if (cutShort != null && mouseX >= leftPos + cutX && mouseX < leftPos + cutX + cutWidth && mouseY >= topPos + cutY
 				&& mouseY < topPos + cutY + cutHeight)
-			graphics.renderTooltip(font, font.split(cutShort, TOOLTIP_WIDTH), mouseX, mouseY);
+			graphics.setTooltipForNextFrame(font, font.split(cutShort, TOOLTIP_WIDTH), mouseX, mouseY);
 		else
-			renderTooltip(graphics, mouseX, mouseY);
+			super.extractTooltip(graphics, mouseX, mouseY);
 	}
 
 	// ---------------------------------------------------------------- input
@@ -333,7 +336,8 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	}
 
 	@Override
-	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+		double mouseX = event.x(), mouseY = event.y();
 		int tab = tabAt(mouseX, mouseY);
 		if (tab >= 0) {
 			switchTab(tab);
@@ -347,7 +351,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 				return true;
 			}
 		}
-		return super.mouseClicked(mouseX, mouseY, button);
+		return super.mouseClicked(event, doubleClick);
 	}
 
 	// ---------------------------------------------------------------- recordings
@@ -401,20 +405,21 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	}
 
 	@Override
-	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+	public boolean keyPressed(KeyEvent event) {
 		if (nameBox.visible && nameBox.isFocused()) {
-			if (keyCode == 257 || keyCode == 335) {
+			int key = event.input();
+			if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) {
 				save();
 				return true;
 			}
-			if (keyCode != 256)
-				return nameBox.keyPressed(keyCode, scanCode, modifiers) || nameBox.canConsumeInput();
+			if (key != InputConstants.KEY_ESCAPE)
+				return nameBox.keyPressed(event) || nameBox.canConsumeInput();
 		}
-		return super.keyPressed(keyCode, scanCode, modifiers);
+		return super.keyPressed(event);
 	}
 
 	@Override
-	protected boolean hasClickedOutside(double mouseX, double mouseY, int left, int top, int button) {
-		return super.hasClickedOutside(mouseX, mouseY, left, top, button) && tabAt(mouseX, mouseY) < 0;
+	protected boolean hasClickedOutside(double mouseX, double mouseY, int left, int top) {
+		return super.hasClickedOutside(mouseX, mouseY, left, top) && tabAt(mouseX, mouseY) < 0;
 	}
 }

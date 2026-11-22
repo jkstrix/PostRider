@@ -48,7 +48,7 @@ public final class WaterPlanner {
 		Node start = new Node(startX, startZ);
 		start.h = toGo(startX, startZ, goalX, goalZ);
 		start.f = start.h;
-		nodes.put(ChunkPos.asLong(startX, startZ), start);
+		nodes.put(ChunkPos.pack(startX, startZ), start);
 		open.add(start);
 		Node best = start, reached = null;
 		while (!open.isEmpty() && nodes.size() < MAX_NODES) {
@@ -70,7 +70,7 @@ public final class WaterPlanner {
 				if (diagonal && (!water.open(node.x + d[0], node.z) || !water.open(node.x, node.z + d[1])))
 					continue;
 				double g = node.g + (diagonal ? DIAGONAL : 1) + danger.extra(x, z) + (tight(water, x, z, goalX, goalZ, radius) ? TIGHT_COST : 0);
-				long key = ChunkPos.asLong(x, z);
+				long key = ChunkPos.pack(x, z);
 				Node next = nodes.get(key);
 				if (next == null) {
 					next = new Node(x, z);

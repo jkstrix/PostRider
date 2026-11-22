@@ -1,26 +1,19 @@
 package com.comedymonkey.postrider.gametest;
 
-import com.comedymonkey.postrider.PostRider;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.gametest.framework.GameTest;
-import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Doors on his way: he opens them (iron ones too, with no button) and goes through on foot, and leaves each as he
  * found it, shut or standing open.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class DoorGameTests {
 	private static final int DELIVERY_TICKS = 4000;
 	private static final BlockState STONE = Blocks.STONE.defaultBlockState();
@@ -52,11 +45,11 @@ public final class DoorGameTests {
 		});
 		Trials.deliver("Doors", scene, to, watch, () -> {
 			if (!openedTheIronDoor[0])
-				throw new GameTestAssertException("He never opened the iron door");
+				throw helper.assertionException(Component.literal("He never opened the iron door"));
 			if (helper.getBlockState(iron).getValue(DoorBlock.OPEN))
-				throw new GameTestAssertException("He left the iron door open");
+				throw helper.assertionException(Component.literal("He left the iron door open"));
 			if (!helper.getBlockState(wooden).getValue(DoorBlock.OPEN))
-				throw new GameTestAssertException("He shut the wooden door he found standing open");
+				throw helper.assertionException(Component.literal("He shut the wooden door he found standing open"));
 		});
 	}
 

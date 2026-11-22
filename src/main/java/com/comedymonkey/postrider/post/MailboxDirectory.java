@@ -8,26 +8,22 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.comedymonkey.postrider.PostRider;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.GlobalPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
 
-/** Every named mailbox on the server, by address. Kept with the overworld's saved data. */
+/** Every named mailbox on the server, by address. Kept with the server's saved data. */
 public class MailboxDirectory extends SavedData {
+	/** The file name worlds from before Minecraft 26.1 kept it under. */
 	public static final String ID = "postrider_mailboxes";
-	private static final SavedData.Factory<MailboxDirectory> FACTORY =
-		new SavedData.Factory<>(MailboxDirectory::new, MailboxDirectory::load, null);
 
 	public record Entry(String name, GlobalPos pos, UUID owner) {
 		public static final Codec<Entry> CODEC = RecordCodecBuilder.create(i -> i.group(
@@ -43,10 +39,23 @@ public class MailboxDirectory extends SavedData {
 		INVALID
 	}
 
+	public static final Codec<MailboxDirectory> CODEC = RecordCodecBuilder.create(i -> i.group(
+		Entry.CODEC.listOf().optionalFieldOf("mailboxes", List.of()).forGetter(d -> List.copyOf(d.byKey.values()))
+	).apply(i, MailboxDirectory::new));
+	public static final SavedDataType<MailboxDirectory> TYPE =
+		new SavedDataType<>(PostRider.asResource("mailboxes"), MailboxDirectory::new, CODEC);
+
 	private final Map<String, Entry> byKey = new HashMap<>();
 
+	public MailboxDirectory() {}
+
+	private MailboxDirectory(List<Entry> entries) {
+		for (Entry entry : entries)
+			byKey.put(MailboxNames.key(entry.name()), entry);
+	}
+
 	public static MailboxDirectory get(MinecraftServer server) {
-		return server.overworld().getDataStorage().computeIfAbsent(FACTORY, ID);
+		return LegacySavedData.get(server, TYPE, ID);
 	}
 
 	/**
@@ -98,22 +107,5 @@ public class MailboxDirectory extends SavedData {
 
 	public int size() {
 		return byKey.size();
-	}
-
-	@Override
-	public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-		ListTag list = new ListTag();
-		for (Entry entry : byKey.values())
-			Entry.CODEC.encodeStart(NbtOps.INSTANCE, entry).result().ifPresent(list::add);
-		tag.put("mailboxes", list);
-		return tag;
-	}
-
-	public static MailboxDirectory load(CompoundTag tag, HolderLookup.Provider registries) {
-		MailboxDirectory directory = new MailboxDirectory();
-		for (Tag entryTag : tag.getList("mailboxes", Tag.TAG_COMPOUND))
-			Entry.CODEC.parse(NbtOps.INSTANCE, entryTag).result()
-				.ifPresent(e -> directory.byKey.put(MailboxNames.key(e.name()), e));
-		return directory;
 	}
 }

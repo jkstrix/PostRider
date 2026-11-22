@@ -6,8 +6,12 @@ import java.util.Optional;
 import com.comedymonkey.postrider.content.letter.LetterContent;
 import com.comedymonkey.postrider.registry.ModDataComponents;
 
-import net.minecraft.client.gui.GuiGraphics;
+import com.mojang.blaze3d.platform.InputConstants;
+
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
@@ -63,8 +67,8 @@ public class LetterReadScreen extends Screen {
 	}
 
 	@Override
-	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-		super.render(graphics, mouseX, mouseY, partialTick);
+	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+		super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 		int x = pageX(), y = pageY();
 		PostOfficeStyle.page(graphics, x, y);
 		int textX = x + PostOfficeStyle.PAGE_TEXT_X, textY = y + PostOfficeStyle.PAGE_TEXT_Y;
@@ -72,7 +76,7 @@ public class LetterReadScreen extends Screen {
 		if (page == 0)
 			letter.postmark().ifPresent(mark -> {
 				PostOfficeStyle.postmark(graphics, font, x + PostOfficeStyle.PAGE_WIDTH - PostOfficeStyle.POSTMARK_SIZE - 6, y + 4, mark.day());
-				graphics.drawString(font, font.plainSubstrByWidth(Component.translatable("gui.postrider.letter.posted_at", mark.from()).getString(), 92),
+				graphics.text(font, font.plainSubstrByWidth(Component.translatable("gui.postrider.letter.posted_at", mark.from()).getString(), 92),
 					textX, y + 8, PostOfficeStyle.PENCIL, false);
 			});
 
@@ -85,27 +89,28 @@ public class LetterReadScreen extends Screen {
 			for (FormattedCharSequence part : wrapped) {
 				if (line >= PostOfficeStyle.PAGE_LINES)
 					break;
-				graphics.drawString(font, part, textX, textY + line * PostOfficeStyle.PAGE_LINE_HEIGHT, PostOfficeStyle.INK, false);
+				graphics.text(font, part, textX, textY + line * PostOfficeStyle.PAGE_LINE_HEIGHT, PostOfficeStyle.INK, false);
 				line++;
 			}
 		}
 
 		if (page == pageCount() - 1 && !letter.author().isEmpty()) {
 			Component signature = Component.translatable("gui.postrider.letter.signed", letter.author());
-			graphics.drawString(font, signature, x + PostOfficeStyle.PAGE_WIDTH - 18 - font.width(signature), y + 150, PostOfficeStyle.INK, false);
+			graphics.text(font, signature, x + PostOfficeStyle.PAGE_WIDTH - 18 - font.width(signature), y + 150, PostOfficeStyle.INK, false);
 		}
 
 		Component number = Component.translatable("gui.postrider.letter.page", page + 1, pageCount());
-		graphics.drawString(font, number, x + (PostOfficeStyle.PAGE_WIDTH - font.width(number)) / 2, y + 164, PostOfficeStyle.PENCIL, false);
+		graphics.text(font, number, x + (PostOfficeStyle.PAGE_WIDTH - font.width(number)) / 2, y + 164, PostOfficeStyle.PENCIL, false);
 		if (page > 0)
 			PostOfficeStyle.arrow(graphics, prevArrowX(), arrowY(), false, overArrow(mouseX, mouseY, prevArrowX()));
 		if (page < pageCount() - 1)
 			PostOfficeStyle.arrow(graphics, nextArrowX(), arrowY(), true, overArrow(mouseX, mouseY, nextArrowX()));
 	}
 
+	/** Over the world, dimmed, as vanilla's books are, rather than on the menu background. */
 	@Override
-	public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-		renderTransparentBackground(graphics);
+	public boolean isInGameUi() {
+		return true;
 	}
 
 	private int prevArrowX() {
@@ -126,29 +131,32 @@ public class LetterReadScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseClicked(double mouseX, double mouseY, int button) {
-		if (button == 0 && page > 0 && overArrow(mouseX, mouseY, prevArrowX())) {
+	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+		double mouseX = event.x(), mouseY = event.y();
+		int button = event.button();
+		if (button == InputConstants.MOUSE_BUTTON_LEFT && page > 0 && overArrow(mouseX, mouseY, prevArrowX())) {
 			page--;
 			return true;
 		}
-		if (button == 0 && page < pageCount() - 1 && overArrow(mouseX, mouseY, nextArrowX())) {
+		if (button == InputConstants.MOUSE_BUTTON_LEFT && page < pageCount() - 1 && overArrow(mouseX, mouseY, nextArrowX())) {
 			page++;
 			return true;
 		}
-		return super.mouseClicked(mouseX, mouseY, button);
+		return super.mouseClicked(event, doubleClick);
 	}
 
 	@Override
-	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-		if (keyCode == 266 || keyCode == 263) {
+	public boolean keyPressed(KeyEvent event) {
+		int key = event.input();
+		if (key == InputConstants.KEY_PAGEUP || key == InputConstants.KEY_LEFT) {
 			page = Math.max(0, page - 1);
 			return true;
 		}
-		if (keyCode == 267 || keyCode == 262) {
+		if (key == InputConstants.KEY_PAGEDOWN || key == InputConstants.KEY_RIGHT) {
 			page = Math.min(pageCount() - 1, page + 1);
 			return true;
 		}
-		return super.keyPressed(keyCode, scanCode, modifiers);
+		return super.keyPressed(event);
 	}
 
 	@Override

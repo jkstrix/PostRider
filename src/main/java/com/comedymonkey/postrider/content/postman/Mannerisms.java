@@ -20,7 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
@@ -127,7 +127,7 @@ public final class Mannerisms {
 	public void tick(PostmanEntity rider, ServerLevel level, double toGo, boolean detouring) {
 		BlockPos pos = rider.blockPosition();
 		Holder<Biome> biome = level.getBiome(pos);
-		boolean raining = level.isRaining() && biome.value().getPrecipitationAt(pos) == Biome.Precipitation.RAIN;
+		boolean raining = level.isRaining() && biome.value().getPrecipitationAt(pos, level.getSeaLevel()) == Biome.Precipitation.RAIN;
 		if (raining && !wasRaining)
 			prompted = Gesture.PULL_HAT_DOWN;
 		wasRaining = raining;
@@ -148,10 +148,10 @@ public final class Mannerisms {
 			nextAt = rider.tickCount + gap(rider.getRandom());
 		if (rider.tickCount < nextAt)
 			return;
-		long time = level.getDayTime() % 24000L;
+		long time = level.getOverworldClockTime() % 24000L;
 		Situation situation = new Situation(rider.getVehicle() != null,
 			biome.value().getBaseTemperature() >= HOT && time < PostOfficeHours.CLOSES,
-			biome.value().coldEnoughToSnow(pos), raining, time >= EVENING && time < PostOfficeHours.CLOSES + 1200,
+			biome.value().coldEnoughToSnow(pos, level.getSeaLevel()), raining, time >= EVENING && time < PostOfficeHours.CLOSES + 1200,
 			biome.is(BiomeTags.IS_JUNGLE) || biome.is(Biomes.SWAMP) || biome.is(Biomes.MANGROVE_SWAMP), detouring, toGo);
 		Gesture gesture = pick(situation, last, rider.getRandom());
 		if (gesture != null)

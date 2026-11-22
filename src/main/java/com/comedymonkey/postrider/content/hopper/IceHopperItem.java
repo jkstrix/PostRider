@@ -6,7 +6,7 @@ import java.util.function.Predicate;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EntityType;
@@ -29,32 +29,32 @@ public class IceHopperItem extends Item {
 	}
 
 	@Override
-	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+	public InteractionResult use(Level level, Player player, InteractionHand hand) {
 		ItemStack stack = player.getItemInHand(hand);
 		HitResult hit = getPlayerPOVHitResult(level, player, ClipContext.Fluid.ANY);
 		if (hit.getType() == HitResult.Type.MISS)
-			return InteractionResultHolder.pass(stack);
+			return InteractionResult.PASS;
 		Vec3 look = player.getViewVector(1.0F);
 		List<Entity> near = level.getEntities(player, player.getBoundingBox().expandTowards(look.scale(5.0)).inflate(1.0), PICKABLE);
 		Vec3 eyes = player.getEyePosition();
 		for (Entity entity : near)
 			if (entity.getBoundingBox().inflate(entity.getPickRadius()).contains(eyes))
-				return InteractionResultHolder.pass(stack);
+				return InteractionResult.PASS;
 		if (hit.getType() != HitResult.Type.BLOCK)
-			return InteractionResultHolder.pass(stack);
+			return InteractionResult.PASS;
 		Vec3 spot = hit.getLocation();
 		IceHopperEntity hopper = new IceHopperEntity(level, spot.x, spot.y, spot.z);
 		if (level instanceof ServerLevel server)
-			EntityType.<IceHopperEntity>createDefaultStackConfig(server, stack, player).accept(hopper);
+			EntityType.<IceHopperEntity>createDefaultStackConfig(server, stack, player).apply(hopper);
 		hopper.setYRot(player.getYRot());
 		if (!level.noCollision(hopper, hopper.getBoundingBox()))
-			return InteractionResultHolder.fail(stack);
-		if (!level.isClientSide) {
+			return InteractionResult.FAIL;
+		if (!level.isClientSide()) {
 			level.addFreshEntity(hopper);
 			level.gameEvent(player, GameEvent.ENTITY_PLACE, spot);
 			stack.consume(1, player);
 		}
 		player.awardStat(Stats.ITEM_USED.get(this));
-		return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+		return InteractionResult.SUCCESS;
 	}
 }

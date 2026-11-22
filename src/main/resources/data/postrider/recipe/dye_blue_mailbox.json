@@ -3,12 +3,8 @@
   "category": "misc",
   "group": "postrider_dye_mailbox",
   "ingredients": [
-    {
-      "tag": "postrider:mailboxes"
-    },
-    {
-      "tag": "c:dyes/blue"
-    }
+    "#postrider:mailboxes",
+    "#c:dyes/blue"
   ],
   "result": {
     "id": "postrider:blue_mailbox",

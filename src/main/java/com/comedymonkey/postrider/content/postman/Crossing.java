@@ -295,7 +295,7 @@ public final class Crossing {
 
 	/** Whether a spot is within {@link #MONUMENT_BERTH} blocks of an ocean monument (as far as loaded chunks tell). */
 	public static boolean nearMonument(ServerLevel level, Vec3 spot) {
-		Structure monument = level.registryAccess().registryOrThrow(Registries.STRUCTURE).get(BuiltinStructures.OCEAN_MONUMENT);
+		Structure monument = level.registryAccess().lookupOrThrow(Registries.STRUCTURE).getValue(BuiltinStructures.OCEAN_MONUMENT);
 		if (monument == null)
 			return false;
 		int y = level.getSeaLevel() - 8;

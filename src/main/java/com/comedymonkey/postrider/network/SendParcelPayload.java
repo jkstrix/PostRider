@@ -57,7 +57,7 @@ public record SendParcelPayload(String to) implements CustomPacketPayload {
 			return Component.translatable("message.postrider.mailbox.unnamed");
 		if (mailbox.isParcelEmpty())
 			return Component.translatable("message.postrider.mailbox.empty_parcel");
-		MailboxDirectory.Entry target = MailboxDirectory.get(player.server).find(to);
+		MailboxDirectory.Entry target = MailboxDirectory.get(player.level().getServer()).find(to);
 		GlobalPos here = GlobalPos.of(mailbox.getLevel().dimension(), mailbox.getBlockPos());
 		if (target == null || target.pos().equals(here))
 			return Component.translatable("message.postrider.mailbox.unknown_address", to);
@@ -70,11 +70,11 @@ public record SendParcelPayload(String to) implements CustomPacketPayload {
 			player.awardStat(ModTriggers.LETTERS_SENT.get());
 			PostEvents.fire(player, PostEvents.SENT_LETTER, null, player.getStats().getValue(Stats.CUSTOM.get(ModTriggers.LETTERS_SENT.get())));
 		}
-		PostOffice.get(player.server).enqueue(new PendingDelivery(UUID.randomUUID(), player.getUUID(),
-			player.getGameProfile().getName(), mailbox.getName(), here, target.name(), items, player.serverLevel().getGameTime()));
+		PostOffice.get(player.level().getServer()).enqueue(new PendingDelivery(UUID.randomUUID(), player.getUUID(),
+			player.getGameProfile().name(), mailbox.getName(), here, target.name(), items, player.level().getGameTime()));
 		String key = Mail.isLetterOnly(items) ? "message.postrider.mailbox.queued_letter" : "message.postrider.mailbox.queued";
 		int first = PostRiderConfig.firstCollection();
-		boolean collecting = PostOfficeHours.isCollecting(player.serverLevel().getDayTime(), first, PostRiderConfig.lastCollection());
+		boolean collecting = PostOfficeHours.isCollecting(player.level().getOverworldClockTime(), first, PostRiderConfig.lastCollection());
 		Component told = collecting ? Component.translatable(key, target.name())
 			: Component.translatable(key + "_later", target.name(), PostOfficeHours.clock(first));
 		MailboxNoticePayload.tell(player, told, true);

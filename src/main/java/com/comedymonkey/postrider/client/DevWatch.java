@@ -21,7 +21,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.Difficulty;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
@@ -36,8 +35,8 @@ import net.neoforged.neoforge.common.NeoForge;
  * task), the game opens a flat creative world of its own and runs the in-world tests in front of the player, to be
  * watched: all of them, or the one the property names. The player is made a spectator and kept a few blocks off
  * the rider most recently out (see {@link RiderWatch}), and the game doesn't pause when another window is in front.
- * It stays open afterwards (type {@code /test runall} or {@code /test run <name>} for another go; {@code /test clearall}
- * tidies up).
+ * It stays open afterwards (type {@code /test run postrider:*} or {@code /test run postrider:<name>} for another
+ * go; {@code /test clearall} tidies up).
  * <p>
  * With {@code postrider.watchWorld} set to {@code "<world>|<from>|<to>"} instead ({@code runWatch -Pworld=...}), a
  * trip across a real world is watched: one of the player's worlds (copied into the run's saves by Gradle), or a
@@ -98,14 +97,14 @@ public final class DevWatch {
 	private DevWatch() {}
 
 	/**
-	 * The test command for what the property asks for: everything, or one test by its name (the method's, in lower
-	 * case, as the tests are registered; a {@code postrider:} in front is dropped).
+	 * The test command for what the property asks for: all of Post Rider's tests, or one by its name (the method's, in
+	 * lower case, as the tests are registered; a {@code postrider:} in front is taken as read).
 	 */
 	public static String command(String wanted) {
 		String name = wanted == null ? "" : wanted.trim().toLowerCase(Locale.ROOT);
 		if (name.isEmpty() || name.equals("all") || name.equals("true"))
-			return "test runall";
-		return "test run " + name.substring(name.indexOf(':') + 1);
+			return "test run postrider:*";
+		return "test run postrider:" + name.substring(name.indexOf(':') + 1);
 	}
 
 	/** Switches the run on if the game was started for it. */
@@ -126,13 +125,13 @@ public final class DevWatch {
 		switch (step) {
 			case START -> {
 				// A new game folder opens on the accessibility welcome first: skip it
-				if (minecraft.screen instanceof AccessibilityOnboardingScreen) {
+				if (minecraft.gui.screen() instanceof AccessibilityOnboardingScreen) {
 					minecraft.options.onboardAccessibility = false;
 					minecraft.options.save();
-					minecraft.setScreen(new TitleScreen());
+					minecraft.gui.setScreen(new TitleScreen());
 					return;
 				}
-				if (!(minecraft.screen instanceof TitleScreen))
+				if (!(minecraft.gui.screen() instanceof TitleScreen))
 					return;
 				minecraft.getTutorial().setStep(TutorialSteps.NONE);
 				// The game keeps going when it's not the window in front (the tests are being watched from elsewhere too)
@@ -142,12 +141,12 @@ public final class DevWatch {
 				if (worldRun != null) {
 					openWorldToWatch(minecraft, worldRun);
 				} else if (minecraft.getLevelSource().levelExists(WORLD)) {
-					minecraft.createWorldOpenFlows().openWorld(WORLD, () -> minecraft.setScreen(new TitleScreen()));
+					minecraft.createWorldOpenFlows().openWorld(WORLD, () -> minecraft.gui.setScreen(new TitleScreen()));
 				} else {
-					LevelSettings settings = new LevelSettings(WORLD, GameType.CREATIVE, false, Difficulty.PEACEFUL, true, new GameRules(),
+					LevelSettings settings = new LevelSettings(WORLD, GameType.CREATIVE, new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true,
 						WorldDataConfiguration.DEFAULT);
 					minecraft.createWorldOpenFlows().createFreshLevel(WORLD, settings, new WorldOptions(0, false, false),
-						access -> access.registryOrThrow(Registries.WORLD_PRESET).getHolderOrThrow(WorldPresets.FLAT).value().createWorldDimensions(),
+						access -> access.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(WorldPresets.FLAT).value().createWorldDimensions(),
 						new TitleScreen());
 				}
 			}
@@ -172,7 +171,7 @@ public final class DevWatch {
 				server.execute(() -> {
 					ServerPlayer player = server.getPlayerList().getPlayers().get(0);
 					// Daytime, and staying that way, so the post office is open however long the watching takes
-					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "gamerule doDaylightCycle false");
+					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "gamerule advance_time false");
 					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "time set day");
 					server.getCommands().performPrefixedCommand(player.createCommandSourceStack(), "test clearall");
 					// Somewhere fresh each time: a test is built on whatever ground is under the player, and the world keeps
@@ -196,7 +195,7 @@ public final class DevWatch {
 				PostRider.LOGGER.error("Post Rider watch run: no world called {} in this run's saves", run.world());
 				return;
 			}
-			minecraft.createWorldOpenFlows().openWorld(run.world(), () -> minecraft.setScreen(new TitleScreen()));
+			minecraft.createWorldOpenFlows().openWorld(run.world(), () -> minecraft.gui.setScreen(new TitleScreen()));
 			return;
 		}
 		String folder = run.folder(System.getProperty(SEED_PROPERTY));
@@ -210,9 +209,10 @@ public final class DevWatch {
 				return;
 			}
 		}
-		LevelSettings settings = new LevelSettings(folder, GameType.CREATIVE, false, Difficulty.EASY, true, new GameRules(), WorldDataConfiguration.DEFAULT);
+		LevelSettings settings = new LevelSettings(folder, GameType.CREATIVE, new LevelSettings.DifficultySettings(Difficulty.EASY, false, false), true,
+			WorldDataConfiguration.DEFAULT);
 		minecraft.createWorldOpenFlows().createFreshLevel(folder, settings, new WorldOptions(seed(System.getProperty(SEED_PROPERTY)), true, false),
-			access -> access.registryOrThrow(Registries.WORLD_PRESET).getHolderOrThrow(WorldPresets.NORMAL).value().createWorldDimensions(),
+			access -> access.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(WorldPresets.NORMAL).value().createWorldDimensions(),
 			new TitleScreen());
 	}
 

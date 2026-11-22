@@ -5,7 +5,6 @@ import java.util.function.DoubleSupplier;
 import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
@@ -13,18 +12,23 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.animal.horse.Horse;
+import net.minecraft.world.entity.animal.equine.Horse;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 
@@ -69,10 +73,10 @@ public class PostmanHorse extends Horse {
 
 	@Override
 	@Nullable
-	public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, MobSpawnType type, @Nullable SpawnGroupData data) {
+	public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, EntitySpawnReason type, @Nullable SpawnGroupData data) {
 		SpawnGroupData result = super.finalizeSpawn(level, difficulty, type, data);
 		setTamed(true);
-		equipSaddle(new ItemStack(Items.SADDLE), null);
+		setItemSlot(EquipmentSlot.SADDLE, new ItemStack(Items.SADDLE));
 		return result;
 	}
 
@@ -117,16 +121,15 @@ public class PostmanHorse extends Horse {
 	}
 
 	@Override
-	public void addAdditionalSaveData(CompoundTag tag) {
-		super.addAdditionalSaveData(tag);
-		if (riderId != null)
-			tag.putUUID("postrider_rider", riderId);
+	protected void addAdditionalSaveData(ValueOutput output) {
+		super.addAdditionalSaveData(output);
+		output.storeNullable("postrider_rider", UUIDUtil.CODEC, riderId);
 	}
 
 	@Override
-	public void readAdditionalSaveData(CompoundTag tag) {
-		super.readAdditionalSaveData(tag);
-		riderId = tag.hasUUID("postrider_rider") ? tag.getUUID("postrider_rider") : null;
+	protected void readAdditionalSaveData(ValueInput input) {
+		super.readAdditionalSaveData(input);
+		riderId = input.read("postrider_rider", UUIDUtil.CODEC).orElse(null);
 	}
 
 	@Override
@@ -150,11 +153,11 @@ public class PostmanHorse extends Horse {
 	/** Creates a ready-saddled horse at a spot, without adding it to the world yet. */
 	@Nullable
 	public static PostmanHorse create(EntityType<PostmanHorse> type, ServerLevel level, double x, double y, double z, float yaw) {
-		PostmanHorse horse = type.create(level);
+		PostmanHorse horse = type.create(level, EntitySpawnReason.MOB_SUMMONED);
 		if (horse == null)
 			return null;
-		horse.moveTo(x, y, z, yaw, 0);
-		EventHooks.finalizeMobSpawn(horse, level, level.getCurrentDifficultyAt(horse.blockPosition()), MobSpawnType.MOB_SUMMONED, null);
+		horse.snapTo(x, y, z, yaw, 0);
+		EventHooks.finalizeMobSpawn(horse, level, level.getCurrentDifficultyAt(horse.blockPosition()), EntitySpawnReason.MOB_SUMMONED, null);
 		return horse;
 	}
 
@@ -170,15 +173,18 @@ public class PostmanHorse extends Horse {
 		return gallopInput(forward, distanceToMark, false);
 	}
 
-	/** How hard he pushes where the way goes down: a walk, so the horse steps down a block at a time rather than gallop off a ledge and skip a step. */
+	/**
+	 * How hard he pushes where the way goes down (a walk, so the horse steps down a block at a time rather than gallop
+	 * off a ledge and skip a step), and beside fire and the like (so it doesn't graze it in passing).
+	 */
 	public static final double WALK_INPUT = 0.3;
 
-	/** As above; {@code descending} (the way ahead goes down) holds it to a walk. */
-	public static double gallopInput(double forward, double distanceToMark, boolean descending) {
+	/** As above; {@code heldToWalk} (the way ahead goes down, or there's a hazard beside it) holds it to a walk. */
+	public static double gallopInput(double forward, double distanceToMark, boolean heldToWalk) {
 		if (forward <= 0)
 			return forward;
 		double push = Math.max(forward, Math.min(1.0, distanceToMark / EASE_OFF_DISTANCE));
-		return descending ? Math.min(push, WALK_INPUT) : push;
+		return heldToWalk ? Math.min(push, WALK_INPUT) : push;
 	}
 
 	/**
@@ -197,14 +203,26 @@ public class PostmanHorse extends Horse {
 			Path path = getNavigation().getPath();
 			Vec3 pathEnd = path != null && !path.isDone() && path.getEndNode() != null ? Vec3.atBottomCenterOf(path.getEndNode().asBlockPos()) : null;
 			Vec3 mark = new Vec3(getMoveControl().getWantedX(), getY(), getMoveControl().getWantedZ());
-			input = new Vec3(input.x, input.y, gallopInput(input.z, distanceToGo(position(), pathEnd, mark), rider.isDescending()));
+			input = new Vec3(input.x, input.y, gallopInput(input.z, distanceToGo(position(), pathEnd, mark), rider.isHeldToWalk()));
 		}
 		super.travel(input);
+	}
+
+	/** Keeps to the way beside fire and the like rather than cut its corners (see HorseNavigation). */
+	@Override
+	protected PathNavigation createNavigation(Level level) {
+		return new HorseNavigation(this, level);
 	}
 
 	@Override
 	public InteractionResult mobInteract(Player player, InteractionHand hand) {
 		return InteractionResult.PASS;
+	}
+
+	/** Nor can its saddle be sheared off. */
+	@Override
+	protected boolean canShearEquipment(Player player) {
+		return false;
 	}
 
 	@Override
@@ -218,8 +236,13 @@ public class PostmanHorse extends Horse {
 	}
 
 	@Override
-	protected void dropEquipment() {
+	protected void dropEquipment(ServerLevel level) {
 		// The saddle and mochila go with the horse
+	}
+
+	@Override
+	protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean killedByPlayer) {
+		// Nor is the saddle (worn in its own slot) ever dropped as equipment
 	}
 
 	@Override

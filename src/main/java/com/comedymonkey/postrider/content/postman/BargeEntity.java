@@ -5,7 +5,6 @@ import org.jetbrains.annotations.Nullable;
 import com.comedymonkey.postrider.PostRiderConfig;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -17,9 +16,13 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.world.entity.LinearInterpolationHandler;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -127,8 +130,6 @@ public class BargeEntity extends Entity {
 	@Nullable
 	private Vec3 heading;
 	private double speed;
-	private int lerpSteps;
-	private double lerpX, lerpY, lerpZ, lerpYRot;
 
 	public BargeEntity(EntityType<? extends BargeEntity> type, Level level) {
 		super(type, level);
@@ -213,8 +214,7 @@ public class BargeEntity extends Entity {
 	@Override
 	public void tick() {
 		super.tick();
-		if (level().isClientSide) {
-			lerp();
+		if (level().isClientSide()) {
 			rowAnimation.animateWhen(isRowing(), tickCount);
 			idleAnimation.animateWhen(!isRowing(), tickCount);
 			return;
@@ -320,25 +320,15 @@ public class BargeEntity extends Entity {
 
 	// ---------------------------------------------------------------- smooth movement for everyone watching
 
-	@Override
-	public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps) {
-		lerpX = x;
-		lerpY = y;
-		lerpZ = z;
-		lerpYRot = yRot;
-		lerpSteps = steps + 2;
-	}
-
-	private void lerp() {
-		if (lerpSteps <= 0)
-			return;
-		double t = 1.0 / lerpSteps;
-		setPos(getX() + (lerpX - getX()) * t, getY() + (lerpY - getY()) * t, getZ() + (lerpZ - getZ()) * t);
-		setYRot(getYRot() + (float) Mth.wrapDegrees(lerpYRot - getYRot()) * (float) t);
-		lerpSteps--;
-	}
+	/** Each update from the server is eased into over this many ticks. */
+	public static final int LERP_STEPS = 5;
 
 	@Override
+	protected InterpolationHandler createInterpolationHandler() {
+		return LinearInterpolationHandler.create(this, LERP_STEPS);
+	}
+
+	/** The box its renderer culls by. */
 	public AABB getBoundingBoxForCulling() {
 		// It's five blocks long and the lantern post stands two blocks high
 		return getBoundingBox().inflate(1.5, 2.0, 1.5);
@@ -347,7 +337,7 @@ public class BargeEntity extends Entity {
 	// ---------------------------------------------------------------- it can't be harmed or moved about
 
 	@Override
-	public boolean hurt(DamageSource source, float amount) {
+	public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
 		return false;
 	}
 
@@ -367,8 +357,8 @@ public class BargeEntity extends Entity {
 	}
 
 	@Override
-	protected void readAdditionalSaveData(CompoundTag tag) {}
+	protected void readAdditionalSaveData(ValueInput input) {}
 
 	@Override
-	protected void addAdditionalSaveData(CompoundTag tag) {}
+	protected void addAdditionalSaveData(ValueOutput output) {}
 }

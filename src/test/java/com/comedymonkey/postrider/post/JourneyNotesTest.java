@@ -10,9 +10,11 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.comedymonkey.postrider.content.postman.DeliveryRun;
 import com.comedymonkey.postrider.registry.ModDataComponents;
+import com.comedymonkey.postrider.testutil.LoadedGameData;
 import com.mojang.serialization.JsonOps;
 
 import net.minecraft.core.BlockPos;
@@ -24,6 +26,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 
+@ExtendWith(LoadedGameData.class)
 class JourneyNotesTest {
 	private static PendingDelivery delivery() {
 		return new PendingDelivery(UUID.randomUUID(), UUID.randomUUID(), "Steve", "Ranch", GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO),
@@ -63,7 +66,7 @@ class JourneyNotesTest {
 
 	@Test
 	void aRunRemembersWhatItsBeenThroughAcrossRestarts() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		CompoundTag tag = new DeliveryRun(delivery(), GlobalPos.of(Level.OVERWORLD, new BlockPos(900, 64, 0))).save(registries);
 		assertEquals(JourneyNotes.NONE, DeliveryRun.load(tag, registries).notes());
 		tag.putBoolean("crossed_water", true);

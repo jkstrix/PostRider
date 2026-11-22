@@ -26,12 +26,12 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
@@ -41,6 +41,8 @@ import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.PathType;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 /**
  * The post rider. This holds what he's doing (camping, rowing, carrying mail) and plays his animations;
@@ -137,6 +139,10 @@ public class PostmanEntity extends PathfinderMob {
 			gestureAnimations.put(gesture, new AnimationState());
 		setPersistenceRequired();
 		avoidWater(this);
+		// Up a stair or a slab at a step, not a hop (see RiderMoveControl)
+		RiderMoveControl.Jump jump = new RiderMoveControl.Jump(this);
+		jumpControl = jump;
+		moveControl = new RiderMoveControl(this, jump);
 	}
 
 	/** He never wades or swims, even where vanilla pathfinding does his walking (to the mailbox's door, running away). */
@@ -250,7 +256,7 @@ public class PostmanEntity extends PathfinderMob {
 	private void bite(ServerLevel server) {
 		server.playSound(null, getX(), getY(), getZ(), SoundEvents.GENERIC_EAT, SoundSource.NEUTRAL, 0.5F, 0.9F + getRandom().nextFloat() * 0.2F);
 		Vec3 look = getLookAngle();
-		server.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Items.BREAD)),
+		server.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, Items.BREAD),
 			getX() + look.x * 0.3, getEyeY() - 0.15, getZ() + look.z * 0.3, 5, 0.1, 0.05, 0.1, 0.02);
 	}
 
@@ -277,10 +283,10 @@ public class PostmanEntity extends PathfinderMob {
 	/** Brings one of the crew into the world in a puff of smoke. */
 	@Nullable
 	public static PostmanEntity appear(EntityType<PostmanEntity> type, ServerLevel level, double x, double y, double z, float yaw, Roster.Rider rider) {
-		PostmanEntity postman = type.create(level);
+		PostmanEntity postman = type.create(level, EntitySpawnReason.MOB_SUMMONED);
 		if (postman == null)
 			return null;
-		postman.moveTo(x, y, z, yaw, 0);
+		postman.snapTo(x, y, z, yaw, 0);
 		postman.setYHeadRot(yaw);
 		postman.setRider(rider);
 		level.addFreshEntity(postman);
@@ -356,15 +362,15 @@ public class PostmanEntity extends PathfinderMob {
 		return run;
 	}
 
-	/** The way just ahead goes down: his horse is held to a walk (set each tick by the navigator). */
-	private boolean descending;
+	/** His horse is held to a walk: the way just ahead goes down, or there's fire or the like beside it (set each tick by the navigator). */
+	private boolean heldToWalk;
 
-	public boolean isDescending() {
-		return descending;
+	public boolean isHeldToWalk() {
+		return heldToWalk;
 	}
 
-	public void setDescending(boolean descending) {
-		this.descending = descending;
+	public void setHeldToWalk(boolean heldToWalk) {
+		this.heldToWalk = heldToWalk;
 	}
 
 	/** Whether his horse comes when he whistles: not once it's been killed, for the rest of that trip. */
@@ -443,8 +449,8 @@ public class PostmanEntity extends PathfinderMob {
 	}
 
 	@Override
-	public double getVisibilityPercent(@Nullable Entity looker) {
-		double visibility = super.getVisibilityPercent(looker);
+	public double getVisibilityPercent(ServerLevel level, @Nullable Entity looker) {
+		double visibility = super.getVisibilityPercent(level, looker);
 		if (inTent && looker instanceof LivingEntity living && living.getAttributes().hasAttribute(Attributes.FOLLOW_RANGE))
 			visibility = Math.min(visibility, tentVisibility(living.getAttributeValue(Attributes.FOLLOW_RANGE)));
 		return visibility;
@@ -505,7 +511,7 @@ public class PostmanEntity extends PathfinderMob {
 	}
 
 	private void tickPotions(ServerLevel level) {
-		long today = day(level.getDayTime());
+		long today = day(level.getOverworldClockTime());
 		potions = restocked(potions, potionDay, today);
 		potionDay = today;
 		if (drinkTicks > 0) {
@@ -557,7 +563,7 @@ public class PostmanEntity extends PathfinderMob {
 		}
 		if (arrivingHorse != null && --mountCountdown <= 0) {
 			if (arrivingHorse.isAlive() && getVehicle() == null)
-				startRiding(arrivingHorse, true);
+				startRiding(arrivingHorse, true, true);
 			arrivingHorse = null;
 		}
 	}
@@ -592,9 +598,9 @@ public class PostmanEntity extends PathfinderMob {
 	}
 
 	@Override
-	public boolean hurt(DamageSource source, float amount) {
-		boolean hurt = super.hurt(source, amount);
-		if (hurt && run != null && level() instanceof ServerLevel server)
+	public boolean hurtServer(ServerLevel server, DamageSource source, float amount) {
+		boolean hurt = super.hurtServer(server, source, amount);
+		if (hurt && run != null)
 			run.hurt(this, server, source, amount);
 		return hurt;
 	}
@@ -608,7 +614,7 @@ public class PostmanEntity extends PathfinderMob {
 	@Override
 	public void tick() {
 		super.tick();
-		if (level().isClientSide)
+		if (level().isClientSide())
 			updateAnimations();
 		else if (level() instanceof ServerLevel server) {
 			tickHorse(server);
@@ -654,10 +660,10 @@ public class PostmanEntity extends PathfinderMob {
 	private void updateAnimations() {
 		for (Gesture gesture : Gesture.values()) {
 			AnimationState state = gestureAnimations.get(gesture);
-			if (state.isStarted() && state.getAccumulatedTime() > gesture.seconds * 1000)
+			if (state.isStarted() && state.getTimeInMillis(tickCount) > gesture.seconds * 1000)
 				state.stop();
 		}
-		if (hurtAnimation.isStarted() && hurtAnimation.getAccumulatedTime() > HURT_SECONDS * 1000)
+		if (hurtAnimation.isStarted() && hurtAnimation.getTimeInMillis(tickCount) > HURT_SECONDS * 1000)
 			hurtAnimation.stop();
 
 		Activity activity = getActivity();
@@ -676,7 +682,7 @@ public class PostmanEntity extends PathfinderMob {
 	// ---------------------------------------------------------------- saving
 
 	@Override
-	public void addAdditionalSaveData(CompoundTag tag) {
+	protected void addAdditionalSaveData(ValueOutput tag) {
 		super.addAdditionalSaveData(tag);
 		tag.putString("activity", getActivity().name());
 		tag.putBoolean("carrying", isCarrying());
@@ -686,26 +692,26 @@ public class PostmanEntity extends PathfinderMob {
 		tag.putLong("potion_day", potionDay);
 		tag.putInt("drink_ticks", drinkTicks);
 		if (run != null)
-			tag.put("run", run.save(registryAccess()));
+			tag.store("run", CompoundTag.CODEC, run.save(registryAccess()));
 	}
 
 	@Override
-	public void readAdditionalSaveData(CompoundTag tag) {
+	protected void readAdditionalSaveData(ValueInput tag) {
 		super.readAdditionalSaveData(tag);
 		try {
-			setActivity(Activity.valueOf(tag.getString("activity")));
+			setActivity(Activity.valueOf(tag.getStringOr("activity", "")));
 		} catch (IllegalArgumentException e) {
 			setActivity(Activity.NONE);
 		}
-		setCarrying(tag.getBoolean("carrying"));
-		inTent = tag.getBoolean("in_tent");
-		entityData.set(DATA_RIDER, tag.getString("rider"));
-		if (tag.contains("potions")) {
-			potions = tag.getInt("potions");
-			potionDay = tag.getLong("potion_day");
-			drinkTicks = tag.getInt("drink_ticks");
+		setCarrying(tag.getBooleanOr("carrying", false));
+		inTent = tag.getBooleanOr("in_tent", false);
+		entityData.set(DATA_RIDER, tag.getStringOr("rider", ""));
+		if (tag.getInt("potions").isPresent()) {
+			potions = tag.getIntOr("potions", 0);
+			potionDay = tag.getLongOr("potion_day", 0);
+			drinkTicks = tag.getIntOr("drink_ticks", 0);
 		}
-		run = tag.contains("run") ? DeliveryRun.load(tag.getCompound("run"), registryAccess()) : null;
+		run = tag.read("run", CompoundTag.CODEC).map(run -> DeliveryRun.load(run, registryAccess())).orElse(null);
 	}
 
 	/** Riders keep to their own dimension: one carried off through a portal would be lost to the post office. */

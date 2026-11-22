@@ -22,7 +22,7 @@ import com.comedymonkey.postrider.registry.ModTriggers;
 import com.comedymonkey.postrider.content.postman.route.PlanningBudget;
 import com.mojang.logging.LogUtils;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -40,7 +40,8 @@ public class PostRider {
 	public static final Logger LOGGER = LogUtils.getLogger();
 
 	public PostRider(IEventBus modBus, ModContainer container) {
-		container.registerConfig(ModConfig.Type.SERVER, PostRiderConfig.SPEC);
+		// Synced is what 26.x calls a server config; the file keeps its old name, so a server's settings carry over
+		container.registerConfig(ModConfig.Type.SYNCED, PostRiderConfig.SPEC, "postrider-server.toml");
 		ModDataComponents.COMPONENTS.register(modBus);
 		ModBlocks.BLOCKS.register(modBus);
 		ModItems.ITEMS.register(modBus);
@@ -67,8 +68,8 @@ public class PostRider {
 		DevHeadless.registerIfWanted();
 	}
 
-	public static ResourceLocation asResource(String path) {
-		return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+	public static Identifier asResource(String path) {
+		return Identifier.fromNamespaceAndPath(MOD_ID, path);
 	}
 
 	private void registerPayloads(RegisterPayloadHandlersEvent event) {

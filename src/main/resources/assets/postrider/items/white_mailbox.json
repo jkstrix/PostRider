@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "postrider:item/white_mailbox",
+    "tints": [
+      {
+        "type": "minecraft:constant",
+        "value": -393218
+      }
+    ]
+  }
+}

@@ -3,25 +3,22 @@
   "pools": [
     {
       "rolls": 1,
-      "bonus_rolls": 0,
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "postrider:light_gray_mailbox"
-        }
-      ],
-      "conditions": [
-        {
-          "condition": "minecraft:survives_explosion"
-        },
-        {
-          "condition": "minecraft:block_state_property",
-          "block": "postrider:light_gray_mailbox",
-          "properties": {
-            "half": "lower"
+          "name": "postrider:light_gray_mailbox",
+          "condition": {
+            "type": "minecraft:match_block",
+            "blocks": "postrider:light_gray_mailbox",
+            "state": {
+              "half": "lower"
+            }
           }
         }
-      ]
+      ],
+      "condition": {
+        "type": "minecraft:survives_explosion"
+      }
     }
   ]
 }

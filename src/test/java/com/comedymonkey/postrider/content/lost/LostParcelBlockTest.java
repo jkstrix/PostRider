@@ -14,7 +14,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.PushReaction;
-import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
 
@@ -50,9 +49,9 @@ class LostParcelBlockTest {
 	@Test
 	void staysPutAndDropsOnlyItsContents() {
 		BlockState state = ModBlocks.LOST_PARCEL.get().defaultBlockState();
-		assertEquals(PushReaction.BLOCK, state.getPistonPushReaction());
+		assertEquals(PushReaction.IMMOVEABLE, state.getPistonPushReaction());
 		assertTrue(ModBlocks.LOST_PARCEL.get().getExplosionResistance() >= 1200);
-		assertEquals(BuiltInLootTables.EMPTY, ModBlocks.LOST_PARCEL.get().getLootTable());
+		assertTrue(ModBlocks.LOST_PARCEL.get().getLootTable().isEmpty());
 	}
 
 	@Test

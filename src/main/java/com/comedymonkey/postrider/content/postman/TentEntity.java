@@ -6,7 +6,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.comedymonkey.postrider.advancement.PostEvents;
 
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,6 +14,8 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 /**
  * The rider's tent for the night. It's an entity, not blocks, so it never changes the land; it can't be hurt, pushed
@@ -65,7 +67,7 @@ public class TentEntity extends Entity {
 	}
 
 	@Override
-	public boolean hurt(DamageSource source, float amount) {
+	public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
 		return false;
 	}
 
@@ -75,7 +77,7 @@ public class TentEntity extends Entity {
 	}
 
 	@Override
-	public boolean canBeCollidedWith() {
+	public boolean canBeCollidedWith(@Nullable Entity other) {
 		return true;
 	}
 
@@ -85,13 +87,12 @@ public class TentEntity extends Entity {
 	}
 
 	@Override
-	protected void readAdditionalSaveData(CompoundTag tag) {
-		rider = tag.hasUUID("rider") ? tag.getUUID("rider") : null;
+	protected void readAdditionalSaveData(ValueInput input) {
+		rider = input.read("rider", UUIDUtil.CODEC).orElse(null);
 	}
 
 	@Override
-	protected void addAdditionalSaveData(CompoundTag tag) {
-		if (rider != null)
-			tag.putUUID("rider", rider);
+	protected void addAdditionalSaveData(ValueOutput output) {
+		output.storeNullable("rider", UUIDUtil.CODEC, rider);
 	}
 }

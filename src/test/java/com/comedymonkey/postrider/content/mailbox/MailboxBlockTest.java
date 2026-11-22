@@ -3,7 +3,6 @@ package com.comedymonkey.postrider.content.mailbox;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,7 +56,7 @@ class MailboxBlockTest {
 	@Test
 	void cannotBePushedOrBlownUpEasily() {
 		BlockState state = ModBlocks.mailbox(DyeColor.BLUE).get().defaultBlockState();
-		assertEquals(PushReaction.BLOCK, state.getPistonPushReaction());
+		assertEquals(PushReaction.IMMOVEABLE, state.getPistonPushReaction());
 		assertTrue(ModBlocks.mailbox(DyeColor.BLUE).get().getExplosionResistance() >= 1200);
 	}
 
@@ -89,6 +88,5 @@ class MailboxBlockTest {
 	void theBlockEntityTypeAcceptsEveryColour() {
 		for (DyeColor color : DyeColor.values())
 			assertTrue(ModBlockEntities.MAILBOX.get().isValid(ModBlocks.mailbox(color).get().defaultBlockState()), color.getName());
-		assertNotNull(MailboxBlock.CODEC);
 	}
 }

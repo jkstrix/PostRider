@@ -21,18 +21,18 @@ public final class ModItems {
 	private static final Map<DyeColor, DeferredItem<DoubleHighBlockItem>> MAILBOXES = new EnumMap<>(DyeColor.class);
 
 	public static final DeferredItem<BlankLetterItem> LETTER =
-		ITEMS.register("letter", () -> new BlankLetterItem(new Item.Properties().stacksTo(16)));
+		ITEMS.registerItem("letter", BlankLetterItem::new, properties -> properties.stacksTo(16));
 	public static final DeferredItem<WrittenLetterItem> WRITTEN_LETTER =
-		ITEMS.register("written_letter", () -> new WrittenLetterItem(new Item.Properties().stacksTo(1)));
+		ITEMS.registerItem("written_letter", WrittenLetterItem::new, properties -> properties.stacksTo(1));
 	public static final DeferredItem<ParcelItem> PARCEL =
-		ITEMS.register("parcel", () -> new ParcelItem(new Item.Properties().stacksTo(1)));
+		ITEMS.registerItem("parcel", ParcelItem::new, properties -> properties.stacksTo(1));
 	public static final DeferredItem<IceHopperItem> ICE_HOPPER =
-		ITEMS.register("ice_hopper", () -> new IceHopperItem(new Item.Properties().stacksTo(1)));
+		ITEMS.registerItem("ice_hopper", IceHopperItem::new, properties -> properties.stacksTo(1));
 
 	static {
 		for (DyeColor color : DyeColor.values()) {
-			MAILBOXES.put(color, ITEMS.register(color.getSerializedName() + "_mailbox",
-				() -> new DoubleHighBlockItem(ModBlocks.mailbox(color).get(), new Item.Properties())));
+			MAILBOXES.put(color, ITEMS.registerItem(color.getSerializedName() + "_mailbox",
+				properties -> new DoubleHighBlockItem(ModBlocks.mailbox(color).get(), properties), Item.Properties::useBlockDescriptionPrefix));
 		}
 	}
 

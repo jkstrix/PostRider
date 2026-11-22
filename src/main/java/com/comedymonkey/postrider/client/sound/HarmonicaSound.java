@@ -41,7 +41,7 @@ public class HarmonicaSound extends AbstractTickableSoundInstance {
 
 	/** Strikes up the tune for any rider who has started playing. */
 	public static void onEntityTick(EntityTickEvent.Post event) {
-		if (!(event.getEntity() instanceof PostmanEntity rider) || !rider.level().isClientSide || !plays(rider))
+		if (!(event.getEntity() instanceof PostmanEntity rider) || !rider.level().isClientSide() || !plays(rider))
 			return;
 		SoundManager sounds = Minecraft.getInstance().getSoundManager();
 		HarmonicaSound current = PLAYING.get(rider);

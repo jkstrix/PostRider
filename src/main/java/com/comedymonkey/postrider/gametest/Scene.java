@@ -17,13 +17,13 @@ import com.comedymonkey.postrider.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
-import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -42,8 +42,8 @@ final class Scene {
 		this.helper = helper;
 		this.level = helper.getLevel();
 		// Riders camp from dusk: the tests keep it morning
-		level.getGameRules().getRule(GameRules.RULE_DAYLIGHT).set(false, level.getServer());
-		level.setDayTime(1000);
+		level.getGameRules().set(GameRules.ADVANCE_TIME, false, level.getServer());
+		helper.setTime(1000);
 	}
 
 	void fill(int x0, int y0, int z0, int x1, int y1, int z1, BlockState state) {
@@ -89,10 +89,10 @@ final class Scene {
 		helper.setBlock(new BlockPos(x, y + 1, z), lower.setValue(MailboxBlock.HALF, DoubleBlockHalf.UPPER));
 		BlockPos pos = at(x, y, z);
 		if (!(level.getBlockEntity(pos) instanceof MailboxBlockEntity mailbox))
-			throw new GameTestAssertException("No mailbox at " + pos);
+			throw helper.assertionException(Component.literal("No mailbox at " + pos));
 		MailboxDirectory.Result named = mailbox.rename(address, helper.makeMockPlayer(GameType.SURVIVAL));
 		if (named != MailboxDirectory.Result.OK)
-			throw new GameTestAssertException("Couldn't name the mailbox " + address + ": " + named);
+			throw helper.assertionException(Component.literal("Couldn't name the mailbox " + address + ": " + named));
 		return pos;
 	}
 

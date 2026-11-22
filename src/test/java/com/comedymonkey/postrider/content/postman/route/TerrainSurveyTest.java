@@ -8,12 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import com.comedymonkey.postrider.testutil.LoadedGameData;
 
 import net.minecraft.util.Mth;
 import net.minecraft.util.SimpleBitStorage;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 
+@ExtendWith(LoadedGameData.class)
 class TerrainSurveyTest {
 	private static final int MIN_Y = -64, HEIGHT = 384;
 

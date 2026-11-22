@@ -50,13 +50,13 @@ public final class LostParcels {
 				Containers.dropItemStack(level, near.getX() + 0.5, near.getY() + 0.5, near.getZ() + 0.5, item.copy());
 			return null;
 		}
-		Direction facing = Direction.Plane.HORIZONTAL.getRandomDirection(level.random);
+		Direction facing = Direction.Plane.HORIZONTAL.getRandomDirection(level.getRandom());
 		Block block = isOpenWater(level, spot) ? ModBlocks.LOST_PARCEL_WRECK.get() : ModBlocks.LOST_PARCEL.get();
 		level.setBlock(spot, block.defaultBlockState()
 			.setValue(LostParcelBlock.FACING, facing).setValue(LostParcelBlock.CAUSE, cause), Block.UPDATE_ALL);
 		if (level.getBlockEntity(spot) instanceof LostParcelBlockEntity parcel)
 			parcel.fill(delivery.items(), delivery.sender(), delivery.senderName(), delivery.fromName(), delivery.toName(),
-				recipient, killer, killerName, Mail.day(level.getDayTime()));
+				recipient, killer, killerName, Mail.day(level.getOverworldClockTime()));
 		return spot;
 	}
 
@@ -70,7 +70,7 @@ public final class LostParcels {
 			if (!level.isLoaded(new BlockPos(x, near.getY(), z)))
 				return null;
 			int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-			if (y <= level.getMinBuildHeight())
+			if (y <= level.getMinY())
 				return null;
 			BlockPos top = new BlockPos(x, y, z);
 			if (canHold(level, top))

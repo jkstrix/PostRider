@@ -9,15 +9,15 @@ import org.jetbrains.annotations.Nullable;
 import com.comedymonkey.postrider.registry.ModBlockEntities;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.server.permissions.Permissions;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 /** What a lost parcel holds, where it was going, and who may claim it. */
 public class LostParcelBlockEntity extends BlockEntity {
@@ -61,7 +61,7 @@ public class LostParcelBlockEntity extends BlockEntity {
 	}
 
 	public boolean canOpen(Player player) {
-		return canOpen(player.getUUID(), player.hasPermissions(2));
+		return canOpen(player.getUUID(), player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER));
 	}
 
 	/** Takes everything out, leaving the parcel empty. */
@@ -108,39 +108,43 @@ public class LostParcelBlockEntity extends BlockEntity {
 		return day;
 	}
 
+	/** When another block takes its place, it spills whatever it still holds. */
 	@Override
-	protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-		super.saveAdditional(tag, registries);
-		ListTag items = new ListTag();
-		for (ItemStack item : contents)
-			items.add(item.save(registries));
-		tag.put("contents", items);
-		if (sender != null)
-			tag.putUUID("sender", sender);
-		if (recipient != null)
-			tag.putUUID("recipient", recipient);
-		if (killer != null)
-			tag.putUUID("killer", killer);
-		tag.putString("sender_name", senderName);
-		tag.putString("from", fromName);
-		tag.putString("to", toName);
-		tag.putString("killer_name", killerName);
-		tag.putLong("day", day);
+	public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+		super.preRemoveSideEffects(pos, state);
+		if (level != null && !level.isClientSide())
+			dropContents();
 	}
 
 	@Override
-	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-		super.loadAdditional(tag, registries);
+	protected void saveAdditional(ValueOutput output) {
+		super.saveAdditional(output);
+		ValueOutput.TypedOutputList<ItemStack> items = output.list("contents", ItemStack.CODEC);
+		for (ItemStack item : contents)
+			items.add(item);
+		output.storeNullable("sender", UUIDUtil.CODEC, sender);
+		output.storeNullable("recipient", UUIDUtil.CODEC, recipient);
+		output.storeNullable("killer", UUIDUtil.CODEC, killer);
+		output.putString("sender_name", senderName);
+		output.putString("from", fromName);
+		output.putString("to", toName);
+		output.putString("killer_name", killerName);
+		output.putLong("day", day);
+	}
+
+	@Override
+	protected void loadAdditional(ValueInput input) {
+		super.loadAdditional(input);
 		contents.clear();
-		for (Tag item : tag.getList("contents", Tag.TAG_COMPOUND))
-			ItemStack.parse(registries, item).ifPresent(contents::add);
-		sender = tag.hasUUID("sender") ? tag.getUUID("sender") : null;
-		recipient = tag.hasUUID("recipient") ? tag.getUUID("recipient") : null;
-		killer = tag.hasUUID("killer") ? tag.getUUID("killer") : null;
-		senderName = tag.getString("sender_name");
-		fromName = tag.getString("from");
-		toName = tag.getString("to");
-		killerName = tag.getString("killer_name");
-		day = tag.getLong("day");
+		for (ItemStack item : input.listOrEmpty("contents", ItemStack.CODEC))
+			contents.add(item);
+		sender = input.read("sender", UUIDUtil.CODEC).orElse(null);
+		recipient = input.read("recipient", UUIDUtil.CODEC).orElse(null);
+		killer = input.read("killer", UUIDUtil.CODEC).orElse(null);
+		senderName = input.getStringOr("sender_name", "");
+		fromName = input.getStringOr("from", "");
+		toName = input.getStringOr("to", "");
+		killerName = input.getStringOr("killer_name", "");
+		day = input.getLongOr("day", 0);
 	}
 }

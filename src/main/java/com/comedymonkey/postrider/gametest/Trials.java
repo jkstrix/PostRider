@@ -8,7 +8,7 @@ import java.nio.file.StandardOpenOption;
 import com.comedymonkey.postrider.PostRider;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.gametest.framework.GameTestAssertException;
+import net.minecraft.network.chat.Component;
 import net.neoforged.fml.loading.FMLPaths;
 
 /**
@@ -37,14 +37,14 @@ final class Trials {
 				: null;
 			if (trouble != null) {
 				record(trial, watch, false);
-				throw new GameTestAssertException(trial + ": " + trouble);
+				throw scene.helper.assertionException(Component.literal(trial + ": " + trouble));
 			}
 		});
 		scene.helper.succeedWhen(() -> {
 			if (!scene.delivered(to) || scene.stillOut(watch.delivery))
-				throw new GameTestAssertException(trial + ": not delivered yet, " + watch.describe());
+				throw scene.helper.assertionException(Component.literal(trial + ": not delivered yet, " + watch.describe()));
 			if (!watch.studiedMap)
-				throw new GameTestAssertException(trial + ": he never studied his map");
+				throw scene.helper.assertionException(Component.literal(trial + ": he never studied his map"));
 			checks.run();
 			record(trial, watch, true);
 			PostRider.LOGGER.info("Trial {}: delivered; {}", trial, watch.describe());

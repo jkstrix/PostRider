@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import com.comedymonkey.postrider.registry.ModEntities;
 
 import net.minecraft.world.entity.EntityAttachment;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.phys.Vec3;
 
 class HorseSpotsTest {
@@ -45,7 +45,7 @@ class HorseSpotsTest {
 	@Test
 	void ridersSitInTheSaddleAsLowAsPlayers() {
 		Vec3 rider = ModEntities.POSTMAN.get().getDimensions().attachments().get(EntityAttachment.VEHICLE, 0, 0);
-		Vec3 player = EntityType.PLAYER.getDimensions().attachments().get(EntityAttachment.VEHICLE, 0, 0);
+		Vec3 player = EntityTypes.PLAYER.getDimensions().attachments().get(EntityAttachment.VEHICLE, 0, 0);
 		assertEquals(player, rider);
 	}
 

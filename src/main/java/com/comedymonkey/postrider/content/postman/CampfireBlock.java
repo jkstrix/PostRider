@@ -1,7 +1,5 @@
 package com.comedymonkey.postrider.content.postman;
 
-import com.mojang.serialization.MapCodec;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -29,7 +27,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * broken, put out or blown up, and goes out by itself if it's ever left without a camp.
  */
 public class CampfireBlock extends Block {
-	public static final MapCodec<CampfireBlock> CODEC = simpleCodec(CampfireBlock::new);
 	public static final int BRIGHTEST = 15;
 	public static final int EMBERS = 3;
 	public static final IntegerProperty LIGHT = IntegerProperty.create("light", EMBERS, BRIGHTEST);
@@ -42,11 +39,6 @@ public class CampfireBlock extends Block {
 	public CampfireBlock(Properties properties) {
 		super(properties);
 		registerDefaultState(stateDefinition.any().setValue(LIGHT, BRIGHTEST));
-	}
-
-	@Override
-	protected MapCodec<? extends Block> codec() {
-		return CODEC;
 	}
 
 	@Override
@@ -115,5 +107,5 @@ public class CampfireBlock extends Block {
 
 	/** Nothing a blast does puts it out: it goes when the camp does. */
 	@Override
-	public void onBlockExploded(BlockState state, Level level, BlockPos pos, Explosion explosion) {}
+	public void onBlockExploded(BlockState state, ServerLevel level, BlockPos pos, Explosion explosion) {}
 }

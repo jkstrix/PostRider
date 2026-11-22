@@ -26,7 +26,7 @@ public final class PostDispatcher {
 		if (server.getTickCount() % INTERVAL != 0)
 			return;
 		RiderWatch.check(server);
-		if (PostOfficeHours.isCollecting(server.overworld().getDayTime(), PostRiderConfig.firstCollection(), PostRiderConfig.lastCollection()))
+		if (PostOfficeHours.isCollecting(server.overworld().getOverworldClockTime(), PostRiderConfig.firstCollection(), PostRiderConfig.lastCollection()))
 			dispatch(server);
 	}
 

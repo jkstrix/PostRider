@@ -9,30 +9,33 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.comedymonkey.postrider.content.postman.route.LocalPlanner;
 import com.comedymonkey.postrider.post.PendingDelivery;
 import com.comedymonkey.postrider.post.PostDispatcher;
+import com.comedymonkey.postrider.testutil.LoadedGameData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.animal.Cow;
-import net.minecraft.world.entity.monster.CaveSpider;
+import net.minecraft.world.entity.animal.cow.Cow;
+import net.minecraft.world.entity.monster.spider.CaveSpider;
 import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.monster.EnderMan;
-import net.minecraft.world.entity.monster.Skeleton;
-import net.minecraft.world.entity.monster.Spider;
-import net.minecraft.world.entity.monster.Zombie;
-import net.minecraft.world.entity.monster.ZombifiedPiglin;
+import net.minecraft.world.entity.monster.Enderman;
+import net.minecraft.world.entity.monster.skeleton.Skeleton;
+import net.minecraft.world.entity.monster.spider.Spider;
+import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.entity.monster.zombie.ZombifiedPiglin;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+@ExtendWith(LoadedGameData.class)
 class DeliveryRunTest {
 	private static PendingDelivery delivery() {
 		return new PendingDelivery(UUID.randomUUID(), UUID.randomUUID(), "Steve", "Steve's Ranch",
@@ -48,7 +51,7 @@ class DeliveryRunTest {
 
 	@Test
 	void aRunSurvivesSavingWithItsDeliveryAndDestination() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		PendingDelivery delivery = delivery();
 		DeliveryRun run = new DeliveryRun(delivery, GlobalPos.of(Level.OVERWORLD, new BlockPos(500, 70, 300)));
 		CompoundTag saved = run.save(registries);
@@ -62,7 +65,7 @@ class DeliveryRunTest {
 
 	@Test
 	void aRunToAnAddressThatVanishedStillSaves() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		DeliveryRun loaded = DeliveryRun.load(new DeliveryRun(delivery(), null).save(registries), registries);
 		assertNotNull(loaded);
 	}
@@ -143,7 +146,7 @@ class DeliveryRunTest {
 		assertTrue(RiderHunting.huntsRiders(Zombie.class));
 		assertTrue(RiderHunting.huntsRiders(Skeleton.class));
 		assertFalse(RiderHunting.huntsRiders(Creeper.class), "creepers never stalk riders");
-		assertFalse(RiderHunting.huntsRiders(EnderMan.class));
+		assertFalse(RiderHunting.huntsRiders(Enderman.class));
 		assertFalse(RiderHunting.huntsRiders(ZombifiedPiglin.class));
 		assertFalse(RiderHunting.huntsRiders(Cow.class));
 	}
@@ -192,7 +195,7 @@ class DeliveryRunTest {
 
 	@Test
 	void aHorseLostOnTheTripStaysLostAcrossASave() {
-		var registries = VanillaRegistries.createLookup();
+		var registries = VanillaRegistries.createWorldLookup();
 		DeliveryRun run = new DeliveryRun(delivery(), null);
 		assertFalse(run.isHorseLost(), "he sets out with his horse");
 		CompoundTag saved = run.save(registries);

@@ -43,7 +43,7 @@ public final class RiderChunks {
 				tickets.removeAllTickets(owner);
 				continue;
 			}
-			for (long chunk : new LongArrayList(tickets.getEntityTickets().get(owner).nonTicking()))
+			for (long chunk : new LongArrayList(tickets.getEntityTickets().get(owner).normal()))
 				tickets.removeTicket(owner, chunk, false);
 		}
 	});
@@ -59,13 +59,13 @@ public final class RiderChunks {
 		Set<ChunkPos> chunks = new LinkedHashSet<>();
 		for (int dx = -radius; dx <= radius; dx++)
 			for (int dz = -radius; dz <= radius; dz++)
-				chunks.add(new ChunkPos(centre.x + dx, centre.z + dz));
+				chunks.add(new ChunkPos(centre.x() + dx, centre.z() + dz));
 		return chunks;
 	}
 
 	/** Whether a chunk in the square round a centre is close enough to tick. */
 	public static boolean ticks(ChunkPos centre, ChunkPos chunk) {
-		return Math.abs(chunk.x - centre.x) <= TICKING_RADIUS && Math.abs(chunk.z - centre.z) <= TICKING_RADIUS;
+		return Math.abs(chunk.x() - centre.x()) <= TICKING_RADIUS && Math.abs(chunk.z() - centre.z()) <= TICKING_RADIUS;
 	}
 
 	/** A rider's loaded square, as it was loaded, so it's let go the same size even if the setting has changed since. */
@@ -87,10 +87,10 @@ public final class RiderChunks {
 			for (ChunkPos chunk : around(previous, radiusOf(rider, previous))) {
 				boolean ticked = ticks(previous, chunk);
 				if (!keep.contains(chunk) || ticks(now, chunk) != ticked)
-					CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, false, ticked);
+					CONTROLLER.forceChunk(level, rider, chunk.x(), chunk.z(), false, ticked);
 			}
 		for (ChunkPos chunk : keep)
-			CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, true, ticks(now, chunk));
+			CONTROLLER.forceChunk(level, rider, chunk.x(), chunk.z(), true, ticks(now, chunk));
 		SQUARES.put(rider, new Square(now, radius));
 	}
 
@@ -103,7 +103,7 @@ public final class RiderChunks {
 		if (square != null)
 			release(level, rider, square.centre());
 		else if (lastSeen != null)
-			releaseAround(level, rider, new ChunkPos(lastSeen), radius() + 1);
+			releaseAround(level, rider, ChunkPos.containing(lastSeen), radius() + 1);
 	}
 
 	/** Forgets every square (the server is stopping: the tickets are saved with the world, and sorted out when it loads). */
@@ -119,6 +119,6 @@ public final class RiderChunks {
 
 	private static void releaseAround(ServerLevel level, UUID rider, ChunkPos centre, int radius) {
 		for (ChunkPos chunk : around(centre, radius))
-			CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, false, ticks(centre, chunk));
+			CONTROLLER.forceChunk(level, rider, chunk.x(), chunk.z(), false, ticks(centre, chunk));
 	}
 }

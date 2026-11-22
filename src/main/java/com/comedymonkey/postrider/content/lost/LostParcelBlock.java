@@ -7,15 +7,16 @@ import org.jetbrains.annotations.Nullable;
 
 import com.comedymonkey.postrider.advancement.PostEvents;
 import com.comedymonkey.postrider.content.HorizontalShapes;
-import com.mojang.serialization.MapCodec;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -39,7 +40,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * whoever killed the rider (or an operator) can open or break it. Anyone else can read its label.
  */
 public class LostParcelBlock extends HorizontalDirectionalBlock implements EntityBlock {
-	public static final MapCodec<LostParcelBlock> CODEC = simpleCodec(LostParcelBlock::new);
 	public static final EnumProperty<LostCause> CAUSE = EnumProperty.create("cause", LostCause.class);
 
 	// Boxes for the model as drawn, with the LOST tag facing south
@@ -57,11 +57,6 @@ public class LostParcelBlock extends HorizontalDirectionalBlock implements Entit
 	public LostParcelBlock(Properties properties) {
 		super(properties);
 		registerDefaultState(stateDefinition.any().setValue(FACING, Direction.SOUTH).setValue(CAUSE, LostCause.UNDELIVERABLE));
-	}
-
-	@Override
-	protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-		return CODEC;
 	}
 
 	@Override
@@ -87,7 +82,7 @@ public class LostParcelBlock extends HorizontalDirectionalBlock implements Entit
 	protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
 		if (!(level.getBlockEntity(pos) instanceof LostParcelBlockEntity parcel))
 			return InteractionResult.PASS;
-		if (level.isClientSide)
+		if (level.isClientSide())
 			return InteractionResult.SUCCESS;
 		player.sendSystemMessage(label(parcel));
 		if (!parcel.canOpen(player)) {
@@ -96,7 +91,7 @@ public class LostParcelBlock extends HorizontalDirectionalBlock implements Entit
 		}
 		boolean ownKill = parcel.isKiller(player);
 		for (ItemStack item : parcel.takeContents())
-			player.getInventory().placeItemBackInInventory(item);
+			player.getInventory().placeItemBackInInventory(item, Prediction.SERVER_ONLY);
 		if (player instanceof ServerPlayer serverPlayer) {
 			PostEvents.fire(serverPlayer, PostEvents.RECOVERED);
 			if (this instanceof LostParcelWreckBlock)
@@ -125,14 +120,7 @@ public class LostParcelBlock extends HorizontalDirectionalBlock implements Entit
 	 * destroy before it hurts him, so the parcel he leaves can land in a spot already marked and be blown apart.
 	 */
 	@Override
-	public void onBlockExploded(BlockState state, Level level, BlockPos pos, Explosion explosion) {}
-
-	@Override
-	protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-		if (!state.is(newState.getBlock()) && !level.isClientSide && level.getBlockEntity(pos) instanceof LostParcelBlockEntity parcel)
-			parcel.dropContents();
-		super.onRemove(state, level, pos, newState, movedByPiston);
-	}
+	public void onBlockExploded(BlockState state, ServerLevel level, BlockPos pos, Explosion explosion) {}
 
 	@Override
 	@Nullable
