@@ -160,6 +160,21 @@ twenty rider skins with `python tools/stamp_prop.py X Y WIDTH HEIGHT`.
 - **Screens:** `./gradlew runScreenshots` opens the mailbox screen with awkward names and messages, saves a picture
   of each to `run-screenshots/screenshots/postrider/`, and quits.
 
+## Releasing
+
+Publishing a GitHub release publishes that jar and its notes to Modrinth and CurseForge. Tag it
+`v<version>+<Minecraft version>`, the same way as `v1.3.0+26.3` and `v1.3.0+1.21.1`, and attach the jar
+`./gradlew build` produced (`postrider-<Minecraft version>-<version>.jar`). The workflow is on `main` and reads the
+release, so a 1.21.1 release from `mc/1.21.1` is published by the same file.
+
+To check a release without uploading, run the Publish workflow from Actions, pass the tag, and turn on the dry run.
+
+The projects are created once, using [docs/listing.md](docs/listing.md) and `src/main/resources/postrider_logo.png`.
+The CurseForge project is under comedymonkey, and the Modrinth project is under ComedyMonkey. A site is published
+when its repository variable and secret are both set: `CURSEFORGE_PROJECT_ID` with `CURSEFORGE_TOKEN` (the author API
+token from the CurseForge account page), and `MODRINTH_PROJECT_ID` with `MODRINTH_TOKEN` (Create, Read and Write
+versions). CurseForge can go out before the Modrinth project exists.
+
 ## Credits
 
 See [CREDITS.md](CREDITS.md). Code and art are under the [MIT licence](LICENSE).

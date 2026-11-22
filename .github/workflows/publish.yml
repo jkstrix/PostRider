@@ -1,0 +1,174 @@
+# Publishing a GitHub release uploads that release's jar and notes to Modrinth and CurseForge.
+# The tag is v<mod version>+<Minecraft version>, for example v1.3.0+26.3 or v1.3.0+1.21.1.
+# This file lives on main and covers both Minecraft versions.
+#
+# One-time repository setup. A site is used when both of its values are set, so CurseForge can
+# publish before a Modrinth project exists:
+#   variables: MODRINTH_PROJECT_ID, CURSEFORGE_PROJECT_ID
+#   secrets:   MODRINTH_TOKEN, CURSEFORGE_TOKEN
+# Create the projects first (docs/listing.md). A dry run resolves a release and stops before uploading.
+
+name: Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, for example v1.3.0+26.3
+        required: true
+        type: string
+      dry_run:
+        description: Resolve the release and stop before uploading
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag="$TAG"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+(\.[0-9]+)+$ ]]; then
+            echo "::error::Tag must look like v1.3.0+26.3 or v1.3.0+1.21.1 (got: ${tag})"
+            exit 1
+          fi
+          version="${tag#v}"
+          game="${version#*+}"
+          case "$game" in
+            26.*) java=25 ;;
+            *) java=21 ;;
+          esac
+
+          mkdir -p dist
+          gh release download "$tag" --repo "${{ github.repository }}" --pattern "postrider-*.jar" --dir dist --clobber
+          mapfile -t jars < <(find dist -type f -name 'postrider-*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-dev.jar' | sort)
+          if [[ ${#jars[@]} -ne 1 ]]; then
+            echo "::error::Expected one mod jar on ${tag}, found ${#jars[@]}: ${jars[*]:-none}"
+            exit 1
+          fi
+          jar="${jars[0]}"
+          base="$(basename "$jar")"
+          if [[ "$base" != *"${game}"* ]]; then
+            echo "::error::${base} is not a Minecraft ${game} jar"
+            exit 1
+          fi
+
+          gh release view "$tag" --repo "${{ github.repository }}" --json name,body > dist/release.json
+          name="$(jq -r '.name' dist/release.json)"
+          jq -r '.body' dist/release.json > dist/changelog.md
+          if [[ -z "$name" || "$name" == "null" ]]; then
+            name="Post Rider ${version} for Minecraft ${game}"
+          fi
+          if [[ ! -s dist/changelog.md ]]; then
+            echo "::error::${tag} has no release notes to use as the changelog"
+            exit 1
+          fi
+
+          {
+            echo "version=${version}"
+            echo "game=${game}"
+            echo "java=${java}"
+            echo "file=${jar}"
+            echo "name<<EOF"
+            echo "${name}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### ${name}"
+            echo ""
+            echo "- Version \`${version}\`"
+            echo "- Minecraft ${game}, Java ${java}, NeoForge"
+            echo "- \`${base}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Resolved ${name} (${base})"
+
+      - name: Detect platforms
+        id: platforms
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          modrinth=false
+          curseforge=false
+          if [[ -n "${MODRINTH_TOKEN}" && -n "${MODRINTH_PROJECT_ID}" ]]; then
+            modrinth=true
+          fi
+          if [[ -n "${CURSEFORGE_TOKEN}" && -n "${CURSEFORGE_PROJECT_ID}" ]]; then
+            curseforge=true
+          fi
+          echo "modrinth=${modrinth}" >> "$GITHUB_OUTPUT"
+          echo "curseforge=${curseforge}" >> "$GITHUB_OUTPUT"
+          {
+            echo ""
+            echo "- Modrinth configured: ${modrinth}"
+            echo "- CurseForge configured: ${curseforge}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}" == "true" ]]; then
+            exit 0
+          fi
+          if [[ "$modrinth" == false && "$curseforge" == false ]]; then
+            echo "::error::Set a project id and token for Modrinth or CurseForge before publishing."
+            exit 1
+          fi
+
+      - name: Publish to CurseForge
+        id: curseforge
+        if: ${{ steps.platforms.outputs.curseforge == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        uses: Kira-NT/mc-publish@v3.3.2
+        with:
+          curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: ${{ steps.release.outputs.file }}
+          name: ${{ steps.release.outputs.name }}
+          version: ${{ steps.release.outputs.version }}
+          version-type: release
+          changelog-file: dist/changelog.md
+          game-versions: ${{ steps.release.outputs.game }}
+          game-version-filter: none
+          loaders: neoforge
+          environment: client | server
+          java: ${{ steps.release.outputs.java }}
+
+      - name: Publish to Modrinth
+        id: modrinth
+        if: ${{ steps.platforms.outputs.modrinth == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        uses: Kira-NT/mc-publish@v3.3.2
+        with:
+          modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          modrinth-featured: true
+          files: ${{ steps.release.outputs.file }}
+          name: ${{ steps.release.outputs.name }}
+          version: ${{ steps.release.outputs.version }}
+          version-type: release
+          changelog-file: dist/changelog.md
+          game-versions: ${{ steps.release.outputs.game }}
+          game-version-filter: none
+          loaders: neoforge
+          environment: client | server
+          java: ${{ steps.release.outputs.java }}
+
+      - name: Report published versions
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        run: |
+          {
+            echo ""
+            echo "- CurseForge: ${{ steps.curseforge.outputs.curseforge-url }}"
+            echo "- Modrinth: ${{ steps.modrinth.outputs.modrinth-url }}"
+          } >> "$GITHUB_STEP_SUMMARY"
