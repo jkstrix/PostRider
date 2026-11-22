@@ -24,6 +24,15 @@ on:
         required: false
         type: boolean
         default: false
+      sites:
+        description: Which sites to publish to. A GitHub release always publishes to every configured site.
+        required: false
+        type: choice
+        default: both
+        options:
+          - both
+          - modrinth
+          - curseforge
 
 permissions:
   contents: read
@@ -102,14 +111,15 @@ jobs:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
           MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
           CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          SITES: ${{ github.event_name == 'release' && 'both' || inputs.sites }}
         run: |
           set -euo pipefail
           modrinth=false
           curseforge=false
-          if [[ -n "${MODRINTH_TOKEN}" && -n "${MODRINTH_PROJECT_ID}" ]]; then
+          if [[ -n "${MODRINTH_TOKEN}" && -n "${MODRINTH_PROJECT_ID}" && "${SITES}" != "curseforge" ]]; then
             modrinth=true
           fi
-          if [[ -n "${CURSEFORGE_TOKEN}" && -n "${CURSEFORGE_PROJECT_ID}" ]]; then
+          if [[ -n "${CURSEFORGE_TOKEN}" && -n "${CURSEFORGE_PROJECT_ID}" && "${SITES}" != "modrinth" ]]; then
             curseforge=true
           fi
           echo "modrinth=${modrinth}" >> "$GITHUB_OUTPUT"
