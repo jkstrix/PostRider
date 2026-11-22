@@ -129,14 +129,17 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		return tile.isDone() ? tile.cells[Math.floorMod(cz, TILE_CELLS) * TILE_CELLS + Math.floorMod(cx, TILE_CELLS)] : null;
 	}
 
-	/** Any chunk of a tile that was estimated (or read off disk) and has since been loaded is read from the real ground. */
+	/**
+	 * Every chunk of a tile that's loaded now is read afresh from the real ground: one that was estimated (or read off
+	 * disk) and has since been loaded, and one that was loaded already, which may have changed since (a bridge or a
+	 * canal built, a lake filled in). A tile that was only partly loaded is kept for ten minutes, and its loaded chunks
+	 * were once left as they were read all that time.
+	 */
 	private void refresh(Tile tile, int tx, int tz, long now) {
 		tile.refreshedAt = now;
 		for (int dx = 0; dx < TILE_CHUNKS; dx++)
 			for (int dz = 0; dz < TILE_CHUNKS; dz++) {
 				int chunk = dz * TILE_CHUNKS + dx;
-				if (!tile.guessed[chunk])
-					continue;
 				ChunkPos pos = new ChunkPos(tx * TILE_CHUNKS + dx, tz * TILE_CHUNKS + dz);
 				LevelChunk loaded = level.getChunkSource().getChunkNow(pos.x(), pos.z());
 				if (loaded == null)
