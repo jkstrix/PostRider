@@ -10,7 +10,7 @@ Mailboxes, letters and parcels, carried across your world by twenty mounted post
 
 ## Categories / tags
 
-Adventure, Transportation, Utility, Mobs, Storage. NeoForge, 1.21.1, client and server.
+Adventure, Transportation, Utility, Mobs, Storage. NeoForge, 26.3 and 1.21.1, client and server.
 
 ## Description
 
@@ -56,4 +56,6 @@ telling them what happened and where.
 - Server settings for rider count, route planning range, potions, barge speed and collection hours.
 - No other mods needed.
 
-*Needs NeoForge 21.1 for Minecraft 1.21.1, on both the server and clients.*
+*Needs NeoForge 26.3 for Minecraft 26.3, or NeoForge 21.1 for Minecraft 1.21.1 (a separate download), on both the server
+and clients. No other mods needed; the Concurrent Chunk Management Engine (C2ME) is recommended where there's a build
+for your version.*
