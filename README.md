@@ -5,7 +5,8 @@ mailbox in the world. One of twenty riders appears in a puff of smoke, takes the
 rides it there, across country, around ravines, over lakes by ferry barge, camping out under canvas at night.
 Usually it arrives. Sometimes the riders don't make it, and you'll have to go and find what's left.
 
-For Minecraft 1.21.1 with NeoForge 21.1. Needed on both the server and every client; it doesn't need any other mods.
+For Minecraft 1.21.1 with NeoForge 21.1 (and for Minecraft 26.3, a separate download from the `main` branch: the jar's
+name says which). Needed on both the server and every client; it doesn't need any other mods.
 
 ## Mailboxes
 

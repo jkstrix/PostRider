@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0
+
+- Post Rider now also runs on Minecraft 26.3, as a separate download; this is the same release for Minecraft 1.21.1.
+- Fixed: a rider could plan his trip from ground as it was up to ten minutes earlier, riding off for a way round a
+  lake that had since been dug, or missing a bridge just built. The map he plans by now sees changes at once.
+
 ## 1.2.2
 
 - New: with Dailies installed, the mailbox, letters being read and letters being written show in its recordings,
