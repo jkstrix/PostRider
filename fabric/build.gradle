@@ -5,7 +5,8 @@ plugins {
 
 // Every run has a folder of its own under fabric/ (fabric/run, fabric/run-watch, fabric/run-headless...), so the Fabric
 // and NeoForge builds never share a world. Worlds to copy from are still the NeoForge client's, in the top-level run/saves
-def runDir = { String name -> file(name) }
+// (Not named runDir: inside loom.runs that name would call this, not each run's own runDir setting)
+def runFolder = { String name -> file(name) }
 def clientSaves = { String world -> rootProject.file("run/saves/${world}") }
 
 repositories {
@@ -132,7 +133,7 @@ loom {
 // server run agrees to it in its folder, as the headless run does
 tasks.matching { it.name == 'runServer' }.configureEach {
     doFirst {
-        def eula = runDir('run/eula.txt')
+        def eula = runFolder('run/eula.txt')
         eula.parentFile.mkdirs()
         if (!eula.exists())
             eula.text = "eula=true\n"
@@ -142,7 +143,7 @@ tasks.matching { it.name == 'runServer' }.configureEach {
 // Each run of the in-world tests starts from a fresh world, so nothing is left over from the last
 tasks.matching { it.name == 'runGameTestServer' }.configureEach {
     doFirst {
-        delete runDir('run-gametest/world')
+        delete runFolder('run-gametest/world')
         // Fabric's test server is the dedicated server: it takes its world from server.properties (level-name=world)
         // and agrees to the EULA itself
     }
@@ -156,7 +157,7 @@ tasks.matching { it.name == 'runWatch' }.configureEach {
             def source = clientSaves(world)
             if (!source.isDirectory())
                 throw new GradleException("No world at ${source}: pass -Pworld=<name of a world in run/saves>, or -Pworld=new")
-            def target = runDir("run-watch/saves/${world}")
+            def target = runFolder("run-watch/saves/${world}")
             delete target
             copy {
                 from source
@@ -183,7 +184,7 @@ afterEvaluate {
 def runWorlds = ['runWatch': 'run-watch/saves', 'runHeadless': 'run-headless/world', 'runGameTestServer': 'run-gametest/world']
 runWorlds.each { task, worlds ->
     tasks.matching { it.name == task }.configureEach {
-        doFirst { delete runDir(worlds) }
+        doFirst { delete runFolder(worlds) }
     }
 }
 
@@ -191,7 +192,7 @@ runWorlds.each { task, worlds ->
 tasks.matching { it.name == 'runHeadless' }.configureEach {
     doFirst {
         def world = project.findProperty('world') ?: 'New World (1)'
-        def dir = runDir('run-headless')
+        def dir = runFolder('run-headless')
         dir.mkdirs()
         delete file("${dir}/world")
         def properties = ["level-name=world", "online-mode=false", "spawn-protection=0", "max-tick-time=-1", "view-distance=10", "simulation-distance=10"]
