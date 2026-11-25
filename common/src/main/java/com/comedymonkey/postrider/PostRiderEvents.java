@@ -4,6 +4,8 @@ import com.comedymonkey.postrider.command.PostRiderCommand;
 import com.comedymonkey.postrider.content.PostalBlockEvents;
 import com.comedymonkey.postrider.content.postman.RiderHunting;
 import com.comedymonkey.postrider.content.postman.route.PlanningBudget;
+import com.comedymonkey.postrider.parity.ParityGameTests;
+import com.comedymonkey.postrider.parity.ParityManifest;
 import com.comedymonkey.postrider.post.PostDispatcher;
 import com.comedymonkey.postrider.registry.ModTriggers;
 import com.mojang.brigadier.CommandDispatcher;
@@ -29,6 +31,7 @@ public final class PostRiderEvents {
 
 	/** When the mod is constructed, before registries are filled. */
 	public static void init() {
+		ParityGameTests.installReporterIfRequested();
 		headless = DevHeadless.wanted();
 	}
 
@@ -52,6 +55,7 @@ public final class PostRiderEvents {
 
 	/** Once the server has started and its levels are loaded. */
 	public static void serverStarted(MinecraftServer server) {
+		ParityManifest.dumpIfRequested(server);
 		if (headless)
 			DevHeadless.onStarted(server);
 	}

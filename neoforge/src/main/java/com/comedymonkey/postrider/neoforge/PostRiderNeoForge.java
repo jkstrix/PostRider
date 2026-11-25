@@ -6,6 +6,7 @@ import com.comedymonkey.postrider.PostRiderEvents;
 import com.comedymonkey.postrider.gametest.GameTests;
 import com.comedymonkey.postrider.network.ModPayloads;
 import com.comedymonkey.postrider.network.PacketContext;
+import com.comedymonkey.postrider.parity.ParityManifest;
 import com.comedymonkey.postrider.registry.ModEntities;
 import com.comedymonkey.postrider.registry.ModRegistries;
 import com.comedymonkey.postrider.registry.Registrar;
@@ -74,6 +75,7 @@ public class PostRiderNeoForge {
 	}
 
 	private static <T extends CustomPacketPayload> void register(PayloadRegistrar registrar, ModPayloads.Entry<T> entry) {
+		ParityManifest.recordPayload(entry.type().id(), entry.direction().name());
 		if (entry.direction() == ModPayloads.Direction.TO_CLIENT)
 			registrar.playToClient(entry.type(), entry.codec(), (payload, context) -> entry.handler().handle(payload, wrap(context)));
 		else

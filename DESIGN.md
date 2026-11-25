@@ -2,6 +2,14 @@
 
 Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All items are server-side vanilla-style items.
 
+## Mod loaders
+- Post Rider ships on NeoForge, Fabric and Forge, for every Minecraft version it supports, and behaves exactly the same on all three. NeoForge is the reference: the mod starts there, and the other two are checked against it.
+- One project with a module per loader: `common/` is the whole mod in plain Minecraft code (with the unit tests and game tests), and `neoforge/`, `fabric/` and `forge/` only connect their loader's events and registries to it. `parity/hooks.md` lists every such connection.
+- Fabric uses Forge Config API Port for the server config, so the file, keys and comments are the same as on NeoForge; Fabric players install it and Fabric API.
+- The Dailies compat is NeoForge only, as Dailies is a NeoForge mod.
+- Parity is checked by registry manifest, the unit tests and the game tests on each loader, and seeded trips (the game tests' trials, the frozen ocean seed postrider12, and the land seeds postrider, postrider2 and postrider3), with `loader-parity-check`. A loader build is only released after it passes.
+- Releases go to CurseForge only (one project, a file per loader); not to Modrinth until its AI policy changes.
+
 ## Workflow rules
 - Every model is built in Blockbench first (never hand-written JSON imported later) and approved before work continues.
 - Every feature ships with unit tests (`common/src/test/java`, run on every loader).
