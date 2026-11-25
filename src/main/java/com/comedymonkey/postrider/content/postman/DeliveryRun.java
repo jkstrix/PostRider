@@ -1386,7 +1386,7 @@ public class DeliveryRun {
 			Vec3 on = barge.position().add(new Vec3(target.x - barge.getX(), 0, target.z - barge.getZ()).normalize().scale(JUMP_MAX / 2));
 			Vec3 water = Crossing.launchSpotAround(on, (x, z) -> Crossing.surfaceIn(level, x, z, nearY));
 			double hop = water == null ? 0 : Journey.horizontalDistance(water, barge.position());
-			if (water != null && hop > 2 && hop <= JUMP_MAX) {
+			if (water != null && hop > 2 && withinJump(barge.position(), water)) {
 				logRoute(rider, stuck + "; on the water; the barge is pushed off to open water " + Math.round(hop) + " blocks on, at " + Navigator.spot(water));
 				jumps.add(new Jump(stage, why, BlockPos.containing(barge.position()), BlockPos.containing(water), false, "pushed off " + Math.round(hop) + " blocks"));
 				PostmanEffects.puff(level, barge);
@@ -1465,7 +1465,7 @@ public class DeliveryRun {
 	}
 
 	/** How far out he looks for somewhere to jump to, nearest first; the long jumps below only past all of these. */
-	public static final int[] JUMP_RADII = {2, 3, 4, 6, 8, 12, 16, 24};
+	public static final int[] JUMP_RADII = {2, 3, 4, 6, 8, 12, 16};
 	/** Places looked at by each search from a spot he might jump to. */
 	public static final int JUMP_PROBE_BUDGET = 4000;
 	/** Having followed a way found from about here once, he doesn't try that again from within this far. */
@@ -1520,6 +1520,8 @@ public class DeliveryRun {
 			for (int y = fromY + 3; y >= fromY - 6; y--) {
 				if (!LocalPlanner.stands(terrain, mounted, x, y, z))
 					continue;
+				if (!withinJump(body.position(), new Vec3(x + (mounted ? 1.0 : 0.5), y, z + (mounted ? 1.0 : 0.5))))
+					break;
 				Navigator.Probe probe = navigator.probe(level, x, y, z, mounted, rider.mayWhistle(), target, JUMP_PROBE_BUDGET);
 				Vec3 spot = new Vec3(x + (mounted ? 1.0 : 0.5), y, z + (mounted ? 1.0 : 0.5));
 				if (probe.found())
@@ -1541,8 +1543,16 @@ public class DeliveryRun {
 	 */
 	/** A spot to be jumped to is taken near his own level if there is one: a mountain top leads only to falls. */
 	public static final int JUMP_LEVEL = 8;
-	/** He's never jumped further than this: within the chunks that tick round him, and no great leap across the map. */
-	public static final double JUMP_MAX = 24;
+	/**
+	 * He's never jumped further than this, up and down included: within the chunks that tick round him, and no great
+	 * leap across the map. A spot further off isn't used; with none nearer, the attempt finds nowhere to jump to.
+	 */
+	public static final double JUMP_MAX = 16;
+
+	/** Whether a jump from one spot to another stays within {@link #JUMP_MAX}, counting the climb or the drop. */
+	public static boolean withinJump(Vec3 from, Vec3 to) {
+		return from.distanceTo(to) <= JUMP_MAX;
+	}
 	/** How many times a trip the way ahead is struck off the map and the route redone, before he's jumped instead. */
 	public static final int MAX_STRIKES = 24;
 	private int strikesOff;
@@ -1561,6 +1571,8 @@ public class DeliveryRun {
 			if (Hazards.isDangerous(level, feet))
 				continue;
 			Vec3 spot = new Vec3(column.getX() + 0.5, y, column.getZ() + 0.5);
+			if (!withinJump(from, spot))
+				continue;
 			if (Math.abs(y - from.y) <= JUMP_LEVEL)
 				return spot;
 			if (first == null)

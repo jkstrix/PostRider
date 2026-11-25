@@ -57,25 +57,62 @@ class JourneyTest {
 	}
 
 	@Test
-	void givesUpAfterFiveTriesInARow() {
+	void givesUpAfterThreeTriesWithinTwoMinutes() {
+		assertEquals(3, Journey.Progress.MAX_TRIES);
+		assertEquals(2 * 60 * 20, Journey.Progress.TRIES_WINDOW);
 		Journey.Progress progress = new Journey.Progress();
 		progress.isStuck(500, 0);
 		for (int i = 0; i < Journey.Progress.MAX_TRIES; i++) {
 			assertFalse(progress.outOfTries());
 			progress.unstuck(500, i * 1000L);
 		}
-		assertTrue(progress.outOfTries());
+		assertTrue(progress.outOfTries(), "three tries in 2000 ticks");
 	}
 
 	@Test
-	void realProgressStartsTheTriesAgain() {
+	void triesFurtherApartThanTwoMinutesDontAddUp() {
+		Journey.Progress progress = new Journey.Progress();
+		progress.isStuck(500, 0);
+		progress.unstuck(500, 0);
+		progress.unstuck(500, Journey.Progress.TRIES_WINDOW);
+		progress.unstuck(500, 2L * Journey.Progress.TRIES_WINDOW);
+		assertFalse(progress.outOfTries(), "each try came two minutes after the last");
+		assertEquals(1, progress.triesInARow(), "only the latest is close enough to count");
+		progress.unstuck(500, 2L * Journey.Progress.TRIES_WINDOW + 100);
+		progress.unstuck(500, 2L * Journey.Progress.TRIES_WINDOW + 200);
+		assertTrue(progress.outOfTries(), "then three within a few seconds");
+	}
+
+	@Test
+	void triesLongAgoDontCountWhenHesStuckAgain() {
+		Journey.Progress progress = new Journey.Progress();
+		progress.isStuck(500, 0);
+		progress.unstuck(500, 100);
+		progress.unstuck(500, 200);
+		progress.unstuck(500, 300);
+		assertTrue(progress.outOfTries(), "three in a few seconds");
+		Journey.Progress later = new Journey.Progress();
+		later.isStuck(500, 0);
+		later.unstuck(500, 100);
+		later.unstuck(500, 200);
+		// Ten minutes of good riding, then stuck again
+		later.isStuck(100, 200 + 10 * 60 * 20);
+		assertEquals(0, later.triesInARow(), "the two tries were ten minutes ago");
+		later.unstuck(100, 200 + 10 * 60 * 20);
+		assertFalse(later.outOfTries());
+	}
+
+	@Test
+	void gettingOnDoesntWipeOutRecentTries() {
 		Journey.Progress progress = new Journey.Progress();
 		progress.isStuck(500, 0);
 		progress.unstuck(500, 100);
 		progress.unstuck(500, 200);
 		assertEquals(2, progress.triesInARow());
 		progress.isStuck(400, 300);
-		assertEquals(0, progress.triesInARow());
+		assertEquals(2, progress.triesInARow(), "a hundred blocks on, the two tries are still recent");
+		progress.unstuck(400, 400);
+		assertTrue(progress.outOfTries(), "a third within two minutes, wherever it was");
 	}
 
 	@Test
@@ -155,8 +192,8 @@ class JourneyTest {
 		assertEquals(1, progress.triesInARow());
 		assertTrue(progress.isStuck(500, 2 * Journey.Progress.PATIENCE), "back where he was: no nearer than before");
 		assertEquals(1, progress.triesInARow(), "the try still counts");
-		progress.isStuck(495, 2 * Journey.Progress.PATIENCE + 1);
-		assertEquals(0, progress.triesInARow(), "past where he was stuck: that's getting on");
+		assertFalse(progress.isStuck(495, 2 * Journey.Progress.PATIENCE + 1), "past where he was stuck: that's getting on");
+		assertEquals(1, progress.triesInARow(), "but the try is still recent");
 	}
 
 	@Test
@@ -172,7 +209,7 @@ class JourneyTest {
 		progress.rebase(600, 1100);
 		assertFalse(progress.isStuck(590, 1101), "nearer along a route redone longer: not stuck");
 		progress.isStuck(580, 1102);
-		assertEquals(0, progress.triesInARow(), "and getting on past where he was stuck clears the tries");
+		assertEquals(1, progress.triesInARow(), "getting on doesn't clear a recent try");
 	}
 
 	@Test
