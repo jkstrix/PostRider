@@ -1,0 +1,230 @@
+plugins {
+    id 'multiloader-loader'
+    id 'net.fabricmc.fabric-loom'
+}
+
+// Every run has a folder of its own under fabric/ (fabric/run, fabric/run-watch, fabric/run-headless...), so the Fabric
+// and NeoForge builds never share a world. Worlds to copy from are still the NeoForge client's, in the top-level run/saves
+def runDir = { String name -> file(name) }
+def clientSaves = { String world -> rootProject.file("run/saves/${world}") }
+
+repositories {
+    // Forge Config API Port (https://github.com/Fuzss/forge-config-api-port): its README names this Maven
+    exclusiveContent {
+        forRepository {
+            maven { name = 'Fuzs'; url = 'https://raw.githubusercontent.com/Fuzss/modresources/main/maven/' }
+        }
+        filter { includeGroup 'fuzs.forgeconfigapiport' }
+    }
+}
+
+dependencies {
+    minecraft("com.mojang:minecraft:${minecraft_version}")
+    implementation("net.fabricmc:fabric-loader:${fabric_loader_version}")
+    implementation("net.fabricmc.fabric-api:fabric-api:${fabric_api_version}")
+    // NeoForge's config system on Fabric, so the config file (config/postrider-server.toml) is the same as on NeoForge.
+    // Players install it alongside the mod (fabric.mod.json requires it)
+    implementation("fuzs.forgeconfigapiport:forgeconfigapiport-fabric:${forge_config_api_port_version}")
+
+    // Unit tests run inside Fabric Loader (mixins and the class tweaker applied); FabricTestBootstrap then starts the
+    // game's registries and registers the mod, as NeoForge's unitTest does
+    testImplementation("net.fabricmc:fabric-loader-junit:${fabric_loader_version}")
+
+    // Post Rider is standalone, and every run is the mod alone unless asked otherwise. To check it alongside the mods
+    // that change how chunks are loaded under the riders, add -Pc2me (the Concurrent Chunk Management Engine, Fabric
+    // build) and/or -Pdh (Distant Horizons: one jar for Fabric and NeoForge) to any run. Neither is compiled against.
+    if (project.hasProperty('c2me'))
+        runtimeOnly 'maven.modrinth:c2me-fabric:0.4.2-alpha.0.124+26.3'
+    if (project.hasProperty('dh'))
+        runtimeOnly 'maven.modrinth:distanthorizons:3.3.4-26.3'
+}
+
+// The access transformer is NeoForge's (postrider.classtweaker does its job here), so it stays out of the Fabric jar
+processResources {
+    exclude 'META-INF/accesstransformer.cfg'
+}
+
+tasks.named('test', Test) {
+    // FabricTestBootstrap is found through META-INF/services (JUnit's extension auto-detection) and starts the game
+    // before the first test class runs
+    systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
+}
+
+loom {
+    // The common access transformer's entries, in Fabric's format
+    accessWidenerPath = file('src/main/resources/postrider.classtweaker')
+
+    runs {
+        client {
+            client()
+            runDir 'run'
+            // The in-world tests can be watched from a creative world: /test run postrider:<name>, or /test runall
+            // (registered in every development run, as NeoForge registers them in its development runs)
+        }
+        server {
+            server()
+            runDir 'run'
+            programArg '--nogui'
+        }
+        // Opens a flat creative world of its own and runs the in-world tests in front of the player, to be watched:
+        // all of them, or one with -Ptests=<name> (./gradlew :fabric:runWatch -Ptests=heopensthedoorsonhiswayandleavesthemashefoundthem)
+        watch {
+            client()
+            runDir 'run-watch'
+            property 'postrider.trace', 'true'
+            property 'postrider.watch', (project.findProperty('tests') ?: 'all').toString()
+            // Or a trip across a real world: ./gradlew :fabric:runWatch -Pworld="New World (1)" -Pfrom=Testing -Pto=Smelly, or
+            // -Pworld=new -Pseed=<seed> (-Pfrom=spawn -Pto=random:3000 unless said otherwise), as the headless run takes them
+            property 'postrider.watchWorld', project.findProperty('world')
+                ? "${project.findProperty('world')}|${project.findProperty('from') ?: 'spawn'}|${project.findProperty('to') ?: 'random:3000'}".toString() : ''
+            property 'postrider.watchSeed', (project.findProperty('seed') ?: '').toString()
+        }
+        // A headless trip across one of the client's worlds (run/saves/<world> at the top of the project, copied to
+        // fabric/run-headless/world): the server starts on it, posts a parcel from one box to the other, logs the rider's
+        // progress, and stops once it's delivered or lost. ./gradlew :fabric:runHeadless -Pworld="New World (1)" -Pfrom=Testing -Pto=Smelly
+        headless {
+            server()
+            runDir 'run-headless'
+            programArg '--nogui'
+            property 'postrider.post', "${project.findProperty('from') ?: 'Testing'}|${project.findProperty('to') ?: 'Smelly'}".toString()
+            property 'postrider.sprint', "${project.findProperty('sprint') ?: 'true'}".toString()
+            // (An hour of game time: a 3,000-block trip is a day's riding, and a night camped on the way is no failure)
+            property 'postrider.timeout', "${project.findProperty('timeout') ?: '60'}".toString()
+            property 'postrider.trace', 'true'
+            property 'postrider.traceAll', 'true'
+        }
+        // Opens the screens with awkward contents, saves screenshots to fabric/run-screenshots/screenshots/postrider, and quits
+        screenshots {
+            client()
+            runDir 'run-screenshots'
+            property 'postrider.screenshots', 'true'
+        }
+        // The in-world tests (common/src/main/java/.../gametest): ./gradlew :fabric:runGameTestServer runs them all and
+        // exits, failing if any do, in a world of its own (fabric/run-gametest/world). Fabric API's game test module runs
+        // them on a dedicated server started with -Dfabric-api.gametest, taking the selector from
+        // -Dfabric-api.gametest.filter (NeoForge's --tests)
+        // Just some of them with -Ptests=<selector> (postrider:heclimbs*, say), and each rider traced the whole way, not
+        // only when stuck, with -PtraceAll
+        gameTestServer {
+            server()
+            runDir 'run-gametest'
+            property 'fabric-api.gametest', 'true'
+            property 'fabric-api.gametest.filter', (project.findProperty('tests') ?: "${mod_id}:*").toString()
+            property 'postrider.trace', 'true'
+            if (project.hasProperty('traceAll'))
+                property 'postrider.traceAll', 'true'
+        }
+        configureEach {
+            // (NeoForge's forge.logging.markers=REGISTRIES has no Fabric counterpart; Fabric logs at INFO already)
+            // Loader parity checks: -Pparity.manifest=<file> writes the registry manifest once the server has started,
+            // -Pparity.gametest.report=<file> the game test results as a JUnit report (paths from the project's top).
+            // (The report is Post Rider's own; Fabric API's fabric-api.gametest.report-file is left unset, so it doesn't
+            // replace it)
+            ['parity.manifest', 'parity.gametest.report'].each { key ->
+                if (project.hasProperty(key))
+                    property key, rootProject.file(project.property(key)).absolutePath
+            }
+        }
+    }
+}
+
+// NeoForge's development server takes the EULA as agreed (it runs as "in the IDE"); Fabric's doesn't, so the plain
+// server run agrees to it in its folder, as the headless run does
+tasks.matching { it.name == 'runServer' }.configureEach {
+    doFirst {
+        def eula = runDir('run/eula.txt')
+        eula.parentFile.mkdirs()
+        if (!eula.exists())
+            eula.text = "eula=true\n"
+    }
+}
+
+// Each run of the in-world tests starts from a fresh world, so nothing is left over from the last
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doFirst {
+        delete runDir('run-gametest/world')
+        // Fabric's test server is the dedicated server: it takes its world from server.properties (level-name=world)
+        // and agrees to the EULA itself
+    }
+}
+
+// A watched trip across one of the client's worlds runs on a fresh copy of it, so the client's own save is never touched
+tasks.matching { it.name == 'runWatch' }.configureEach {
+    doFirst {
+        def world = project.findProperty('world')
+        if (world && world != 'new') {
+            def source = clientSaves(world)
+            if (!source.isDirectory())
+                throw new GradleException("No world at ${source}: pass -Pworld=<name of a world in run/saves>, or -Pworld=new")
+            def target = runDir("run-watch/saves/${world}")
+            delete target
+            copy {
+                from source
+                into target
+            }
+        }
+    }
+}
+
+// Distant Horizons crashes the game-test server at startup on NeoForge (it takes any server that isn't a client for a
+// dedicated one), so, as there, its jar is kept off that run's classpath and it never loads there
+// (Loom's run task keeps its classpath in a file collection of its own, so it's refiltered from that collection's
+// sources: the same sources, less this jar.)
+afterEvaluate {
+    tasks.named('runGameTestServer', JavaExec) {
+        def sources = new ArrayList((classpath as ConfigurableFileCollection).from)
+        classpath = files(sources).filter { !it.name.startsWith('distanthorizons') && !it.name.startsWith('DistantHorizons') }
+    }
+}
+
+// The world a run made is deleted when the next run of that kind starts: they're hundreds of megabytes each, and
+// nothing is ever started on an old one (a watched or headless trip makes its world afresh), but the last one is kept
+// until then so a trip that went wrong can be looked at (copy it into run/saves to keep it longer)
+def runWorlds = ['runWatch': 'run-watch/saves', 'runHeadless': 'run-headless/world', 'runGameTestServer': 'run-gametest/world']
+runWorlds.each { task, worlds ->
+    tasks.matching { it.name == task }.configureEach {
+        doFirst { delete runDir(worlds) }
+    }
+}
+
+// The headless trip runs on a fresh copy of the chosen client world, so the client's own save is never touched
+tasks.matching { it.name == 'runHeadless' }.configureEach {
+    doFirst {
+        def world = project.findProperty('world') ?: 'New World (1)'
+        def dir = runDir('run-headless')
+        dir.mkdirs()
+        delete file("${dir}/world")
+        def properties = ["level-name=world", "online-mode=false", "spawn-protection=0", "max-tick-time=-1", "view-distance=10", "simulation-distance=10"]
+        if (world == 'new') {
+            // A fresh, ordinary world is generated by the server itself: -Pseed=<seed> for the same one again
+            properties += "level-type=minecraft\\:normal"
+            if (project.findProperty('seed'))
+                properties += "level-seed=${project.findProperty('seed')}"
+        } else {
+            def source = clientSaves(world)
+            if (!source.isDirectory())
+                throw new GradleException("No world at ${source}: pass -Pworld=<name of a world in run/saves>, or -Pworld=new")
+            copy {
+                from source
+                into file("${dir}/world")
+            }
+        }
+        file("${dir}/eula.txt").text = "eula=true\n"
+        file("${dir}/server.properties").text = properties.join("\n") + "\n"
+    }
+}
+
+// Implement the mcgradleconventions loader attribute, so common is seen as this loader's own code
+def loaderAttribute = Attribute.of('io.github.mcgradleconventions.loader', String)
+['apiElements', 'runtimeElements', 'sourcesElements', 'javadocElements', 'includeInternal', 'modCompileClasspath'].each { variant ->
+    configurations.matching { it.name == variant }.configureEach {
+        attributes { attribute(loaderAttribute, 'fabric') }
+    }
+}
+sourceSets.configureEach {
+    [it.compileClasspathConfigurationName, it.runtimeClasspathConfigurationName].each { variant ->
+        configurations.named(variant) {
+            attributes { attribute(loaderAttribute, 'fabric') }
+        }
+    }
+}

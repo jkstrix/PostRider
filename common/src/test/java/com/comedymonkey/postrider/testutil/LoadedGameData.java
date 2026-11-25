@@ -27,7 +27,8 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * way a server does (WorldLoader): the tags of the game's own registries, the world's data-driven registries with
  * theirs, and then the item components, bound against all of that. A test class that makes items or reads tags asks
  * for it with {@code @ExtendWith(LoadedGameData.class)}. (JUnit can't pick it up for every class by itself: its
- * service lookup runs outside the game's class loader.)
+ * service lookup runs outside the game's class loader.) It uses vanilla's RegistryDataLoader.load, so it works on every
+ * loader (NeoForge's own overload only adds load conditions, which vanilla's data has none of).
  */
 public final class LoadedGameData implements BeforeAllCallback {
 	private static boolean loaded;
@@ -44,7 +45,7 @@ public final class LoadedGameData implements BeforeAllCallback {
 		LayeredRegistryAccess<RegistryLayer> layers = RegistryLayer.createRegistryAccess();
 		List<Registry.PendingTags<?>> staticTags = TagLoader.loadTagsForExistingRegistries(vanilla, layers.getLayer(RegistryLayer.STATIC));
 		List<HolderLookup.RegistryLookup<?>> context = TagLoader.buildUpdatedLookups(layers.getAccessForLoading(RegistryLayer.WORLD), staticTags);
-		RegistryAccess.Frozen world = RegistryDataLoader.load(vanilla, context, RegistryDataLoader.WORLD_REGISTRIES, Runnable::run, staticTags).join();
+		RegistryAccess.Frozen world = RegistryDataLoader.load(vanilla, context, RegistryDataLoader.WORLD_REGISTRIES, Runnable::run).join();
 		List<Registry.PendingTags<?>> worldTags = TagLoader.loadTagsForExistingRegistries(vanilla, world);
 		HolderLookup.Provider registries = HolderLookup.Provider.create(Stream.concat(context.stream(), TagLoader.buildUpdatedLookups(world, worldTags).stream()));
 		staticTags.forEach(Registry.PendingTags::apply);

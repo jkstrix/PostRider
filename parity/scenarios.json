@@ -4,7 +4,9 @@
       "name": "trials",
       "run": "./gradlew :{loader}:runGameTestServer --console=plain",
       "events": "Trial [^:]+: ",
-      "strip": ["^\\[[^\\]]*\\] \\[[^\\]]*\\] \\[[^\\]]*\\]: "],
+      "strip": [
+        "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
+      ],
       "compare": "outcome",
       "outcome": "Trial [^:]+: \\w+",
       "timeout_minutes": 20
@@ -13,7 +15,9 @@
       "name": "frozen-ocean",
       "run": "./gradlew :{loader}:runHeadless -Pworld=new -Pseed=postrider12 -Pfrom=spawn -Pto=at:1969,1794 --console=plain",
       "events": "trace:|: DELIVERING|the delivery is lost|giving up after|stuck at",
-      "strip": ["^\\[[^\\]]*\\] \\[[^\\]]*\\] \\[[^\\]]*\\]: "],
+      "strip": [
+        "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
+      ],
       "compare": "exact",
       "outcome": ": DELIVERING|the delivery is lost|giving up after",
       "timeout_minutes": 90
@@ -22,7 +26,9 @@
       "name": "land-postrider",
       "run": "./gradlew :{loader}:runHeadless -Pworld=new -Pseed=postrider -Pfrom=spawn -Pto=at:-2987,319 --console=plain",
       "events": "trace:|: DELIVERING|the delivery is lost|giving up after|stuck at",
-      "strip": ["^\\[[^\\]]*\\] \\[[^\\]]*\\] \\[[^\\]]*\\]: "],
+      "strip": [
+        "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
+      ],
       "compare": "exact",
       "outcome": ": DELIVERING|the delivery is lost|giving up after",
       "timeout_minutes": 90
@@ -31,7 +37,9 @@
       "name": "river-postrider2",
       "run": "./gradlew :{loader}:runHeadless -Pworld=new -Pseed=postrider2 -Pfrom=spawn -Pto=at:-616,-2936 --console=plain",
       "events": "trace:|: DELIVERING|the delivery is lost|giving up after|stuck at",
-      "strip": ["^\\[[^\\]]*\\] \\[[^\\]]*\\] \\[[^\\]]*\\]: "],
+      "strip": [
+        "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
+      ],
       "compare": "exact",
       "outcome": ": DELIVERING|the delivery is lost|giving up after",
       "timeout_minutes": 90
@@ -40,7 +48,9 @@
       "name": "lake-postrider3",
       "run": "./gradlew :{loader}:runHeadless -Pworld=new -Pseed=postrider3 -Pfrom=spawn -Pto=at:-2560,-1563 --console=plain",
       "events": "trace:|: DELIVERING|the delivery is lost|giving up after|stuck at",
-      "strip": ["^\\[[^\\]]*\\] \\[[^\\]]*\\] \\[[^\\]]*\\]: "],
+      "strip": [
+        "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
+      ],
       "compare": "exact",
       "outcome": ": DELIVERING|the delivery is lost|giving up after",
       "timeout_minutes": 90

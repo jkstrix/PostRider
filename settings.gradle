@@ -21,3 +21,4 @@ includeBuild('build-logic')
 // The mod itself, free of any mod loader, and one module per loader that it's built for
 include('common')
 include('neoforge')
+include('fabric')

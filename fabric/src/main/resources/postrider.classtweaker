@@ -1,0 +1,8 @@
+classTweaker v1 official
+# The common access transformer (common/src/main/resources/META-INF/accesstransformer.cfg), for Fabric
+# Each rider's horse always has the same coat and markings
+accessible method net/minecraft/world/entity/animal/equine/Horse setVariantAndMarkings (Lnet/minecraft/world/entity/animal/equine/Variant;Lnet/minecraft/world/entity/animal/equine/Markings;)V
+# Monsters are taught to hunt riders as they hunt players (RiderHunting)
+accessible field net/minecraft/world/entity/Mob targetSelector Lnet/minecraft/world/entity/ai/goal/GoalSelector;
+# The creative tab lists its items from outside the tab (ModCreativeTabs)
+accessible class net/minecraft/world/item/CreativeModeTab$Output
