@@ -30,3 +30,7 @@ repo/
 
 # built jars copied out for release
 release/
+
+# loader parity checks: generated output and reports
+parity/out/
+parity/report.*

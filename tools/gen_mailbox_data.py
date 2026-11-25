@@ -1,6 +1,6 @@
 """Writes the mailbox loot tables, recipes and tags into the mod's data folder.
 
-Usage: gen_mailbox_data.py src/main/resources   (run from the repository root)
+Usage: gen_mailbox_data.py common/src/main/resources   (run from the repository root)
 Only the lower half drops the mailbox, as with vanilla doors: survives_explosion on the pool, match_block on the entry.
 """
 import json

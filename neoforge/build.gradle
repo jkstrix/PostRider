@@ -1,0 +1,200 @@
+plugins {
+    id 'multiloader-loader'
+    id 'net.neoforged.moddev'
+}
+
+// The run folders stay where they were before the mod had loader modules (run, run-watch, run-headless...), at the top
+// of the project, so worlds, saves and logs are where they always were
+def runDir = { String name -> rootProject.file(name) }
+
+neoForge {
+    version = project.neo_version
+    def at = project(':common').file('src/main/resources/META-INF/accesstransformer.cfg')
+    if (at.exists())
+        accessTransformers.from(at.absolutePath)
+
+    runs {
+        client {
+            client()
+            gameDirectory = runDir('run')
+            // The in-world tests can be watched from a creative world: /test run postrider:<name>, or /test runall
+            systemProperty 'neoforge.enableGameTest', 'true'
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        }
+        server {
+            server()
+            gameDirectory = runDir('run')
+            programArgument '--nogui'
+        }
+        // Opens a flat creative world of its own and runs the in-world tests in front of the player, to be watched:
+        // all of them, or one with -Ptests=<name> (./gradlew :neoforge:runWatch -Ptests=heopensthedoorsonhiswayandleavesthemashefoundthem)
+        watch {
+            client()
+            gameDirectory = runDir('run-watch')
+            systemProperty 'neoforge.enableGameTest', 'true'
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            systemProperty 'postrider.trace', 'true'
+            systemProperty 'postrider.watch', project.findProperty('tests') ?: 'all'
+            // Or a trip across a real world: ./gradlew :neoforge:runWatch -Pworld="New World (1)" -Pfrom=Testing -Pto=Smelly, or
+            // -Pworld=new -Pseed=<seed> (-Pfrom=spawn -Pto=random:3000 unless said otherwise), as the headless run takes them
+            systemProperty 'postrider.watchWorld', project.findProperty('world')
+                ? "${project.findProperty('world')}|${project.findProperty('from') ?: 'spawn'}|${project.findProperty('to') ?: 'random:3000'}" : ''
+            systemProperty 'postrider.watchSeed', project.findProperty('seed') ?: ''
+        }
+        // A headless trip across one of the client's worlds (run/saves/<world>, copied to run-headless/world): the server
+        // starts on it, posts a parcel from one box to the other, logs the rider's progress, and stops once it's delivered
+        // or lost. ./gradlew :neoforge:runHeadless -Pworld="New World (1)" -Pfrom=Testing -Pto=Smelly
+        headless {
+            server()
+            gameDirectory = runDir('run-headless')
+            programArgument '--nogui'
+            systemProperty 'postrider.post', "${project.findProperty('from') ?: 'Testing'}|${project.findProperty('to') ?: 'Smelly'}"
+            systemProperty 'postrider.sprint', "${project.findProperty('sprint') ?: 'true'}"
+            // (An hour of game time: a 3,000-block trip is a day's riding, and a night camped on the way is no failure)
+            systemProperty 'postrider.timeout', "${project.findProperty('timeout') ?: '60'}"
+            systemProperty 'postrider.trace', 'true'
+            systemProperty 'postrider.traceAll', 'true'
+        }
+        // Opens the screens with awkward contents, saves screenshots to run-screenshots/screenshots/postrider, and quits
+        screenshots {
+            client()
+            gameDirectory = runDir('run-screenshots')
+            systemProperty 'postrider.screenshots', 'true'
+        }
+        // The in-world tests (common/src/main/java/.../gametest): ./gradlew :neoforge:runGameTestServer runs them all and
+        // exits, failing if any do, in a world of its own
+        // Just some of them with -Ptests=<selector> (postrider:heclimbs*, say), and each rider traced the whole way, not
+        // only when stuck, with -PtraceAll
+        gameTestServer {
+            type = "gameTestServer"
+            gameDirectory = runDir('run-gametest')
+            programArguments.addAll '--tests', (project.findProperty('tests') ?: "${mod_id}:*").toString()
+            systemProperty 'postrider.trace', 'true'
+            if (project.hasProperty('traceAll'))
+                systemProperty 'postrider.traceAll', 'true'
+        }
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.INFO
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+
+    // Unit tests run inside a bootstrapped FML (registries, items and blocks are available)
+    unitTest {
+        enable()
+        testedMod = mods."${mod_id}"
+    }
+}
+
+// The version of Dailies' API jar in libs/
+def dailiesApiVersion = '26.3-1.2.0'
+
+dependencies {
+    // Post Rider is standalone, and every run is the mod alone unless asked otherwise. To check it alongside the mods
+    // that change how chunks are loaded under the riders, add -Pc2me (the Concurrent Chunk Management Engine, which
+    // players are recommended to run with it) and/or -Pdh (Distant Horizons) to any run. Neither is compiled against.
+    // (A mod has to be on the ordinary runtime classpath to be found: a run's additionalRuntimeClasspath is taken
+    // for libraries, and a mod put there never loads.) Distant Horizons is kept out of the in-world tests' run below
+    if (project.hasProperty('c2me'))
+        runtimeOnly 'maven.modrinth:c2me-neoforge:0.4.2-alpha.0.110+26.3'
+    if (project.hasProperty('dh'))
+        runtimeOnly 'maven.modrinth:distanthorizons:3.3.4-26.3'
+    // Dailies' compat API, so the mailbox and letters are drawn in Dailies' recordings (client/dailies, NeoForge only, as
+    // Dailies is a NeoForge mod). Only compiled against, from a copy of Dailies' API jar (its gradlew apiJar) kept in
+    // libs/, so it builds anywhere and is never packed in: Post Rider runs without Dailies, and touches the hooks only
+    // when Dailies is loaded
+    compileOnly rootProject.files("libs/dailies-api-${dailiesApiVersion}.jar")
+    testCompileOnly rootProject.files("libs/dailies-api-${dailiesApiVersion}.jar")
+}
+
+// Each run of the in-world tests starts from a fresh world, so nothing is left over from the last
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doFirst { delete runDir('run-gametest/world') }
+}
+
+// A watched trip across one of the client's worlds runs on a fresh copy of it, so the client's own save is never touched
+tasks.matching { it.name == 'runWatch' }.configureEach {
+    doFirst {
+        def world = project.findProperty('world')
+        if (world && world != 'new') {
+            def source = runDir("run/saves/${world}")
+            if (!source.isDirectory())
+                throw new GradleException("No world at ${source}: pass -Pworld=<name of a world in run/saves>, or -Pworld=new")
+            def target = runDir("run-watch/saves/${world}")
+            delete target
+            copy {
+                from source
+                into target
+            }
+        }
+    }
+}
+
+// Distant Horizons crashes the game-test server at startup (it takes any server that isn't a client for a dedicated
+// one, and the game-test server is neither), so its jar is taken off that run's classpath, and it never loads there
+// (The run task launches from its classpathProvider, not the JavaExec classpath, and that is final by the time the
+// task runs, so it's refiltered once the plugin has set it up: the same sources, less this jar.)
+afterEvaluate {
+    tasks.named('runGameTestServer') {
+        def sources = new ArrayList(classpathProvider.from)
+        classpathProvider.setFrom(files(sources).filter { !it.name.startsWith('distanthorizons') })
+    }
+}
+
+// The world a run made is deleted when the next run of that kind starts: they're hundreds of megabytes each, and
+// nothing is ever started on an old one (a watched or headless trip makes its world afresh), but the last one is kept
+// until then so a trip that went wrong can be looked at (copy it into run/saves to keep it longer)
+def runWorlds = ['runWatch': 'run-watch/saves', 'runHeadless': 'run-headless/world', 'runGameTestServer': 'run-gametest/world']
+runWorlds.each { task, worlds ->
+    tasks.matching { it.name == task }.configureEach {
+        doFirst { delete runDir(worlds) }
+    }
+}
+
+// The headless trip runs on a fresh copy of the chosen client world, so the client's own save is never touched
+tasks.matching { it.name == 'runHeadless' }.configureEach {
+    doFirst {
+        def world = project.findProperty('world') ?: 'New World (1)'
+        def dir = runDir('run-headless')
+        dir.mkdirs()
+        delete file("${dir}/world")
+        def properties = ["level-name=world", "online-mode=false", "spawn-protection=0", "max-tick-time=-1", "view-distance=10", "simulation-distance=10"]
+        if (world == 'new') {
+            // A fresh, ordinary world is generated by the server itself: -Pseed=<seed> for the same one again
+            properties += "level-type=minecraft\\:normal"
+            if (project.findProperty('seed'))
+                properties += "level-seed=${project.findProperty('seed')}"
+        } else {
+            def source = runDir("run/saves/${world}")
+            if (!source.isDirectory())
+                throw new GradleException("No world at ${source}: pass -Pworld=<name of a world in run/saves>, or -Pworld=new")
+            copy {
+                from source
+                into file("${dir}/world")
+            }
+        }
+        file("${dir}/eula.txt").text = "eula=true\n"
+        file("${dir}/server.properties").text = properties.join("\n") + "\n"
+    }
+}
+
+// Implement the mcgradleconventions loader attribute, so common is seen as this loader's own code
+def loaderAttribute = Attribute.of('io.github.mcgradleconventions.loader', String)
+['apiElements', 'runtimeElements'].each { variant ->
+    configurations.named(variant) {
+        attributes { attribute(loaderAttribute, 'neoforge') }
+    }
+}
+sourceSets.configureEach {
+    [it.compileClasspathConfigurationName, it.runtimeClasspathConfigurationName].each { variant ->
+        configurations.named(variant) {
+            attributes { attribute(loaderAttribute, 'neoforge') }
+        }
+    }
+}

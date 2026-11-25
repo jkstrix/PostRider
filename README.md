@@ -172,7 +172,7 @@ published by running the Publish workflow from Actions on `main` with the tag. T
 run it the same way and turn on the dry run.
 
 The CurseForge project is under comedymonkey, created once using [docs/listing.md](docs/listing.md) and
-`src/main/resources/postrider_logo.png`. Publishing needs the repository variable `CURSEFORGE_PROJECT_ID` and the
+`common/src/main/resources/postrider_logo.png`. Publishing needs the repository variable `CURSEFORGE_PROJECT_ID` and the
 secret `CURSEFORGE_TOKEN` (the author API token from the CurseForge account page).
 
 ## Credits

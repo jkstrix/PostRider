@@ -1,0 +1,51 @@
+// Shared by every module: Java version, jar names, and the mod's details filled into each loader's metadata file
+plugins {
+    id 'java-library'
+    id 'idea'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    // postrider-neoforge-26.3-1.3.0.jar: the loader is in the name, which the publish workflow reads
+    archivesName = "${mod_id}-${project.name}-${minecraft_version}"
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(java_version)
+
+repositories {
+    exclusiveContent {
+        forRepository {
+            maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' }
+        }
+        filter { includeGroup 'maven.modrinth' }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+processResources {
+    // Every property a loader's metadata file may name; a loader's own versions are blank until it exists
+    def names = ['mod_id', 'mod_name', 'mod_license', 'mod_version', 'mod_authors', 'mod_description', 'minecraft_version',
+                 'minecraft_version_range', 'neo_version_range', 'fabric_loader_version', 'fabric_api_version',
+                 'forge_version_range', 'forge_loader_version_range', 'java_version']
+    def expandProps = names.collectEntries { [(it): project.findProperty(it) ?: ''] }
+    def jsonExpandProps = expandProps.collectEntries { key, value -> [(key): value instanceof String ? value.replace('\n', '\\n') : value] }
+    inputs.properties(expandProps)
+    filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
+        expand expandProps
+    }
+    filesMatching(['fabric.mod.json']) {
+        expand jsonExpandProps
+    }
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}
