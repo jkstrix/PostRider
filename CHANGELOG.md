@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0
+
+- Fixed: since 1.2.1 a rider setting out on a long trip into land nobody had explored often set off before his route
+  was worked out and got lost on the way (on the frozen-ocean test seed he delivered one trip in three, against every
+  trip before 1.2.1). The unexplored land is now surveyed several times faster, in the server's spare time, so his
+  route is planned before he goes, and the server still never stalls for it.
+
 ## 1.3.1
 
 - A stuck rider is never teleported more than 16 blocks to get him going again (it was up to 24, and any distance
