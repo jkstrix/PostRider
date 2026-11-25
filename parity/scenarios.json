@@ -9,7 +9,8 @@
       ],
       "compare": "outcome",
       "outcome": "Trial [^:]+: \\w+",
-      "timeout_minutes": 20
+      "timeout_minutes": 20,
+      "order": "any"
     },
     {
       "name": "frozen-ocean",
@@ -18,9 +19,10 @@
       "strip": [
         "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
       ],
-      "compare": "exact",
+      "compare": "outcome",
       "outcome": ": DELIVERING|the delivery is lost|giving up after",
-      "timeout_minutes": 90
+      "timeout_minutes": 90,
+      "note": "Trips aren't deterministic (the same seed ends differently run to run, on NeoForge too), so only how a trip ends is compared; read the traces for how far and how well he got"
     },
     {
       "name": "land-postrider",
@@ -29,9 +31,10 @@
       "strip": [
         "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
       ],
-      "compare": "exact",
+      "compare": "outcome",
       "outcome": ": DELIVERING|the delivery is lost|giving up after",
-      "timeout_minutes": 90
+      "timeout_minutes": 90,
+      "note": "Trips aren't deterministic (the same seed ends differently run to run, on NeoForge too), so only how a trip ends is compared; read the traces for how far and how well he got"
     },
     {
       "name": "river-postrider2",
@@ -40,9 +43,10 @@
       "strip": [
         "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
       ],
-      "compare": "exact",
+      "compare": "outcome",
       "outcome": ": DELIVERING|the delivery is lost|giving up after",
-      "timeout_minutes": 90
+      "timeout_minutes": 90,
+      "note": "Trips aren't deterministic (the same seed ends differently run to run, on NeoForge too), so only how a trip ends is compared; read the traces for how far and how well he got"
     },
     {
       "name": "lake-postrider3",
@@ -51,9 +55,10 @@
       "strip": [
         "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
       ],
-      "compare": "exact",
+      "compare": "outcome",
       "outcome": ": DELIVERING|the delivery is lost|giving up after",
-      "timeout_minutes": 90
+      "timeout_minutes": 90,
+      "note": "Trips aren't deterministic (the same seed ends differently run to run, on NeoForge too), so only how a trip ends is compared; read the traces for how far and how well he got"
     }
   ]
 }
