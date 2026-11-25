@@ -148,4 +148,48 @@ class TerrainSurveyTest {
 		assertFalse(cells[1].ice());
 		assertFalse(TerrainSurvey.cellsOfChunk(floors, tops, MIN_Y)[0].ice(), "no ice flagged: no ice");
 	}
+
+	private static final long MS = 1_000_000;
+	private static final long TICK = 50 * MS;
+
+	@Test
+	void anIdleServerLetsTheSurveyUseItsSpareTimeUpToTheMost() {
+		assertEquals(TerrainSurvey.ESTIMATE_NANOS_MAX, TerrainSurvey.estimateBudget(TICK, 5 * MS, 0), "45 ms spare: as much as it may take");
+		assertEquals(15 * MS, TerrainSurvey.estimateBudget(TICK, 30 * MS, 0), "20 ms spare, a quarter kept free");
+	}
+
+	@Test
+	void aBusyServerKeepsTheSurveyToTheLeast() {
+		assertEquals(TerrainSurvey.ESTIMATE_NANOS_PER_TICK, TerrainSurvey.estimateBudget(TICK, 45 * MS, 0));
+		assertEquals(TerrainSurvey.ESTIMATE_NANOS_PER_TICK, TerrainSurvey.estimateBudget(TICK, 80 * MS, 0), "a server running behind: still the least, so a trip gets planned");
+	}
+
+	@Test
+	void theSurveysOwnTimeIsntTakenForTheServerBeingBusy() {
+		// The server's ticks average 25 ms, 20 of them the survey's own: the world takes 5
+		assertEquals(TerrainSurvey.estimateBudget(TICK, 5 * MS, 0), TerrainSurvey.estimateBudget(TICK, 25 * MS, 20 * MS));
+		assertEquals(TerrainSurvey.ESTIMATE_NANOS_MAX, TerrainSurvey.estimateBudget(TICK, 25 * MS, 20 * MS));
+	}
+
+	@Test
+	void aFasterTickRateLeavesLessSpare() {
+		assertEquals(TerrainSurvey.ESTIMATE_NANOS_PER_TICK, TerrainSurvey.estimateBudget(10 * MS, 5 * MS, 0), "ticks of 10 ms with 5 used: the least");
+		assertTrue(TerrainSurvey.ESTIMATE_NANOS_MAX <= TICK / 2, "never more than half a tick at the normal rate");
+	}
+
+	@Test
+	void unexploredGroundIsEstimatedFromTheMiddleOfEachCellForAllFourOfItsSamples() {
+		int[] estimated = TerrainSurvey.estimatedColumns(), sampled = TerrainSurvey.sampledColumns();
+		assertEquals(sampled.length / 4, estimated.length, "one column a cell, where the real ground has four");
+		for (int cell = 0; cell < estimated.length; cell++) {
+			int ex = estimated[cell] % 16, ez = estimated[cell] / 16;
+			assertEquals(4, ex % CoarsePlanner.CELL, "in the middle of the cell across");
+			assertEquals(4, ez % CoarsePlanner.CELL, "and down");
+			for (int sample = 0; sample < 4; sample++) {
+				int column = sampled[cell * 4 + sample];
+				assertEquals(ex / CoarsePlanner.CELL, column % 16 / CoarsePlanner.CELL, "the samples it stands for are in its cell");
+				assertEquals(ez / CoarsePlanner.CELL, column / 16 / CoarsePlanner.CELL);
+			}
+		}
+	}
 }
