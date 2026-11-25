@@ -76,6 +76,12 @@ neoForge {
         configureEach {
             systemProperty 'forge.logging.markers', 'REGISTRIES'
             logLevel = org.slf4j.event.Level.INFO
+            // Loader parity checks: -Pparity.manifest=<file> writes the registry manifest once the server has started,
+            // -Pparity.gametest.report=<file> the game test results as a JUnit report (paths from the project's top)
+            ['parity.manifest', 'parity.gametest.report'].each { key ->
+                if (project.hasProperty(key))
+                    systemProperty key, rootProject.file(project.property(key)).absolutePath
+            }
         }
     }
 

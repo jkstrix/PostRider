@@ -2,9 +2,17 @@
 
 Two Minecraft versions are supported: the latest (now 26.3, NeoForge 26.3.x, Java 25) on `main`, and 1.21.1 (NeoForge 21.1.x, Java 21) on the `mc/1.21.1` branch. Both get the same features and the same mod version number (the jar name says which Minecraft it's for). New work lands on `main` first and is cherry-picked to `mc/1.21.1`; when Mojang releases a new version, `main` moves up to it and there is no branch per 26.x release. Standalone (no other mods required); players are recommended the Concurrent Chunk Management Engine (C2ME) where there's a build for their version, but nothing depends on it, and development runs are the mod alone unless `-Pc2me`/`-Pdh` is given. All items are server-side vanilla-style items.
 
+## Mod loaders
+- Post Rider ships on NeoForge, Fabric and Forge, for every Minecraft version it supports, and behaves exactly the same on all three. NeoForge is the reference: the mod starts there, and the other two are checked against it.
+- One project with a module per loader: `common/` is the whole mod in plain Minecraft code (with the unit tests and game tests), and `neoforge/`, `fabric/` and `forge/` only connect their loader's events and registries to it. `parity/hooks.md` lists every such connection.
+- Fabric uses Forge Config API Port for the server config, so the file, keys and comments are the same as on NeoForge; Fabric players install it and Fabric API.
+- The Dailies compat is NeoForge only, as Dailies is a NeoForge mod.
+- Parity is checked by registry manifest, the unit tests and the game tests on each loader, and seeded trips (the game tests' trials, the frozen ocean seed postrider12, and the land seeds postrider, postrider2 and postrider3), with `loader-parity-check`. A loader build is only released after it passes.
+- Releases go to CurseForge only (one project, a file per loader); not to Modrinth until its AI policy changes.
+
 ## Workflow rules
 - Every model is built in Blockbench first (never hand-written JSON imported later) and approved before work continues.
-- Every feature ships with unit tests (`src/test/java`, NeoForge `unitTest`).
+- Every feature ships with unit tests (`common/src/test/java`, run on every loader).
 - Movement is also checked in a real world by GameTests (`gametest` package, run with `./gradlew runGameTestServer` after any change to how riders get about): each builds a small scene (a shallow river, an island, the bay, a stream with a bridge, a ditch, a narrow channel) and watches a rider deliver across it without wading, being teleported free, rowing where he should ride, or leaping a ditch twice.
 - Anything uncertain gets asked, not assumed.
 

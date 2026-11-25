@@ -5,6 +5,7 @@ import java.util.Map;
 
 import com.comedymonkey.postrider.PostRiderConfig;
 import com.comedymonkey.postrider.PostRiderConfig.Setting;
+import com.comedymonkey.postrider.parity.ParityManifest;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
 
@@ -24,6 +25,7 @@ final class NeoForgeConfig {
 				section = setting.section();
 			}
 			builder.comment(setting.comment().toArray(String[]::new));
+			ParityManifest.recordConfig(setting.section() + "." + setting.key(), setting.defaultValue(), setting.min(), setting.max());
 			VALUES.put(setting, setting.isWhole()
 				? builder.defineInRange(setting.key(), setting.defaultValue().intValue(), setting.min().intValue(), setting.max().intValue())
 				: builder.defineInRange(setting.key(), setting.defaultValue().doubleValue(), setting.min().doubleValue(), setting.max().doubleValue()));

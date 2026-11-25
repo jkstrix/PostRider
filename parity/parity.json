@@ -1,0 +1,9 @@
+{
+  "reference": "neoforge",
+  "allow": [
+    {
+      "key": "metadata.required.forgeconfigapiport@fabric",
+      "reason": "Fabric has no config system; the user chose Forge Config API Port for the Fabric build on 2026-11-25, so the config file matches NeoForge's"
+    }
+  ]
+}
