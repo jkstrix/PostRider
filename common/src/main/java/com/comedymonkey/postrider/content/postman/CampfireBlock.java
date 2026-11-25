@@ -20,7 +20,6 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.item.ItemStack;
-import com.comedymonkey.postrider.content.ExplosionProof;
 import java.util.function.BiConsumer;
 
 /**
@@ -111,6 +110,14 @@ public class CampfireBlock extends Block {
 	/** Nothing a blast does puts it out: it goes when the camp does. */
 	@Override
 	protected void onExplosionHit(BlockState state, ServerLevel level, BlockPos pos, Explosion explosion, BiConsumer<ItemStack, BlockPos> onHit) {
-		ExplosionProof.dropWithoutBreaking(state, level, pos, explosion, onHit);
+	}
+
+	/**
+	 * Nor does it drop anything to one, as the campfire that stays put mustn't leave a copy of itself behind (the game drops
+	 * a block's loot before it takes the block away).
+	 */
+	@Override
+	public boolean dropFromExplosion(Explosion explosion) {
+		return false;
 	}
 }

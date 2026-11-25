@@ -46,7 +46,6 @@ import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import com.comedymonkey.postrider.content.ExplosionProof;
 import java.util.function.BiConsumer;
 
 /**
@@ -161,7 +160,15 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 	/** Only its owner (or an operator) can take it down; explosions never do, whatever their size. */
 	@Override
 	protected void onExplosionHit(BlockState state, ServerLevel level, BlockPos pos, Explosion explosion, BiConsumer<ItemStack, BlockPos> onHit) {
-		ExplosionProof.dropWithoutBreaking(state, level, pos, explosion, onHit);
+	}
+
+	/**
+	 * Nor does it drop anything to one, as a mailbox that stays put mustn't leave a copy of itself behind (the game drops
+	 * a block's loot before it takes the block away).
+	 */
+	@Override
+	public boolean dropFromExplosion(Explosion explosion) {
+		return false;
 	}
 
 	@Override

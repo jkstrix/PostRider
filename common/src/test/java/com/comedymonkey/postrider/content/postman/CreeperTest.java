@@ -46,4 +46,15 @@ class CreeperTest {
 		assertEquals(MailboxBlock.class, MailboxBlock.class.getDeclaredMethod("onExplosionHit", args).getDeclaringClass());
 		assertEquals(CampfireBlock.class, CampfireBlock.class.getDeclaredMethod("onExplosionHit", args).getDeclaringClass());
 	}
+
+	@Test
+	void anExplosionThatCantTakeThemDownDropsNoCopyOfThemEither() {
+		// The game drops a block's loot before taking it away: a mailbox left standing mustn't leave another behind
+		for (net.minecraft.world.level.block.Block block : java.util.List.of(
+				com.comedymonkey.postrider.registry.ModBlocks.mailbox(net.minecraft.world.item.DyeColor.RED).get(),
+				com.comedymonkey.postrider.registry.ModBlocks.LOST_PARCEL.get(),
+				com.comedymonkey.postrider.registry.ModBlocks.LOST_PARCEL_WRECK.get(),
+				com.comedymonkey.postrider.registry.ModBlocks.CAMPFIRE.get()))
+			assertFalse(block.dropFromExplosion(null), block.toString());
+	}
 }

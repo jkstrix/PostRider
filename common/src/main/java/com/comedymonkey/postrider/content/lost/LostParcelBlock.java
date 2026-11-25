@@ -34,7 +34,6 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import com.comedymonkey.postrider.content.ExplosionProof;
 import java.util.function.BiConsumer;
 
 /**
@@ -123,7 +122,15 @@ public class LostParcelBlock extends HorizontalDirectionalBlock implements Entit
 	 */
 	@Override
 	protected void onExplosionHit(BlockState state, ServerLevel level, BlockPos pos, Explosion explosion, BiConsumer<ItemStack, BlockPos> onHit) {
-		ExplosionProof.dropWithoutBreaking(state, level, pos, explosion, onHit);
+	}
+
+	/**
+	 * Nor does it drop anything to one, as a lost parcel that stays put mustn't leave a copy of itself behind (the game drops
+	 * a block's loot before it takes the block away).
+	 */
+	@Override
+	public boolean dropFromExplosion(Explosion explosion) {
+		return false;
 	}
 
 	@Override

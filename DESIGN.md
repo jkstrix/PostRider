@@ -23,7 +23,7 @@ Two Minecraft versions are supported: the latest (now 26.3, NeoForge 26.3.x, Jav
 - All 16 dye colours. Recipe: iron ingots around a chest, with a fence underneath (comes out white). Craft with a dye to recolour, or right-click a placed mailbox with a dye.
 - Placement is always allowed. If it has no sky view, the placer gets a warning that the postman will probably lose mail.
 - Owner types a name in the mailbox screen. Names are 3–24 characters and unique server-wide, ignoring case. A player can own several mailboxes.
-- Only the owner can open it, and only the owner (or an operator) can break it.
+- Only the owner can open it, and only the owner (or an operator) can break it. No explosion takes it down, whatever its size, nor drops a copy of it.
 - Inbox: 27 sealed parcels/letters. When broken, the contents spill on the ground and the name is freed.
 - Sending: the mailbox screen has a 9-slot parcel area, an address picked from a list of all mailboxes, and a Send button. Postage is free.
 
