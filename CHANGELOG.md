@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1
+
+- A stuck rider is never teleported more than 16 blocks to get him going again (it was up to 24, and any distance
+  straight up out of a cave), and any three tries to free him within two minutes now end the delivery (it was five
+  in a row without getting on), so riders are jumped about less and do get stuck now and then (leaving a Lost Parcel,
+  as before).
+
 ## 1.3.0
 
 - Post Rider now also runs on Minecraft 26.3, as a separate download; this is the same release for Minecraft 1.21.1.

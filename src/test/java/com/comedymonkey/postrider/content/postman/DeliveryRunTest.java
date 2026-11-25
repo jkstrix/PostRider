@@ -180,7 +180,10 @@ class DeliveryRunTest {
 			last = Math.max(last, distance);
 		}
 		assertTrue(Math.hypot(offsets.get(0)[0], offsets.get(0)[1]) <= 2.0, "a couple of blocks away to start with");
-		assertEquals(24, DeliveryRun.JUMP_RADII[DeliveryRun.JUMP_RADII.length - 1], "and no further than this before the old long jumps");
+		assertEquals(16, DeliveryRun.JUMP_RADII[DeliveryRun.JUMP_RADII.length - 1], "and no further than this before the long jumps");
+		for (int[] offset : offsets)
+			// The ring's offsets are rounded to whole blocks, so a few lie a fraction over: each spot is checked with withinJump
+			assertTrue(Math.hypot(offset[0], offset[1]) < DeliveryRun.JUMP_MAX + 1, "every spot looked at is about within a jump");
 		assertTrue(offsets.size() >= 8 * DeliveryRun.JUMP_RADII.length);
 	}
 
@@ -212,6 +215,17 @@ class DeliveryRunTest {
 	void theMapStaysOutWhileTheRouteIsCheckedAgainstTheGround() {
 		assertTrue(DeliveryRun.MAP_CHECK_TICKS >= 20 * 30, "long enough for a stage's chunks to load (half a minute at least)");
 		assertTrue(DeliveryRun.MAP_CHECKS >= 1 && DeliveryRun.MAP_CHECKS <= 3, "a redo or two, then he goes regardless");
+	}
+
+	@Test
+	void noJumpGoesFurtherThanSixteenBlocksUpAndDownIncluded() {
+		assertEquals(16, DeliveryRun.JUMP_MAX);
+		net.minecraft.world.phys.Vec3 here = new net.minecraft.world.phys.Vec3(0, 64, 0);
+		assertTrue(DeliveryRun.withinJump(here, here.add(16, 0, 0)));
+		assertTrue(DeliveryRun.withinJump(here, here.add(10, 12, 0)), "15.6 blocks away, up a slope");
+		assertFalse(DeliveryRun.withinJump(here, here.add(12, 0, 12)), "17 blocks away corner to corner");
+		assertFalse(DeliveryRun.withinJump(here, here.add(0, 17, 0)), "the surface 17 blocks over a cave");
+		assertFalse(DeliveryRun.withinJump(here, here.add(16, -6, 0)), "16 along and 6 down is too far");
 	}
 
 	@Test
