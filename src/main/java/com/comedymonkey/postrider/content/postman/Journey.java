@@ -96,7 +96,14 @@ public final class Journey {
 	public static final class Progress {
 		public static final int PATIENCE = 30 * 20;
 		public static final double MIN_PROGRESS = 4.0;
-		public static final int MAX_TRIES = 5;
+		/**
+		 * This many unstuck attempts within {@link #TRIES_WINDOW} end the delivery, wherever they were and whatever
+		 * progress he made between: jumped about too freely he'd never be stuck, and being stuck now and then is part
+		 * of the job.
+		 */
+		public static final int MAX_TRIES = 3;
+		/** Two minutes: attempts further apart than this don't add up. */
+		public static final int TRIES_WINDOW = 2 * 60 * 20;
 		/** Not moving this far in this long means he's wedged somewhere, however close he is. */
 		public static final double STALL_DISTANCE = 2.0;
 		public static final int STALL_TICKS = 5 * 20;
@@ -105,16 +112,18 @@ public final class Journey {
 
 		private double bestDistance = Double.MAX_VALUE;
 		private long bestSince;
-		private int triesInARow;
+		/** When each unstuck attempt in the last {@link #TRIES_WINDOW} was made, oldest first. */
+		private final java.util.ArrayDeque<Long> tries = new java.util.ArrayDeque<>();
+		/** The latest tick he was checked at: the two minutes are counted back from it. */
+		private long lastTick;
 		private int redosWithoutProgress;
 		private double stallX = Double.NaN, stallY, stallZ;
 		private long stallSince;
 
 		/** Records how far he is from the destination now; true if he's been stuck too long. */
 		public boolean isStuck(double distance, long tick) {
+			lastTick = Math.max(lastTick, tick);
 			if (distance < bestDistance - MIN_PROGRESS || bestDistance == Double.MAX_VALUE) {
-				if (bestDistance != Double.MAX_VALUE)
-					triesInARow = 0;
 				bestDistance = distance;
 				bestSince = tick;
 				redosWithoutProgress = 0;
@@ -130,6 +139,7 @@ public final class Journey {
 
 		/** As above, with a patience of its own (a barge pressed against a bank takes a while to back off and turn). */
 		public boolean isStalled(double x, double y, double z, long tick, int patience) {
+			lastTick = Math.max(lastTick, tick);
 			if (Double.isNaN(stallX) || Math.sqrt((x - stallX) * (x - stallX) + (y - stallY) * (y - stallY) + (z - stallZ) * (z - stallZ)) > STALL_DISTANCE) {
 				stallX = x;
 				stallY = y;
@@ -144,7 +154,7 @@ public final class Journey {
 		/** How he's doing, for the trace: how long since he last got nearer, and since he last moved. */
 		public String describe(long tick) {
 			return "best " + (bestDistance == Double.MAX_VALUE ? "none" : Math.round(bestDistance) + " " + (tick - bestSince) + " ticks ago")
-				+ ", still " + (Double.isNaN(stallX) ? "unset" : (tick - stallSince) + " ticks") + ", tries " + triesInARow;
+				+ ", still " + (Double.isNaN(stallX) ? "unset" : (tick - stallSince) + " ticks") + ", tries " + triesInARow() + " in " + (TRIES_WINDOW / 20) + " s";
 		}
 
 		/**
@@ -152,7 +162,9 @@ public final class Journey {
 		 * coming back to where he was stuck isn't getting nearer: he has to get past it.
 		 */
 		public void unstuck(double distance, long tick) {
-			triesInARow++;
+			tries.addLast(tick);
+			lastTick = Math.max(lastTick, tick);
+			forgetOldTries(tick);
 			bestDistance = Math.min(bestDistance, distance);
 			bestSince = tick;
 			stallX = Double.NaN;
@@ -188,11 +200,18 @@ public final class Journey {
 		}
 
 		public boolean outOfTries() {
-			return triesInARow >= MAX_TRIES;
+			return triesInARow() >= MAX_TRIES;
 		}
 
+		/** The attempts made in the last {@link #TRIES_WINDOW}, counted back from the latest check. */
 		public int triesInARow() {
-			return triesInARow;
+			forgetOldTries(lastTick);
+			return tries.size();
+		}
+
+		private void forgetOldTries(long now) {
+			while (!tries.isEmpty() && now - tries.peekFirst() >= TRIES_WINDOW)
+				tries.removeFirst();
 		}
 	}
 }
