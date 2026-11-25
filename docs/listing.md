@@ -1,4 +1,4 @@
-# Store listing (CurseForge / Modrinth)
+# Store listing (CurseForge)
 
 ## Name
 

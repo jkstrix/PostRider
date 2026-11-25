@@ -162,18 +162,18 @@ twenty rider skins with `python tools/stamp_prop.py X Y WIDTH HEIGHT`.
 
 ## Releasing
 
-Publishing a GitHub release publishes that jar and its notes to Modrinth and CurseForge. Tag it
-`v<version>+<Minecraft version>`, the same way as `v1.3.0+26.3` and `v1.3.0+1.21.1`, and attach the jar
-`./gradlew build` produced (`postrider-<Minecraft version>-<version>.jar`). The workflow is on `main` and reads the
-release, so a 1.21.1 release from `mc/1.21.1` is published by the same file.
+Publishing a GitHub release publishes its jars and notes to CurseForge. Post Rider is not released on Modrinth.
+Tag it `v<version>+<Minecraft version>`, the same way as `v1.3.0+26.3` and `v1.3.0+1.21.1`, and attach the jar
+`./gradlew build` produced (`postrider-<Minecraft version>-<version>.jar`; once there are Fabric and Forge builds,
+one `postrider-<loader>-<Minecraft version>-<version>.jar` per loader, all on the same release).
 
-To check a release without uploading, run the Publish workflow from Actions, pass the tag, and turn on the dry run.
+A release runs the workflow as it is at the tagged commit. `mc/1.21.1` has no copy of it, so a 1.21.1 release is
+published by running the Publish workflow from Actions on `main` with the tag. To check a release without uploading,
+run it the same way and turn on the dry run.
 
-The projects are created once, using [docs/listing.md](docs/listing.md) and `src/main/resources/postrider_logo.png`.
-The CurseForge project is under comedymonkey, and the Modrinth project is under ComedyMonkey. A site is published
-when its repository variable and secret are both set: `CURSEFORGE_PROJECT_ID` with `CURSEFORGE_TOKEN` (the author API
-token from the CurseForge account page), and `MODRINTH_PROJECT_ID` with `MODRINTH_TOKEN` (Create, Read and Write
-versions). CurseForge can go out before the Modrinth project exists.
+The CurseForge project is under comedymonkey, created once using [docs/listing.md](docs/listing.md) and
+`src/main/resources/postrider_logo.png`. Publishing needs the repository variable `CURSEFORGE_PROJECT_ID` and the
+secret `CURSEFORGE_TOKEN` (the author API token from the CurseForge account page).
 
 ## Credits
 
