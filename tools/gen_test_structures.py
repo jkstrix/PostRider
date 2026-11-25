@@ -1,4 +1,4 @@
-"""Writes the empty structure templates the GameTests (src/main/java/.../gametest) are placed in.
+"""Writes the empty structure templates the GameTests (common/src/main/java/.../gametest) are placed in.
 
 Each is just a size: the framework clears the space before a test and the test builds its own scene in code.
 Run from the repository root: python tools/gen_test_structures.py
@@ -23,7 +23,7 @@ ARENAS = {
     "mine_96x96": (96, 140, 96),
 }
 DATA_VERSION = 3955  # Minecraft 1.21.1
-OUT = os.path.join("src", "main", "resources", "data", "postrider", "structure", "gametest")
+OUT = os.path.join("common", "src", "main", "resources", "data", "postrider", "structure", "gametest")
 
 
 def name(text):

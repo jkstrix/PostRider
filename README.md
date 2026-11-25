@@ -119,7 +119,7 @@ twenty rider skins with `python tools/stamp_prop.py X Y WIDTH HEIGHT`.
 
 ## Testing
 
-- **Unit tests** (`src/test/java`) run with `./gradlew build`.
+- **Unit tests** (`common/src/test/java`) run with `./gradlew build`.
 - **In-world tests** (GameTests, in the `gametest` package) run with `./gradlew runGameTestServer`. It starts a
   headless server in a fresh world (`run-gametest/`), builds a small scene for each test, sets a rider going and
   watches him: delivering across open ground, rowing out to an island, walking down to nearby water, riding round a

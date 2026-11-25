@@ -13,8 +13,8 @@ import struct
 import sys
 import zlib
 
-BASE = "src/main/resources/assets/postrider/textures/entity/postman.png"
-RIDERS = "src/main/resources/assets/postrider/textures/entity/rider/*.png"
+BASE = "common/src/main/resources/assets/postrider/textures/entity/postman.png"
+RIDERS = "common/src/main/resources/assets/postrider/textures/entity/rider/*.png"
 
 
 def read_png(path):

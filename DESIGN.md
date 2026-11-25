@@ -4,7 +4,7 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 
 ## Workflow rules
 - Every model is built in Blockbench first (never hand-written JSON imported later) and approved before work continues.
-- Every feature ships with unit tests (`src/test/java`, NeoForge `unitTest`).
+- Every feature ships with unit tests (`common/src/test/java`, run on every loader).
 - Movement is also checked in a real world by GameTests (`gametest` package, run with `./gradlew runGameTestServer` after any change to how riders get about): each builds a small scene (a shallow river, an island, the bay, a stream with a bridge, a ditch, a narrow channel) and watches a rider deliver across it without wading, being teleported free, rowing where he should ride, or leaping a ditch twice.
 - Anything uncertain gets asked, not assumed.
 

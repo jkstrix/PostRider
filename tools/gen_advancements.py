@@ -6,8 +6,8 @@ Every post-specific criterion uses the postrider:post_event trigger (see PostEve
 import json
 import os
 
-ADV_DIR = "src/main/resources/data/postrider/advancement"
-LANG = "src/main/resources/assets/postrider/lang/en_us.json"
+ADV_DIR = "common/src/main/resources/data/postrider/advancement"
+LANG = "common/src/main/resources/assets/postrider/lang/en_us.json"
 COLOURS = ["white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray", "light_gray", "cyan", "purple",
            "blue", "brown", "green", "red", "black"]
 CREW = ["chris", "mattie", "eli", "rosa", "jeb", "tom", "clara", "silas", "hattie", "wyatt", "ike", "lottie", "gus", "nell",
