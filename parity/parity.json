@@ -5,5 +5,12 @@
       "key": "metadata.required.forgeconfigapiport",
       "reason": "Fabric has no config system; the user chose Forge Config API Port for the Fabric build on 2026-11-25, so the config file matches NeoForge's"
     }
+  ],
+  "loader_resources": [
+    "pack.mcmeta"
+  ],
+  "notes": [
+    "pack.mcmeta: Forge loads a mod's assets and data only with one in its jar; NeoForge and Fabric don't need it",
+    "Forge's server config is COMMON (config/postrider-server.toml, same keys and defaults): not synced to clients (they never read it), no per-world override, read at game start. Approved by the user on 2026-11-25"
   ]
 }
