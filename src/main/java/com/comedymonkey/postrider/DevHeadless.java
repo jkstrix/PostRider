@@ -1,5 +1,8 @@
 package com.comedymonkey.postrider;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
@@ -138,6 +141,34 @@ public final class DevHeadless {
 		return SPAWN_BOX;
 	}
 
+	/** How far round a spot asked for (-Pto=at:x,z) the far box may go when the spot itself won't do. */
+	static final int AT_REACH = 16;
+
+	/** The spot (x, z) first, then the spots round it in rings two blocks apart out to {@link #AT_REACH}, nearest first. */
+	static List<int[]> spotsRound(int x, int z) {
+		List<int[]> spots = new ArrayList<>();
+		spots.add(new int[] {x, z});
+		for (int radius = 2; radius <= AT_REACH; radius += 2)
+			for (int dx = -radius; dx <= radius; dx += 2)
+				for (int dz = -radius; dz <= radius; dz += 2)
+					if (Math.max(Math.abs(dx), Math.abs(dz)) == radius)
+						spots.add(new int[] {x + dx, z + dz});
+		spots.sort(Comparator.comparingDouble(spot -> Math.hypot(spot[0] - x, spot[1] - z)));
+		return spots;
+	}
+
+	/** Puts the box down if one can stand at the spot; if not, takes away what was put there and says so. */
+	static boolean tryPutDownBox(ServerLevel level, BlockPos spot, String name, UUID owner) {
+		try {
+			putDownBox(level, spot, name, owner);
+			return true;
+		} catch (IllegalArgumentException cantStand) {
+			level.removeBlock(spot.above(), false);
+			level.removeBlock(spot, false);
+			return false;
+		}
+	}
+
 	/** A mailbox (facing west) in the directory under this name and owner, at a spot on dry land. */
 	static void putDownBox(ServerLevel level, BlockPos spot, String name, UUID owner) {
 		BlockState lower = ModBlocks.mailbox(DyeColor.RED).get().defaultBlockState().setValue(MailboxBlock.FACING, Direction.WEST);
@@ -166,9 +197,24 @@ public final class DevHeadless {
 		BlockPos spot;
 		if (where.startsWith("at:")) {
 			String[] xz = where.substring(3).split(",");
-			spot = dryLandAt(level, Integer.parseInt(xz[0].trim()), Integer.parseInt(xz[1].trim()));
+			int x = Integer.parseInt(xz[0].trim()), z = Integer.parseInt(xz[1].trim());
+			// The spot itself if a box can stand there; the world's generated a little differently from run to run (a
+			// tree or a boulder over a chunk's edge comes out one way or the other), so failing that the nearest that will do
+			spot = null;
+			for (int[] round : spotsRound(x, z)) {
+				BlockPos dry = dryLandAt(level, round[0], round[1]);
+				if (dry != null && tryPutDownBox(level, dry, FAR_BOX, from.owner())) {
+					spot = dry;
+					break;
+				}
+			}
 			if (spot == null)
-				throw new IllegalArgumentException("No dry land at " + where);
+				throw new IllegalArgumentException("No dry land within " + AT_REACH + " blocks of " + where);
+			if (spot.getX() != x || spot.getZ() != z)
+				PostRider.LOGGER.info("Post Rider headless run: no box could stand at {}, {}: the nearest spot that would do is {} blocks off", x, z,
+					Math.round(Math.hypot(spot.getX() - x, spot.getZ() - z)));
+			PostRider.LOGGER.info("Post Rider headless run: put the box {} down at {} (-Pto=at:{},{} tries this spot again)", FAR_BOX, spot.toShortString(), spot.getX(), spot.getZ());
+			return FAR_BOX;
 		} else {
 			double distance = Double.parseDouble(where.substring("random:".length()));
 			double angle = level.getRandom().nextDouble() * 360;
