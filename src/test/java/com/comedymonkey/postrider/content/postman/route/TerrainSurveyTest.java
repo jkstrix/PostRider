@@ -156,6 +156,7 @@ class TerrainSurveyTest {
 	void anIdleServerLetsTheSurveyUseItsSpareTimeUpToTheMost() {
 		assertEquals(TerrainSurvey.ESTIMATE_NANOS_MAX, TerrainSurvey.estimateBudget(TICK, 5 * MS, 0), "45 ms spare: as much as it may take");
 		assertEquals(15 * MS, TerrainSurvey.estimateBudget(TICK, 30 * MS, 0), "20 ms spare, a quarter kept free");
+		assertEquals(30 * MS, TerrainSurvey.estimateBudget(TICK, 5 * MS, 0), "45 ms spare: the most, 30");
 	}
 
 	@Test
@@ -174,7 +175,7 @@ class TerrainSurveyTest {
 	@Test
 	void aFasterTickRateLeavesLessSpare() {
 		assertEquals(TerrainSurvey.ESTIMATE_NANOS_PER_TICK, TerrainSurvey.estimateBudget(10 * MS, 5 * MS, 0), "ticks of 10 ms with 5 used: the least");
-		assertTrue(TerrainSurvey.ESTIMATE_NANOS_MAX <= TICK / 2, "never more than half a tick at the normal rate");
+		assertTrue(TerrainSurvey.ESTIMATE_NANOS_MAX <= TICK * 3 / 5, "never more than three fifths of a tick at the normal rate");
 	}
 
 	@Test

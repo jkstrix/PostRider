@@ -102,8 +102,8 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 		averageEstimateNanos += (spent - averageEstimateNanos) / AVERAGE_OVER;
 	}
 
-	/** The most the survey takes of a tick (20 ms of 50), however idle the server: the rest is the world's. */
-	public static final long ESTIMATE_NANOS_MAX = 20_000_000;
+	/** The most the survey takes of a tick (30 ms of 50), however idle the server: the rest is the world's. */
+	public static final long ESTIMATE_NANOS_MAX = 30_000_000;
 	/** Of a tick's spare time, this share is left free: the server's ticks vary, and a slow one mustn't run late. */
 	public static final double SPARE_KEPT = 0.25;
 	/** The survey's own time is averaged over about this many ticks, as the server averages its tick times. */
