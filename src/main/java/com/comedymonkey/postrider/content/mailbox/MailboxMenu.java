@@ -11,7 +11,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.transfer.item.ResourceHandlerSlot;
 
 /**
  * The mailbox screen's slots: the 27-parcel inbox (take only), the 9 parcel slots and the player's inventory.
@@ -140,12 +139,12 @@ public class MailboxMenu extends AbstractContainerMenu {
 	}
 
 	/** A slot that only takes part while its tab is open. */
-	private class TabSlot extends ResourceHandlerSlot {
+	private class TabSlot extends MailboxSlot {
 		private final int slotTab;
 		private final boolean placeable;
 
 		TabSlot(MailboxSlots handler, int index, int x, int y, int slotTab, boolean placeable) {
-			super(handler, handler::set, index, x, y);
+			super(handler, index, x, y);
 			this.slotTab = slotTab;
 			this.placeable = placeable;
 		}

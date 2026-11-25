@@ -1,5 +1,7 @@
 package com.comedymonkey.postrider.content.postman;
 
+import com.comedymonkey.postrider.platform.Services;
+
 import java.util.function.DoubleSupplier;
 
 import java.util.UUID;
@@ -30,7 +32,6 @@ import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.event.EventHooks;
 
 /**
  * A rider's horse: a vanilla horse with the coat, markings, name and speed its rider always has (see {@link Roster}), wearing the mochila. It's always saddled
@@ -157,7 +158,7 @@ public class PostmanHorse extends Horse {
 		if (horse == null)
 			return null;
 		horse.snapTo(x, y, z, yaw, 0);
-		EventHooks.finalizeMobSpawn(horse, level, level.getCurrentDifficultyAt(horse.blockPosition()), EntitySpawnReason.MOB_SUMMONED, null);
+		Services.PLATFORM.finalizeMobSpawn(horse, level, level.getCurrentDifficultyAt(horse.blockPosition()), EntitySpawnReason.MOB_SUMMONED, null);
 		return horse;
 	}
 

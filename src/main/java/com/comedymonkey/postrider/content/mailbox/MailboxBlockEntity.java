@@ -10,6 +10,7 @@ import com.comedymonkey.postrider.advancement.PostEvents;
 import com.comedymonkey.postrider.network.MailboxInfoPayload;
 import com.comedymonkey.postrider.post.MailboxDirectory;
 import com.comedymonkey.postrider.registry.ModBlockEntities;
+import com.comedymonkey.postrider.platform.Services;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
@@ -35,7 +36,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 /** A mailbox's address, owner, inbox of up to 27 parcels and the 9 slots of the parcel being packed. */
 public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
@@ -122,7 +122,7 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 	}
 
 	public void openFor(ServerPlayer player) {
-		player.openMenu(this, buf -> {
+		Services.PLATFORM.openMenu(player, this, buf -> {
 			buf.writeBlockPos(worldPosition);
 			buf.writeUtf(name);
 		});
@@ -141,7 +141,7 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 			return;
 		List<String> addresses = new ArrayList<>(MailboxDirectory.get(level.getServer()).namesIn(level.dimension()));
 		addresses.removeIf(n -> n.equalsIgnoreCase(name));
-		PacketDistributor.sendToPlayer(player, new MailboxInfoPayload(worldPosition, name, ownerName, addresses));
+		Services.PLATFORM.sendToPlayer(player, new MailboxInfoPayload(worldPosition, name, ownerName, addresses));
 	}
 
 	// ---------------------------------------------------------------- inbox and parcel

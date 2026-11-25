@@ -7,7 +7,6 @@ import com.comedymonkey.postrider.content.postman.Roster;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
  * Sends a rider out for each waiting parcel during collection hours, up to {@link PostRiderConfig#maxRiders} on the
@@ -21,8 +20,7 @@ public final class PostDispatcher {
 
 	private PostDispatcher() {}
 
-	public static void onServerTick(ServerTickEvent.Post event) {
-		MinecraftServer server = event.getServer();
+	public static void onServerTick(MinecraftServer server) {
 		if (server.getTickCount() % INTERVAL != 0)
 			return;
 		RiderWatch.check(server);

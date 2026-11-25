@@ -3,24 +3,25 @@ package com.comedymonkey.postrider.content.mailbox;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
+import net.minecraft.core.NonNullList;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 
 /**
  * A fixed row of item slots in a mailbox (its inbox, or the parcel being packed). It saves the way NeoForge's old
  * item handler did, an "Items" list of stacks with their "Slot" and the "Size", so mailboxes in existing worlds keep
- * their mail.
+ * their mail. (It behaves as NeoForge's stack handler did when the mod used it: a slot holds up to its limit, and no
+ * more than the item stacks to.)
  */
-public class MailboxSlots extends ItemStacksResourceHandler {
+public class MailboxSlots {
 	private static final Codec<SavedStack> SAVED_STACK_CODEC = RecordCodecBuilder.create(i -> i.group(
 		Codec.INT.fieldOf("Slot").forGetter(SavedStack::slot),
 		ItemStack.MAP_CODEC.forGetter(SavedStack::stack)
 	).apply(i, SavedStack::new));
 
+	private final NonNullList<ItemStack> stacks;
 	private final int slotLimit;
 	private final Runnable onChanged;
 
@@ -30,13 +31,13 @@ public class MailboxSlots extends ItemStacksResourceHandler {
 	}
 
 	public MailboxSlots(int size, int slotLimit, Runnable onChanged) {
-		super(size);
+		this.stacks = NonNullList.withSize(size, ItemStack.EMPTY);
 		this.slotLimit = slotLimit;
 		this.onChanged = onChanged;
 	}
 
 	public int getSlots() {
-		return size();
+		return stacks.size();
 	}
 
 	/** The stack in this slot itself, not a copy. */
@@ -45,18 +46,19 @@ public class MailboxSlots extends ItemStacksResourceHandler {
 	}
 
 	public void setStackInSlot(int slot, ItemStack stack) {
-		ItemStack previous = stacks.set(slot, stack);
-		onContentsChanged(slot, previous);
-	}
-
-	@Override
-	protected int getCapacity(int index, ItemResource resource) {
-		return Math.min(slotLimit, super.getCapacity(index, resource));
-	}
-
-	@Override
-	protected void onContentsChanged(int index, ItemStack previousContents) {
+		stacks.set(slot, stack);
 		onChanged.run();
+	}
+
+	/** Puts a copy of a stack in a slot (an empty stack empties it). */
+	public void set(int slot, ItemStack stack) {
+		setStackInSlot(slot, stack.isEmpty() ? ItemStack.EMPTY : stack.copy());
+	}
+
+	/** How many of an item a slot can hold: its limit, and no more than the item stacks to (an empty stack: the limit). */
+	public int capacity(ItemStack stack) {
+		int itemLimit = stack.isEmpty() ? Item.ABSOLUTE_MAX_STACK_SIZE : Math.min(stack.getMaxStackSize(), Item.ABSOLUTE_MAX_STACK_SIZE);
+		return Math.min(slotLimit, itemLimit);
 	}
 
 	public void save(ValueOutput output) {

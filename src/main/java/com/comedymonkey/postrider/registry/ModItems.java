@@ -12,21 +12,20 @@ import com.comedymonkey.postrider.content.parcel.ParcelItem;
 import net.minecraft.world.item.DoubleHighBlockItem;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
-import net.neoforged.neoforge.registries.DeferredItem;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraft.core.registries.Registries;
 
 public final class ModItems {
-	public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(PostRider.MOD_ID);
+	public static final Registrar<Item> ITEMS = Registrar.create(Registries.ITEM);
 
-	private static final Map<DyeColor, DeferredItem<DoubleHighBlockItem>> MAILBOXES = new EnumMap<>(DyeColor.class);
+	private static final Map<DyeColor, ItemEntry<DoubleHighBlockItem>> MAILBOXES = new EnumMap<>(DyeColor.class);
 
-	public static final DeferredItem<BlankLetterItem> LETTER =
+	public static final ItemEntry<BlankLetterItem> LETTER =
 		ITEMS.registerItem("letter", BlankLetterItem::new, properties -> properties.stacksTo(16));
-	public static final DeferredItem<WrittenLetterItem> WRITTEN_LETTER =
+	public static final ItemEntry<WrittenLetterItem> WRITTEN_LETTER =
 		ITEMS.registerItem("written_letter", WrittenLetterItem::new, properties -> properties.stacksTo(1));
-	public static final DeferredItem<ParcelItem> PARCEL =
+	public static final ItemEntry<ParcelItem> PARCEL =
 		ITEMS.registerItem("parcel", ParcelItem::new, properties -> properties.stacksTo(1));
-	public static final DeferredItem<IceHopperItem> ICE_HOPPER =
+	public static final ItemEntry<IceHopperItem> ICE_HOPPER =
 		ITEMS.registerItem("ice_hopper", IceHopperItem::new, properties -> properties.stacksTo(1));
 
 	static {
@@ -38,7 +37,7 @@ public final class ModItems {
 
 	private ModItems() {}
 
-	public static DeferredItem<DoubleHighBlockItem> mailbox(DyeColor color) {
+	public static ItemEntry<DoubleHighBlockItem> mailbox(DyeColor color) {
 		return MAILBOXES.get(color);
 	}
 }

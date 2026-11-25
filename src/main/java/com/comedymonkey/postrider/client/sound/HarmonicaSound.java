@@ -11,7 +11,7 @@ import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.sounds.SoundSource;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.minecraft.world.entity.Entity;
 
 /**
  * A rider's harmonica, played on each player's own client while he sits playing: it follows him, starts for anyone
@@ -40,8 +40,8 @@ public class HarmonicaSound extends AbstractTickableSoundInstance {
 	}
 
 	/** Strikes up the tune for any rider who has started playing. */
-	public static void onEntityTick(EntityTickEvent.Post event) {
-		if (!(event.getEntity() instanceof PostmanEntity rider) || !rider.level().isClientSide() || !plays(rider))
+	public static void onEntityTick(Entity entity) {
+		if (!(entity instanceof PostmanEntity rider) || !rider.level().isClientSide() || !plays(rider))
 			return;
 		SoundManager sounds = Minecraft.getInstance().getSoundManager();
 		HarmonicaSound current = PLAYING.get(rider);

@@ -21,7 +21,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Prediction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /** Client to server: save the pages of the blank letter in a slot as a draft, or seal it into a Written Letter. */
 public record EditLetterPayload(int slot, List<String> pages, boolean seal) implements CustomPacketPayload {
@@ -42,7 +41,7 @@ public record EditLetterPayload(int slot, List<String> pages, boolean seal) impl
 		return Inventory.isHotbarSlot(slot) || slot == Inventory.SLOT_OFFHAND;
 	}
 
-	public static void handle(EditLetterPayload payload, IPayloadContext context) {
+	public static void handle(EditLetterPayload payload, PacketContext context) {
 		context.enqueueWork(() -> {
 			if (!(context.player() instanceof ServerPlayer player) || !isWritableSlot(payload.slot()))
 				return;

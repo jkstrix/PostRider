@@ -7,6 +7,7 @@ import com.comedymonkey.postrider.content.letter.LetterDraft;
 import com.comedymonkey.postrider.content.letter.LetterText;
 import com.comedymonkey.postrider.network.EditLetterPayload;
 import com.comedymonkey.postrider.registry.ModDataComponents;
+import com.comedymonkey.postrider.platform.Services;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
@@ -20,7 +21,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /** Writing a letter on a sheet of parchment: up to four pages, saved as a draft until it's sealed. */
 public class LetterEditScreen extends Screen {
@@ -171,7 +171,7 @@ public class LetterEditScreen extends Screen {
 			return;
 		sent = true;
 		storePage();
-		ClientPacketDistributor.sendToServer(new EditLetterPayload(slot, LetterDraft.sanitize(pages), seal));
+		Services.PLATFORM.sendToServer(new EditLetterPayload(slot, LetterDraft.sanitize(pages), seal));
 	}
 
 	@Override

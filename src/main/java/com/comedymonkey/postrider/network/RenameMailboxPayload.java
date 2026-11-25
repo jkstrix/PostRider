@@ -14,7 +14,6 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /** Client to server: give the open mailbox a new address. */
 public record RenameMailboxPayload(String name) implements CustomPacketPayload {
@@ -27,7 +26,7 @@ public record RenameMailboxPayload(String name) implements CustomPacketPayload {
 		return TYPE;
 	}
 
-	public static void handle(RenameMailboxPayload payload, IPayloadContext context) {
+	public static void handle(RenameMailboxPayload payload, PacketContext context) {
 		context.enqueueWork(() -> {
 			if (!(context.player() instanceof ServerPlayer player)
 					|| !(player.containerMenu instanceof MailboxMenu menu) || !menu.stillValid(player))

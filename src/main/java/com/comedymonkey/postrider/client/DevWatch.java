@@ -2,7 +2,6 @@ package com.comedymonkey.postrider.client;
 
 import java.io.IOException;
 import java.util.Locale;
-import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -27,8 +26,6 @@ import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import net.minecraft.world.level.storage.LevelStorageSource;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * For development only: started with the system property {@code postrider.watch} (the {@code runWatch} Gradle
@@ -107,20 +104,19 @@ public final class DevWatch {
 		return "test run postrider:" + name.substring(name.indexOf(':') + 1);
 	}
 
-	/** Switches the run on if the game was started for it. */
-	public static void registerIfWanted() {
+	/** Whether the game was started for the run (then its tick is called; see PostRiderClientEvents). */
+	public static boolean wanted() {
 		worldRun = worldRun(System.getProperty(WORLD_PROPERTY));
 		if (worldRun != null)
 			PostRider.LOGGER.info("Post Rider watch run: the game will open the world {} and post from {} to {}", worldRun.world(), worldRun.from(), worldRun.to());
 		else if (System.getProperty(PROPERTY) != null)
 			PostRider.LOGGER.info("Post Rider watch run: the game will open a world and run the in-world tests ({})", command(System.getProperty(PROPERTY)));
 		else
-			return;
-		Consumer<ClientTickEvent.Post> tick = event -> tick(Minecraft.getInstance());
-		NeoForge.EVENT_BUS.addListener(tick);
+			return false;
+		return true;
 	}
 
-	private static void tick(Minecraft minecraft) {
+	public static void tick(Minecraft minecraft) {
 		ticks++;
 		switch (step) {
 			case START -> {

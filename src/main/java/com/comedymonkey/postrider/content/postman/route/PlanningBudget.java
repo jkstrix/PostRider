@@ -1,9 +1,9 @@
 package com.comedymonkey.postrider.content.postman.route;
 
+import net.minecraft.server.MinecraftServer;
+
 import com.comedymonkey.postrider.content.postman.RiderChunks;
 
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
  * How much route planning the server does each tick, shared by every rider, so working out routes never makes the
@@ -22,13 +22,13 @@ public final class PlanningBudget {
 
 	private PlanningBudget() {}
 
-	public static void onServerTick(ServerTickEvent.Pre event) {
+	public static void onServerTick(MinecraftServer server) {
 		local = LOCAL_PER_TICK;
 		coarse = COARSE_PER_TICK;
-		TerrainSurvey.tickAll(event.getServer());
+		TerrainSurvey.tickAll(server);
 	}
 
-	public static void onServerStopped(ServerStoppedEvent event) {
+	public static void onServerStopped(MinecraftServer server) {
 		TerrainSurvey.clear();
 		RiderChunks.clear();
 	}

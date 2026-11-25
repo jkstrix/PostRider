@@ -10,7 +10,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /** Server to client: the open mailbox's address and owner, and the other addresses in its dimension. */
 public record MailboxInfoPayload(BlockPos pos, String name, String ownerName, List<String> addresses)
@@ -28,7 +27,7 @@ public record MailboxInfoPayload(BlockPos pos, String name, String ownerName, Li
 		return TYPE;
 	}
 
-	public static void handle(MailboxInfoPayload payload, IPayloadContext context) {
+	public static void handle(MailboxInfoPayload payload, PacketContext context) {
 		context.enqueueWork(() -> MailboxInfoCache.set(payload.pos(), payload.name(), payload.ownerName(), payload.addresses()));
 	}
 }
