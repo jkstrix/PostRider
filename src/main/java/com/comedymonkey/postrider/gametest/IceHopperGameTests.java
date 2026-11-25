@@ -1,6 +1,5 @@
 package com.comedymonkey.postrider.gametest;
 
-import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.hopper.IceHopperEntity;
 import com.comedymonkey.postrider.registry.ModEntities;
 
@@ -9,12 +8,8 @@ import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /** The ice hopper in a real world: a pool with sea ice beyond it, and the boat driven at the ice. */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class IceHopperGameTests {
 	private static final String ARENA = "gametest/arena_128x64";
 

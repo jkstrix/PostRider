@@ -10,6 +10,7 @@ import com.comedymonkey.postrider.advancement.PostEvents;
 import com.comedymonkey.postrider.network.MailboxInfoPayload;
 import com.comedymonkey.postrider.post.MailboxDirectory;
 import com.comedymonkey.postrider.registry.ModBlockEntities;
+import com.comedymonkey.postrider.platform.Services;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
@@ -25,36 +26,22 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.items.ItemStackHandler;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 /** A mailbox's address, owner, inbox of up to 27 parcels and the 9 slots of the parcel being packed. */
 public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 	public static final int INBOX_SIZE = 27;
 	public static final int PARCEL_SIZE = 9;
 
-	private final ItemStackHandler inbox = new ItemStackHandler(INBOX_SIZE) {
-		@Override
-		public int getSlotLimit(int slot) {
-			return 1;
-		}
-
-		@Override
-		protected void onContentsChanged(int slot) {
-			setChanged();
-			updateFlag();
-		}
-	};
-	private final ItemStackHandler parcel = new ItemStackHandler(PARCEL_SIZE) {
-		@Override
-		protected void onContentsChanged(int slot) {
-			setChanged();
-		}
-	};
+	private final MailboxSlots inbox = new MailboxSlots(INBOX_SIZE, 1, () -> {
+		setChanged();
+		updateFlag();
+	});
+	private final MailboxSlots parcel = new MailboxSlots(PARCEL_SIZE, Item.ABSOLUTE_MAX_STACK_SIZE, this::setChanged);
 
 	@Nullable
 	private UUID owner;
@@ -130,7 +117,7 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 	}
 
 	public void openFor(ServerPlayer player) {
-		player.openMenu(this, buf -> {
+		Services.PLATFORM.openMenu(player, this, buf -> {
 			buf.writeBlockPos(worldPosition);
 			buf.writeUtf(name);
 		});
@@ -149,16 +136,16 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 			return;
 		List<String> addresses = new ArrayList<>(MailboxDirectory.get(level.getServer()).namesIn(level.dimension()));
 		addresses.removeIf(n -> n.equalsIgnoreCase(name));
-		PacketDistributor.sendToPlayer(player, new MailboxInfoPayload(worldPosition, name, ownerName, addresses));
+		Services.PLATFORM.sendToPlayer(player, new MailboxInfoPayload(worldPosition, name, ownerName, addresses));
 	}
 
 	// ---------------------------------------------------------------- inbox and parcel
 
-	public ItemStackHandler getInbox() {
+	public MailboxSlots getInbox() {
 		return inbox;
 	}
 
-	public ItemStackHandler getParcel() {
+	public MailboxSlots getParcel() {
 		return parcel;
 	}
 
@@ -210,7 +197,7 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 	void dropContents() {
 		if (level == null)
 			return;
-		for (ItemStackHandler handler : List.of(inbox, parcel)) {
+		for (MailboxSlots handler : List.of(inbox, parcel)) {
 			for (int i = 0; i < handler.getSlots(); i++) {
 				Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), handler.getStackInSlot(i));
 				handler.setStackInSlot(i, ItemStack.EMPTY);
@@ -248,8 +235,8 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 	protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
 		super.saveAdditional(tag, registries);
 		saveIdentity(tag);
-		tag.put("inbox", inbox.serializeNBT(registries));
-		tag.put("parcel", parcel.serializeNBT(registries));
+		tag.put("inbox", inbox.save(registries));
+		tag.put("parcel", parcel.save(registries));
 	}
 
 	@Override
@@ -259,9 +246,9 @@ public class MailboxBlockEntity extends BlockEntity implements MenuProvider {
 		ownerName = tag.getString("owner_name");
 		name = tag.getString("name");
 		if (tag.contains("inbox"))
-			inbox.deserializeNBT(registries, tag.getCompound("inbox"));
+			inbox.load(registries, tag.getCompound("inbox"));
 		if (tag.contains("parcel"))
-			parcel.deserializeNBT(registries, tag.getCompound("parcel"));
+			parcel.load(registries, tag.getCompound("parcel"));
 	}
 
 	private void saveIdentity(CompoundTag tag) {

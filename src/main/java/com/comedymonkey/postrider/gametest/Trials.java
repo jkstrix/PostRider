@@ -6,10 +6,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.platform.Services;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestAssertException;
-import net.neoforged.fml.loading.FMLPaths;
 
 /**
  * A whole delivery through a testing world, judged the same way in every test: it fails if he wades, is teleported
@@ -52,7 +52,7 @@ final class Trials {
 	}
 
 	/** The results file: one line of JSON per trial, in the game folder (run-gametest/trials.jsonl on a test run). */
-	static final Path RESULTS = FMLPaths.GAMEDIR.get().resolve("trials.jsonl");
+	static final Path RESULTS = Services.PLATFORM.gameDirectory().resolve("trials.jsonl");
 	private static boolean cleared;
 
 	/** Notes how a trial went in the results file (started afresh each run), for tools/trials.py to compare. */

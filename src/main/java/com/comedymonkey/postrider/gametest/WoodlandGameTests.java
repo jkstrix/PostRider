@@ -15,8 +15,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Riders in woodland: trees built block by block (vanilla trees would come out different every run), spaced for a
@@ -24,8 +22,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * delivery judged by {@link Trials}, plus a check on whether he got down from his horse where he should (and
  * shouldn't) and got back on again. Run with {@code ./gradlew runGameTestServer}; each is in its own batch.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class WoodlandGameTests {
 	/** Studying the map, riding across a big arena with detours, getting down and whistling the horse back. */
 	private static final int DELIVERY_TICKS = 6000;

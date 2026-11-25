@@ -2,6 +2,7 @@ package com.comedymonkey.postrider.network;
 
 import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.mailbox.MailboxInfoCache;
+import com.comedymonkey.postrider.platform.Services;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -10,8 +11,6 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.PacketDistributor;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
  * Server to client: how saving an address or sending a parcel went, shown on the open mailbox screen itself (a message
@@ -31,10 +30,10 @@ public record MailboxNoticePayload(Component message, boolean good) implements C
 
 	/** Tells the player at their mailbox how it went. */
 	public static void tell(ServerPlayer player, Component message, boolean good) {
-		PacketDistributor.sendToPlayer(player, new MailboxNoticePayload(message, good));
+		Services.PLATFORM.sendToPlayer(player, new MailboxNoticePayload(message, good));
 	}
 
-	public static void handle(MailboxNoticePayload payload, IPayloadContext context) {
+	public static void handle(MailboxNoticePayload payload, PacketContext context) {
 		context.enqueueWork(() -> MailboxInfoCache.notice(payload.message(), payload.good()));
 	}
 }

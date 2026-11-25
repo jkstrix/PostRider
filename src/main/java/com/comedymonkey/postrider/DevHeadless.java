@@ -26,9 +26,6 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.server.ServerStartedEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
  * For development only: started with the system property {@code postrider.post} set to {@code "<from>|<to>"}
@@ -66,17 +63,15 @@ public final class DevHeadless {
 		return new String[] {names[0].trim(), names[1].trim()};
 	}
 
-	/** Switches the run on if the server was started for it. */
-	public static void registerIfWanted() {
+	/** Whether the server was started for the run (then its hooks are called; see PostRiderEvents). */
+	public static boolean wanted() {
 		if (System.getProperty(PROPERTY) == null)
-			return;
+			return false;
 		PostRider.LOGGER.info("Post Rider headless run: the server will post {} and stop once it's delivered", System.getProperty(PROPERTY));
-		NeoForge.EVENT_BUS.addListener(DevHeadless::onStarted);
-		NeoForge.EVENT_BUS.addListener(DevHeadless::onTick);
+		return true;
 	}
 
-	private static void onStarted(ServerStartedEvent event) {
-		MinecraftServer server = event.getServer();
+	public static void onStarted(MinecraftServer server) {
 		String[] names = parse(System.getProperty(PROPERTY));
 		if (names == null) {
 			PostRider.LOGGER.error("Post Rider headless run: {} should be \"<from box>|<to box>\", not {}", PROPERTY, System.getProperty(PROPERTY));
@@ -244,8 +239,7 @@ public final class DevHeadless {
 		return feet;
 	}
 
-	private static void onTick(ServerTickEvent.Post event) {
-		MinecraftServer server = event.getServer();
+	public static void onTick(MinecraftServer server) {
 		if (delivery == null || done)
 			return;
 		PostOffice office = PostOffice.get(server);

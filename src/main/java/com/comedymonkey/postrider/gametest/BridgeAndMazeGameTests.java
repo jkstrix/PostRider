@@ -14,8 +14,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Deliveries over narrow bridges and through mazes: the only way on is a snaking footbridge over a chasm or a
@@ -23,8 +21,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * long-range plan (its 8x8 cells can't see a one-block bridge or a hedge) and the block-by-block plan (which looks
  * about 40 blocks ahead, less than a maze's way round). Each is judged by {@link Trials#deliver}.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class BridgeAndMazeGameTests {
 	/** Mazes take a while: the map, a few stretches of planning, the way round the dead ends. */
 	private static final int TRIAL_TICKS = 6000;

@@ -20,8 +20,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Riders on rivers and shores: where he crosses a river, when he rides round by a bridge or leaps it at a narrows
@@ -38,8 +36,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * at least 10, so they read as water and land in the plan's cells however the scene happens to line up with them;
  * a bridge is 12 wide for the same reason.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class RiverGameTests {
 	private static final int DELIVERY_TICKS = 6000;
 	private static final String ARENA = "gametest/arena_128x64";

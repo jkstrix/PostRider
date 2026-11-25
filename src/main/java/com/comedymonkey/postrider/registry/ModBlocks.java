@@ -16,13 +16,13 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.block.Block;
 
 public final class ModBlocks {
-	public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(PostRider.MOD_ID);
+	public static final Registrar<Block> BLOCKS = Registrar.create(Registries.BLOCK);
 
-	private static final Map<DyeColor, DeferredBlock<MailboxBlock>> MAILBOXES = new EnumMap<>(DyeColor.class);
+	private static final Map<DyeColor, RegistryEntry<Block, MailboxBlock>> MAILBOXES = new EnumMap<>(DyeColor.class);
 
 	static {
 		for (DyeColor color : DyeColor.values()) {
@@ -36,25 +36,25 @@ public final class ModBlocks {
 		}
 	}
 
-	public static final DeferredBlock<LostParcelBlock> LOST_PARCEL = BLOCKS.register("lost_parcel", () -> new LostParcelBlock(
-		BlockBehaviour.Properties.of()
+	public static final RegistryEntry<Block, LostParcelBlock> LOST_PARCEL = BLOCKS.registerBlock("lost_parcel", LostParcelBlock::new,
+		properties -> properties
 			.mapColor(MapColor.WOOD)
 			.strength(1.0F, 1200.0F)
 			.sound(SoundType.WOOL)
 			.noOcclusion()
 			.noLootTable()
-			.pushReaction(PushReaction.BLOCK)));
-	public static final DeferredBlock<LostParcelWreckBlock> LOST_PARCEL_WRECK = BLOCKS.register("lost_parcel_wreck", () -> new LostParcelWreckBlock(
-		BlockBehaviour.Properties.of()
+			.pushReaction(PushReaction.BLOCK));
+	public static final RegistryEntry<Block, LostParcelWreckBlock> LOST_PARCEL_WRECK = BLOCKS.registerBlock("lost_parcel_wreck", LostParcelWreckBlock::new,
+		properties -> properties
 			.mapColor(MapColor.WOOD)
 			.strength(1.0F, 1200.0F)
 			.sound(SoundType.WET_GRASS)
 			.noOcclusion()
 			.noLootTable()
-			.pushReaction(PushReaction.BLOCK)));
+			.pushReaction(PushReaction.BLOCK));
 
-	public static final DeferredBlock<CampfireBlock> CAMPFIRE = BLOCKS.register("campfire", () -> new CampfireBlock(
-		BlockBehaviour.Properties.of()
+	public static final RegistryEntry<Block, CampfireBlock> CAMPFIRE = BLOCKS.registerBlock("campfire", CampfireBlock::new,
+		properties -> properties
 			.mapColor(MapColor.PODZOL)
 			.strength(-1.0F, 3600000.0F)
 			.sound(SoundType.WOOD)
@@ -62,15 +62,15 @@ public final class ModBlocks {
 			.noOcclusion()
 			.noLootTable()
 			.isValidSpawn((state, level, pos, type) -> false)
-			.pushReaction(PushReaction.BLOCK)));
+			.pushReaction(PushReaction.BLOCK));
 
 	private ModBlocks() {}
 
-	public static DeferredBlock<MailboxBlock> mailbox(DyeColor color) {
+	public static RegistryEntry<Block, MailboxBlock> mailbox(DyeColor color) {
 		return MAILBOXES.get(color);
 	}
 
-	public static Collection<DeferredBlock<MailboxBlock>> mailboxes() {
+	public static Collection<RegistryEntry<Block, MailboxBlock>> mailboxes() {
 		return Collections.unmodifiableCollection(MAILBOXES.values());
 	}
 }

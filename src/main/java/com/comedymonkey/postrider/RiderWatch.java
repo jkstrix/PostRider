@@ -19,8 +19,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.RelativeMovement;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
  * Lets a player watch the riders: made a spectator and kept a few blocks off the rider most recently out, looking
@@ -62,10 +60,9 @@ public final class RiderWatch {
 		return watching.containsKey(player.getUUID());
 	}
 
-	public static void onServerTick(ServerTickEvent.Post event) {
+	public static void onServerTick(MinecraftServer server) {
 		if (watching.isEmpty())
 			return;
-		MinecraftServer server = event.getServer();
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
 			Watching state = watching.get(player.getUUID());
 			if (state != null)
@@ -73,7 +70,7 @@ public final class RiderWatch {
 		}
 	}
 
-	public static void onServerStopped(ServerStoppedEvent event) {
+	public static void onServerStopped(MinecraftServer server) {
 		watching.clear();
 	}
 

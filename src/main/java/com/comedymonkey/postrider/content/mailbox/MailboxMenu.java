@@ -11,9 +11,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.ItemStackHandler;
-import net.neoforged.neoforge.items.SlotItemHandler;
 
 /**
  * The mailbox screen's slots: the 27-parcel inbox (take only), the 9 parcel slots and the player's inventory.
@@ -57,11 +54,11 @@ public class MailboxMenu extends AbstractContainerMenu {
 	/** Client side, from the position the server sent. */
 	public MailboxMenu(int containerId, Inventory inventory, RegistryFriendlyByteBuf buf) {
 		this(containerId, inventory, buf.readBlockPos(), null,
-			new ItemStackHandler(MailboxBlockEntity.INBOX_SIZE), new ItemStackHandler(MailboxBlockEntity.PARCEL_SIZE), buf.readUtf());
+			new MailboxSlots(MailboxBlockEntity.INBOX_SIZE), new MailboxSlots(MailboxBlockEntity.PARCEL_SIZE), buf.readUtf());
 	}
 
 	private MailboxMenu(int containerId, Inventory inventory, BlockPos pos, @Nullable MailboxBlockEntity mailbox,
-			IItemHandler inbox, IItemHandler parcel, String openedName) {
+			MailboxSlots inbox, MailboxSlots parcel, String openedName) {
 		super(ModMenus.MAILBOX.get(), containerId);
 		this.pos = pos;
 		this.mailbox = mailbox;
@@ -142,11 +139,11 @@ public class MailboxMenu extends AbstractContainerMenu {
 	}
 
 	/** A slot that only takes part while its tab is open. */
-	private class TabSlot extends SlotItemHandler {
+	private class TabSlot extends MailboxSlot {
 		private final int slotTab;
 		private final boolean placeable;
 
-		TabSlot(IItemHandler handler, int index, int x, int y, int slotTab, boolean placeable) {
+		TabSlot(MailboxSlots handler, int index, int x, int y, int slotTab, boolean placeable) {
 			super(handler, index, x, y);
 			this.slotTab = slotTab;
 			this.placeable = placeable;

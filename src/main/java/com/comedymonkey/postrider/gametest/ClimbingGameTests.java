@@ -7,7 +7,6 @@ import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlock;
 import com.comedymonkey.postrider.content.mailbox.MailboxBlockEntity;
 import com.comedymonkey.postrider.content.postman.DeliveryRun;
@@ -31,8 +30,6 @@ import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Deliveries up, down and under things: a tower with a ramp spiralling up it, rooms under a hill reached by a tunnel
@@ -41,8 +38,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * {@link Lookout}: he's never moved more than a few blocks in a tick, never hurt, and only gets off to walk up to the
  * mailbox once he's about level with it (a box on top of a tower is no nearer from its foot).
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class ClimbingGameTests {
 	/** Long enough to study the map, ride a hundred blocks or so, climb, and deliver; a loop or a stall fails sooner. */
 	private static final int DELIVERY_TICKS = 6000;

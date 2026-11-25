@@ -9,6 +9,7 @@ import com.comedymonkey.postrider.content.mailbox.MailboxMenu;
 import com.comedymonkey.postrider.network.RenameMailboxPayload;
 import com.comedymonkey.postrider.network.SendParcelPayload;
 import com.comedymonkey.postrider.post.MailboxNames;
+import com.comedymonkey.postrider.platform.Services;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -16,7 +17,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 /** The mailbox's three tabs: Inbox, Send and Settings, dressed as an old post office counter. */
 public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
@@ -144,7 +144,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 	}
 
 	private void save() {
-		PacketDistributor.sendToServer(new RenameMailboxPayload(nameBox.getValue()));
+		Services.PLATFORM.sendToServer(new RenameMailboxPayload(nameBox.getValue()));
 		nameBox.setFocused(false);
 	}
 
@@ -172,7 +172,7 @@ public class MailboxScreen extends AbstractContainerScreen<MailboxMenu> {
 
 	private void send() {
 		if (selected != null)
-			PacketDistributor.sendToServer(new SendParcelPayload(selected));
+			Services.PLATFORM.sendToServer(new SendParcelPayload(selected));
 	}
 
 	@Override

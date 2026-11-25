@@ -3,7 +3,6 @@ package com.comedymonkey.postrider.gametest;
 import java.util.List;
 import java.util.UUID;
 
-import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.post.Mail;
 import com.comedymonkey.postrider.post.PendingDelivery;
 
@@ -22,12 +21,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /** Opening a parcel, in a real world with a real player: everything in it ends up on the ground. */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class ParcelGameTests {
 	private ParcelGameTests() {}
 

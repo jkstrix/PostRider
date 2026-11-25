@@ -11,8 +11,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Riders underground: each test walls the arena in with rock, puts a mountain across it between the two mailboxes,
@@ -20,8 +18,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * steep ground, so these trials are about whether the plan through the blocks ahead finds its way in, through and
  * out, without wading, being teleported free, going round in circles or standing about.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class CaveGameTests {
 	/** Caves can take a while: he may try the wrong branch first and the plan is redone when a stretch won't go. */
 	private static final int CAVE_TICKS = 6000;

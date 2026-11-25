@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.PostmanHorse;
 
@@ -18,8 +17,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SweetBerryBushBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Deliveries through ground that hurts: lava, fire, magma, cactus, dripstone, berry bushes and powder snow. Each
@@ -27,8 +24,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * horse is burnt, set alight, frozen or hurt in any way, saying where and by what. Run with
  * {@code ./gradlew runGameTestServer}; each test is its own batch.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class HazardGameTests {
 	/** Room to study the map, pick a way round the hazards (and be sent round again), and deliver. */
 	private static final int TRIAL_TICKS = 6000;

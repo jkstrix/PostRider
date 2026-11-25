@@ -5,7 +5,6 @@ import java.nio.file.Files;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Queue;
-import java.util.function.Consumer;
 
 import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.client.gui.MailboxScreen;
@@ -30,8 +29,6 @@ import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * For development only: started with the system property {@code postrider.screenshots} (the {@code runScreenshots}
@@ -79,16 +76,15 @@ public final class DevScreenshots {
 
 	private DevScreenshots() {}
 
-	/** Switches the run on if the game was started for it. */
-	public static void registerIfWanted() {
+	/** Whether the game was started for the run (then its tick is called; see PostRiderClientEvents). */
+	public static boolean wanted() {
 		if (System.getProperty(PROPERTY) == null)
-			return;
+			return false;
 		PostRider.LOGGER.info("Post Rider screenshot run: the game will take its screenshots and quit");
-		Consumer<ClientTickEvent.Post> tick = event -> tick(Minecraft.getInstance());
-		NeoForge.EVENT_BUS.addListener(tick);
+		return true;
 	}
 
-	private static void tick(Minecraft minecraft) {
+	public static void tick(Minecraft minecraft) {
 		ticks++;
 		switch (step) {
 			case START -> {

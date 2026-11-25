@@ -3,7 +3,6 @@ package com.comedymonkey.postrider.gametest;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.gametest.ClimbingGameTests.Lookout;
 
 import net.minecraft.core.BlockPos;
@@ -14,8 +13,6 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * A mine: a stair of blocks one wide at forty-five degrees (a block down for every block along, as a miner digs
@@ -26,8 +23,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * {@link Trials#deliver} and a {@link Lookout}: never moved, never hurt, and the stair walked, not ridden (it's a
  * block wide).
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class MineGameTests {
 	private static final int DELIVERY_TICKS = 6000;
 	private static final BlockState STONE = Blocks.STONE.defaultBlockState();

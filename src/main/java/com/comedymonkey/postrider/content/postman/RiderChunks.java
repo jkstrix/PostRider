@@ -8,15 +8,15 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.platform.Services;
 import com.comedymonkey.postrider.post.PostOffice;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.neoforged.neoforge.common.world.chunk.TicketController;
 
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongCollection;
 
 /**
  * Keeps the chunks around a working rider loaded, so he carries on riding when nobody is near him: a square ticking
@@ -36,17 +36,38 @@ public final class RiderChunks {
 	/** Of those, the ones that tick (mobs, crops, his own goings-on): 1 makes the 3x3 square he's in the middle of. */
 	public static final int TICKING_RADIUS = 1;
 
-	public static final TicketController CONTROLLER = new TicketController(PostRider.asResource("rider"), (level, tickets) -> {
+	/** The name the tickets are saved under. */
+	public static final String TICKET_NAME = "rider";
+
+	/** A level's saved rider tickets, as the mod loader read them back when the level loaded. */
+	public interface SavedTickets {
+		/** The riders (by UUID) who have tickets saved. */
+		Set<UUID> owners();
+
+		/** The chunks held loaded, but not ticking, for a rider. */
+		LongCollection loadedChunks(UUID owner);
+
+		void removeAll(UUID owner);
+
+		/** Lets go of a chunk held loaded (not ticking) for a rider. */
+		void removeLoaded(UUID owner, long chunk);
+	}
+
+	/**
+	 * Sorts out the saved tickets when a level loads: any left over from riders who are no longer working are dropped,
+	 * and a working rider keeps only his ticking square.
+	 */
+	public static void validate(ServerLevel level, SavedTickets tickets) {
 		PostOffice office = PostOffice.get(level.getServer());
-		for (UUID owner : Set.copyOf(tickets.getEntityTickets().keySet())) {
+		for (UUID owner : Set.copyOf(tickets.owners())) {
 			if (!office.isRider(owner)) {
-				tickets.removeAllTickets(owner);
+				tickets.removeAll(owner);
 				continue;
 			}
-			for (long chunk : new LongArrayList(tickets.getEntityTickets().get(owner).nonTicking()))
-				tickets.removeTicket(owner, chunk, false);
+			for (long chunk : new LongArrayList(tickets.loadedChunks(owner)))
+				tickets.removeLoaded(owner, chunk);
 		}
-	});
+	}
 
 	private RiderChunks() {}
 
@@ -87,10 +108,10 @@ public final class RiderChunks {
 			for (ChunkPos chunk : around(previous, radiusOf(rider, previous))) {
 				boolean ticked = ticks(previous, chunk);
 				if (!keep.contains(chunk) || ticks(now, chunk) != ticked)
-					CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, false, ticked);
+					Services.PLATFORM.forceChunk(level, rider, chunk.x, chunk.z, false, ticked);
 			}
 		for (ChunkPos chunk : keep)
-			CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, true, ticks(now, chunk));
+			Services.PLATFORM.forceChunk(level, rider, chunk.x, chunk.z, true, ticks(now, chunk));
 		SQUARES.put(rider, new Square(now, radius));
 	}
 
@@ -119,6 +140,6 @@ public final class RiderChunks {
 
 	private static void releaseAround(ServerLevel level, UUID rider, ChunkPos centre, int radius) {
 		for (ChunkPos chunk : around(centre, radius))
-			CONTROLLER.forceChunk(level, rider, chunk.x, chunk.z, false, ticks(centre, chunk));
+			Services.PLATFORM.forceChunk(level, rider, chunk.x, chunk.z, false, ticks(centre, chunk));
 	}
 }

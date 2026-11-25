@@ -1,6 +1,5 @@
 package com.comedymonkey.postrider.gametest;
 
-import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.postman.BargeEntity;
 import com.comedymonkey.postrider.content.postman.Crossing;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
@@ -15,8 +14,6 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Riders in a real world: each test builds a small scene, sets a rider (or a barge) going and watches what he does.
@@ -24,8 +21,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
  * Run them with {@code ./gradlew runGameTestServer}. Each is in its own batch, so they run one at a time and riders
  * never meet.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class RiderGameTests {
 	/** Long enough for him to study his map (up to 20 s), whistle, ride a few dozen blocks, row and deliver. */
 	private static final int DELIVERY_TICKS = 3600;

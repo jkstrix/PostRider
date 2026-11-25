@@ -7,7 +7,7 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Spider;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.minecraft.world.level.Level;
 
 /**
  * Hostile mobs hunt riders the way they hunt players (spiders only in the dark); neutral ones (endermen, piglins...)
@@ -39,8 +39,9 @@ public final class RiderHunting {
 	/** Spider light rules: a light level under half (the same as vanilla's spider targeting). */
 	public static final float SPIDER_LIGHT = 0.5F;
 
-	public static void onJoin(EntityJoinLevelEvent event) {
-		if (event.getLevel().isClientSide() || !(event.getEntity() instanceof Monster monster) || !huntsRiders(monster.getClass()))
+	/** Teaches a monster joining a level to hunt riders, as it hunts players. */
+	public static void onJoin(Entity entity, Level level) {
+		if (level.isClientSide() || !(entity instanceof Monster monster) || !huntsRiders(monster.getClass()))
 			return;
 		if (huntsOnlyInTheDark(monster.getClass()))
 			monster.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(monster, PostmanEntity.class, true) {

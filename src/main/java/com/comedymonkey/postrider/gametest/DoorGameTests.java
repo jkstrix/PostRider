@@ -1,6 +1,5 @@
 package com.comedymonkey.postrider.gametest;
 
-import com.comedymonkey.postrider.PostRider;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -12,15 +11,11 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import net.neoforged.neoforge.gametest.GameTestHolder;
-import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 /**
  * Doors on his way: he opens them (iron ones too, with no button) and goes through on foot, and leaves each as he
  * found it, shut or standing open.
  */
-@GameTestHolder(PostRider.MOD_ID)
-@PrefixGameTestTemplate(false)
 public final class DoorGameTests {
 	private static final int DELIVERY_TICKS = 4000;
 	private static final BlockState STONE = Blocks.STONE.defaultBlockState();
