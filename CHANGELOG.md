@@ -2,6 +2,8 @@
 
 ## 1.4.0
 
+- Fixed: a rider on foot waiting on the edge of a stair's tread for the next stretch of his way could start it from the
+  drop beside the tread, and walk off: on a winding stair round a tower, to his death.
 - Fixed: a rider on foot planned his way over a bed, a slab or deep snow with only two blocks over its floor, where
   his head is in the block above (a straw bed under a camp tent's roof, say) and he can't go, and pushed against it
   until the delivery was lost. A floor that lifts him more than a fifth of a block now needs three blocks clear.

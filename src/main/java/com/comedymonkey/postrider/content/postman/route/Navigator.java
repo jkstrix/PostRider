@@ -1298,9 +1298,35 @@ public final class Navigator {
 	public Probe probeFromHere(PostmanEntity rider, ServerLevel level, Vec3 target, int budget) {
 		Entity body = rider.getVehicle() instanceof PostmanHorse horse ? horse : rider;
 		boolean mounted = body != rider;
-		int x = mounted ? Mth.floor(body.getX() - 0.5) : Mth.floor(body.getX());
-		int z = mounted ? Mth.floor(body.getZ() - 0.5) : Mth.floor(body.getZ());
-		return probe(level, x, Mth.floor(body.getY() + 1e-3), z, mounted, rider.mayWhistle(), target, budget);
+		int y = Mth.floor(body.getY() + 1e-3);
+		int[] start = mounted ? new int[] {Mth.floor(body.getX() - 0.5), Mth.floor(body.getZ() - 0.5)}
+			: footStart(new LevelTerrain(level), body.getX(), y, body.getZ(), body.getBbWidth() / 2);
+		return probe(level, start[0], y, start[1], mounted, rider.mayWhistle(), target, budget);
+	}
+
+	/**
+	 * The block a way on foot starts from: the one he's in, if he stands on it; else, standing over an edge (half on a
+	 * stair's tread, his middle over the drop beside it), the one under his feet he does stand on, nearest his middle. A
+	 * way started from the block over the drop sends him to its middle first, off the edge (a winding stair round a
+	 * tower, waiting on a tread's edge for the next stretch).
+	 */
+	public static int[] footStart(Terrain terrain, double x, int y, double z, double halfWidth) {
+		int bx = Mth.floor(x), bz = Mth.floor(z);
+		if (LocalPlanner.stands(terrain, false, bx, y, bz))
+			return new int[] {bx, bz};
+		int[] best = {bx, bz};
+		double bestDistance = Double.MAX_VALUE;
+		for (int cx = Mth.floor(x - halfWidth); cx <= Mth.floor(x + halfWidth); cx++)
+			for (int cz = Mth.floor(z - halfWidth); cz <= Mth.floor(z + halfWidth); cz++) {
+				if ((cx == bx && cz == bz) || !LocalPlanner.stands(terrain, false, cx, y, cz))
+					continue;
+				double distance = Math.hypot(cx + 0.5 - x, cz + 0.5 - z);
+				if (distance < bestDistance) {
+					bestDistance = distance;
+					best = new int[] {cx, cz};
+				}
+			}
+		return best;
 	}
 
 	/** Takes the way a probe found from where he is as the stretch to follow now. */
@@ -1319,13 +1345,15 @@ public final class Navigator {
 	private void startStretch(PostmanEntity rider, ServerLevel level, Vec3 target, long now) {
 		Entity body = rider.getVehicle() instanceof PostmanHorse horse ? horse : rider;
 		boolean mounted = body != rider;
-		int x = mounted ? Mth.floor(body.getX() - 0.5) : Mth.floor(body.getX());
-		int z = mounted ? Mth.floor(body.getZ() - 0.5) : Mth.floor(body.getZ());
 		int y = Mth.floor(body.getY() + 1e-3);
+		LevelTerrain terrain = new LevelTerrain(level);
+		int[] start = mounted ? new int[] {Mth.floor(body.getX() - 0.5), Mth.floor(body.getZ() - 0.5)}
+			: footStart(terrain, body.getX(), y, body.getZ(), body.getBbWidth() / 2);
+		int x = start[0], z = start[1];
 		LocalPlanner.Goal goal = goalFrom(level, rider.position(), target);
 		// On foot with the barge just ahead, he walks down to it rather than calling his horse for the last few blocks
 		boolean mayMount = rider.mayWhistle() && now >= footOnlyUntil && (mounted || !waterWithin(rider.position(), FOOT_TO_WATER));
-		local = new LocalPlanner(new LevelTerrain(level), x, y, z, mounted, goal, mayMount);
+		local = new LocalPlanner(terrain, x, y, z, mounted, goal, mayMount);
 	}
 
 	/** Where the next stretch aims: about one stretch on along the plan (or straight on without one), or the mailbox. */
