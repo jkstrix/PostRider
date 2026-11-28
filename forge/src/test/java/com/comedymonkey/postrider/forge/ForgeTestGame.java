@@ -55,18 +55,34 @@ public final class ForgeTestGame {
 		if (started)
 			return;
 		SharedConstants.tryDetectVersion();
+		// Forge 52 fires an event for every item stack made (ForgeHooks.gatherItemComponents), and its mod loader wants
+		// the list of mods FML found, which no one has made outside a real launch: an empty one will do
+		Field modList = net.minecraftforge.fml.loading.FMLLoader.class.getDeclaredField("loadingModList");
+		modList.setAccessible(true);
+		if (modList.get(null) == null) {
+			var none = net.minecraftforge.fml.loading.LoadingModList.of(java.util.List.of(), java.util.List.of(), null);
+			none.setBrokenFiles(java.util.List.of());
+			modList.set(null, none);
+		}
+		// It also asks for the game's module layer, which on the plain classpath is the boot layer
+		Field layers = net.minecraftforge.fml.loading.FMLLoader.class.getDeclaredField("moduleLayerManager");
+		layers.setAccessible(true);
+		if (layers.get(null) == null)
+			layers.set(null, (cpw.mods.modlauncher.api.IModuleLayerManager) layer -> java.util.Optional.of(ModuleLayer.boot()));
 		Bootstrap.bootStrap();
 
 		// PostRiderForge's constructor
 		// (Building the config spec hands its values to PostRiderConfig; unloaded, they read as the defaults)
 		Objects.requireNonNull(ForgeConfig.SPEC);
-		ForgeNetwork.init();
+		// (Not ForgeNetwork: Forge's network channel listens on an event bus, and EventBus 6 can only list listeners for
+		// event classes its transformer has rewritten as they load, which needs Forge's launcher. No test sends packets)
 		PostRiderEvents.init();
 		// PostRiderForgeClient: the rest of it only registers listeners for client loading events that never fire here
 		PostRiderClientEvents.init();
 
 		// Forge's registry phase (RegisterEvent for each registry, then ForgeHooks.modifyAttributes)
 		GameData.unfreezeData();
+		registerForgeAttributes();
 		for (Registrar<?> registrar : ModRegistries.ALL)
 			register(registrar);
 		registerAttributes();
@@ -91,6 +107,30 @@ public final class ForgeTestGame {
 		@SuppressWarnings({ "unchecked", "rawtypes" })
 		Registry<R> vanilla = (Registry<R>) BuiltInRegistries.REGISTRY.getOrThrow((ResourceKey) key);
 		registrar.registerAll((entry, value) -> Registry.register(vanilla, entry, value));
+	}
+
+	/**
+	 * Forge's own attributes (swim speed, name tag distance), which Forge 52 gives every living entity: in the game Forge
+	 * registers them as a mod when RegisterEvent opens the attribute registry, which no one does here, so their entries
+	 * are put in by hand and their holders bound, as DeferredRegister does.
+	 */
+	@SuppressWarnings("unchecked")
+	private static void registerForgeAttributes() throws ReflectiveOperationException {
+		Field registerField = net.minecraftforge.common.ForgeMod.class.getDeclaredField("ATTRIBUTES");
+		registerField.setAccessible(true);
+		Object deferred = registerField.get(null);
+		Field entriesField = net.minecraftforge.registries.DeferredRegister.class.getDeclaredField("entries");
+		entriesField.setAccessible(true);
+		var entries = (Map<net.minecraftforge.registries.RegistryObject<net.minecraft.world.entity.ai.attributes.Attribute>,
+			java.util.function.Supplier<? extends net.minecraft.world.entity.ai.attributes.Attribute>>) entriesField.get(deferred);
+		ForgeRegistry<net.minecraft.world.entity.ai.attributes.Attribute> attributes = RegistryManager.ACTIVE.getRegistry(net.minecraft.core.registries.Registries.ATTRIBUTE);
+		attributes.unfreeze();
+		entries.forEach((holder, value) -> attributes.register(holder.getId(), value.get()));
+		attributes.freeze();
+		java.lang.reflect.Method bind = net.minecraftforge.registries.RegistryObject.class.getDeclaredMethod("updateReference", net.minecraftforge.registries.IForgeRegistry.class);
+		bind.setAccessible(true);
+		for (var holder : entries.keySet())
+			bind.invoke(holder, attributes);
 	}
 
 	/**
