@@ -2,6 +2,12 @@
 
 ## 1.4.0
 
+- Fixed: a rider on foot planned his way over a bed, a slab or deep snow with only two blocks over its floor, where
+  his head is in the block above (a straw bed under a camp tent's roof, say) and he can't go, and pushed against it
+  until the delivery was lost. A floor that lifts him more than a fifth of a block now needs three blocks clear.
+- A rider jumped free of a spot and stuck there again is jumped further out each time (at least 6 blocks, then 12),
+  rather than back into the same wedge two blocks off, and a way from a spot that he's already failed to follow isn't
+  followed again after a jump.
 - Fixed: since 1.2.1 a rider setting out on a long trip into land nobody had explored often set off before his route
   was worked out and got lost on the way (on the frozen-ocean test seed he delivered one trip in three, against every
   trip before 1.2.1). The unexplored land is now surveyed several times faster, in the server's spare time, so his

@@ -90,7 +90,9 @@ public final class LevelTerrain implements Terrain {
 		double top = collision.max(Direction.Axis.Y);
 		if (top > 1.0)
 			return Kind.TALL;
-		return top <= 0.5 ? Kind.LOW : Kind.SOLID;
+		if (top > 0.5)
+			return Kind.SOLID;
+		return top > Kind.THIN_FLOOR ? Kind.RAISED : Kind.LOW;
 	}
 
 	private LevelChunk chunk(int x, int z) {

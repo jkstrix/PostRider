@@ -443,12 +443,12 @@ public final class LocalPlanner {
 	public static boolean stands(Terrain terrain, boolean mounted, int x, int y, int z) {
 		if (!mounted) {
 			Terrain.Kind feet = terrain.kind(x, y, z);
-			if (!feet.feetFit() || !terrain.kind(x, y + 1, z).isClear())
+			if (!feet.feetFit() || !terrain.kind(x, y + 1, z).isClear() || !headClear(terrain, feet, x, y, z))
 				return false;
 			// On something solid, or in a ladder or a vine holding on (the top of one holds nobody up: stood over, he
 			// falls through it)
 			Terrain.Kind below = terrain.kind(x, y - 1, z);
-			return below == Terrain.Kind.SOLID || feet == Terrain.Kind.LOW || feet == Terrain.Kind.CLIMB;
+			return below == Terrain.Kind.SOLID || feet.isFloor() || feet == Terrain.Kind.CLIMB;
 		}
 		int support = 0;
 		for (int dx = 0; dx <= 1; dx++)
@@ -459,7 +459,7 @@ public final class LocalPlanner {
 				Terrain.Kind below = terrain.kind(x + dx, y - 1, z + dz);
 				if (below == Terrain.Kind.DANGER)
 					return false;
-				if (below == Terrain.Kind.SOLID || feet == Terrain.Kind.LOW)
+				if (below == Terrain.Kind.SOLID || feet.isFloor())
 					support++;
 			}
 		// Half the horse on something is enough to land on (a leap or a drop ends with its front half on the far
@@ -486,7 +486,7 @@ public final class LocalPlanner {
 
 	/** Whether a column has ground close enough under a foot at y: a block, or a one-block step down. */
 	private static boolean underfoot(Terrain terrain, int x, int y, int z) {
-		return terrain.kind(x, y, z) == Terrain.Kind.LOW || terrain.kind(x, y - 1, z) == Terrain.Kind.SOLID
+		return terrain.kind(x, y, z).isFloor() || terrain.kind(x, y - 1, z) == Terrain.Kind.SOLID
 			|| terrain.kind(x, y - 1, z).isClear() && terrain.kind(x, y - 2, z) == Terrain.Kind.SOLID;
 	}
 
@@ -505,14 +505,24 @@ public final class LocalPlanner {
 
 	/** Whether he (or his horse) would fit here, standing or passing through in the air. */
 	static boolean fits(Terrain terrain, boolean mounted, int x, int y, int z) {
-		if (!mounted)
-			return terrain.kind(x, y, z).feetFit() && terrain.kind(x, y + 1, z).isClear();
+		if (!mounted) {
+			Terrain.Kind feet = terrain.kind(x, y, z);
+			return feet.feetFit() && terrain.kind(x, y + 1, z).isClear() && headClear(terrain, feet, x, y, z);
+		}
 		for (int dx = 0; dx <= 1; dx++)
 			for (int dz = 0; dz <= 1; dz++)
 				if (!terrain.kind(x + dx, y, z + dz).horseFeetFit() || !terrain.kind(x + dx, y + 1, z + dz).horseClear()
 						|| !terrain.kind(x + dx, y + 2, z + dz).horseClear())
 					return false;
 		return true;
+	}
+
+	/**
+	 * Whether a rider on foot with his feet in this block has his head clear: on a raised floor (a bed, a slab) he
+	 * reaches into the second block up, so that must be clear as well as the first.
+	 */
+	private static boolean headClear(Terrain terrain, Terrain.Kind feet, int x, int y, int z) {
+		return feet != Terrain.Kind.RAISED || terrain.kind(x, y + 2, z).isClear();
 	}
 
 	/** Whether there's room overhead to step up a block from here. */

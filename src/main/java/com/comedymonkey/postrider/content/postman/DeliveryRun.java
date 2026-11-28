@@ -1374,8 +1374,9 @@ public class DeliveryRun {
 				enter(Stage.PLANNING);
 				return true;
 			}
-			// Failing that, the nearest safe spot a way does lead on from: a hop of a few blocks, usually
-			free = nearestWayOut(rider, level, target);
+			// Failing that, the nearest safe spot a way does lead on from: a hop of a few blocks, usually; jumped from here
+			// before and stuck here again, further out (the nearest spot led him straight back into the same wedge)
+			free = nearestWayOut(rider, level, target, nearestJump(jumpsFromSpot(mover.position())));
 		}
 		// Stuck on the water with nowhere to step off: the barge is pushed off to open water a little way on towards the
 		// box (never put down on land, as a jump would); failing that he leaves it and is jumped ashore like anyone
@@ -1410,12 +1411,16 @@ public class DeliveryRun {
 		String diagnosis = found + "; jumped " + Math.round(Journey.horizontalDistance(mover.position(), free)) + " blocks";
 		logRoute(rider, stuck + "; " + diagnosis + ", to " + Navigator.spot(free));
 		jumps.add(new Jump(stage, why, BlockPos.containing(mover.position()), BlockPos.containing(free), wayFromHere, diagnosis));
+		Vec3 jumpedFrom = mover.position();
 		PostmanEffects.puff(level, mover);
 		mover.teleportTo(free.x, free.y, free.z);
 		// His chunks go with him at once: put down in one that isn't ticking, he'd never tick again to move them
 		keepChunksLoaded(rider, level);
 		jumpsFree++;
-		lastFollowSpot = null;
+		// (Where he last followed a way is kept: put back there, following it again would only fail again, so the next
+		// try is a jump, further out)
+		jumpsHere = jumpsFromSpot(jumpedFrom);
+		lastJumpFrom = jumpedFrom;
 		PostmanEffects.puff(level, mover);
 		rider.getNavigation().stop();
 		aimCooldown = 0;
@@ -1504,7 +1509,26 @@ public class DeliveryRun {
 	/** A spot a jump lands on must have at least this much ground to be got about on, or it's a pinnacle or an islet. */
 	public static final int OPEN_GROUND = 100;
 
-	private Vec3 nearestWayOut(PostmanEntity rider, ServerLevel level, Vec3 target) {
+	/** Stuck again within this far of where he was last jumped from is being stuck at the same spot. */
+	public static final double SAME_SPOT = 4.0;
+	/** The nearest a jump goes, by how many times he's already been jumped from the same spot: then further each time. */
+	public static final int[] ESCALATING_JUMPS = {0, 6, 12};
+	/** Where he was last jumped from, and how many jumps in a row that was from about there. */
+	@Nullable
+	private Vec3 lastJumpFrom;
+	private int jumpsHere;
+
+	/** How many times he's already been jumped from about this spot, in a row (0 for a new spot). */
+	private int jumpsFromSpot(Vec3 here) {
+		return lastJumpFrom != null && Journey.horizontalDistance(lastJumpFrom, here) < SAME_SPOT ? jumpsHere + 1 : 0;
+	}
+
+	/** The nearest a jump may land, having been jumped from the same spot this many times already. */
+	public static int nearestJump(int jumpsFromHere) {
+		return ESCALATING_JUMPS[Math.min(jumpsFromHere, ESCALATING_JUMPS.length - 1)];
+	}
+
+	private Vec3 nearestWayOut(PostmanEntity rider, ServerLevel level, Vec3 target, int nearest) {
 		Entity body = rider.getVehicle() != null ? rider.getVehicle() : rider;
 		boolean mounted = rider.getHorse() != null;
 		LevelTerrain terrain = new LevelTerrain(level);
@@ -1513,6 +1537,8 @@ public class DeliveryRun {
 		Vec3 openest = null;
 		int mostOpen = OPEN_GROUND - 1;
 		for (int[] offset : jumpOffsets()) {
+			if (Math.hypot(offset[0], offset[1]) < nearest - 0.5)
+				continue;
 			double cx = body.getX() + offset[0], cz = body.getZ() + offset[1];
 			int x = mounted ? Mth.floor(cx - 0.5) : Mth.floor(cx), z = mounted ? Mth.floor(cz - 0.5) : Mth.floor(cz);
 			for (int y = fromY + 3; y >= fromY - 6; y--) {
