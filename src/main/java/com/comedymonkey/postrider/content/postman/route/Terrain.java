@@ -8,7 +8,7 @@ public interface Terrain {
 	enum Kind {
 		/** Nothing in the way: air, grass, flowers. */
 		OPEN,
-		/** A floor you stand in rather than on: a carpet, a bottom slab, a thin layer of snow. */
+		/** A floor you stand in rather than on, too thin to matter overhead: a carpet, a thin layer of snow, a trapdoor. */
 		LOW,
 		/** A block you stand on top of. */
 		SOLID,
@@ -27,7 +27,21 @@ public interface Terrain {
 		/** A door, either half, open or shut, wooden or iron: he opens it and goes through on foot; no horse does. */
 		DOOR,
 		/** Somewhere the planner can't see (the chunk isn't loaded). */
-		UNKNOWN;
+		UNKNOWN,
+		/**
+		 * A floor you stand in that lifts you a good part of a block (more than {@link #THIN_FLOOR}, up to half): a bed, a
+		 * bottom slab, deep snow. Stood on it, a rider on foot reaches into the second block above, so that must be clear
+		 * too (under a tent's roof, a straw bed is no way through).
+		 */
+		RAISED;
+
+		/** The highest a floor can rise and leave a rider on foot (1.8 tall) inside the two blocks it's in. */
+		public static final double THIN_FLOOR = 0.2;
+
+		/** Whether this is a floor stood in, low or raised. */
+		public boolean isFloor() {
+			return this == LOW || this == RAISED;
+		}
 
 		/** Whether a body on foot can be in this block. */
 		public boolean isClear() {
@@ -36,7 +50,7 @@ public interface Terrain {
 
 		/** Whether a rider's feet can be in this block (as well as clear blocks, a low floor). */
 		public boolean feetFit() {
-			return isClear() || this == LOW;
+			return isClear() || isFloor();
 		}
 
 		/** Whether a horse can be in this block: as on foot, but never a doorway. */
@@ -46,7 +60,7 @@ public interface Terrain {
 
 		/** Whether a horse's feet can be in this block. */
 		public boolean horseFeetFit() {
-			return horseClear() || this == LOW;
+			return horseClear() || isFloor();
 		}
 	}
 
