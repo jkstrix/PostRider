@@ -44,9 +44,10 @@ import net.minecraft.world.level.levelgen.RandomState;
  * The lie of the land for long-range plans, one world at a time: the height of the ground and where the water is,
  * four columns to each 8x8-block cell, looked up in tiles of 4x4 chunks. It comes from loaded chunks first, then
  * from chunks saved on disk, and where neither has it the ground is estimated from the world generator's noise (its
- * base heights, as the game places structures by): no chunk is generated for a plan, so a plan thousands of blocks
- * long is done in seconds (the noise is sampled a column at a time, a few milliseconds' worth each tick, so a long
- * trip into unexplored land is surveyed over a while rather than in one tick that stalls the server). Kept in memory only, and forgotten after a while so changes to the world come through:
+ * base heights, as the game places structures by), one column in the middle of each cell: no chunk is generated for
+ * a plan. The noise is costly (a fraction of a millisecond a column), so it's sampled a column at a time in the
+ * tick's spare time ({@link #estimateBudget}), and a long trip into unexplored land is surveyed over some seconds
+ * rather than in one tick that stalls the server. Kept in memory only, and forgotten after a while so changes to the world come through:
  * a tile of loaded chunks is cheap to read and is looked at afresh every few seconds (a bridge or a canal someone
  * has just built is seen at once), one that had to come off disk or be generated is kept for ten minutes.
  */
@@ -60,11 +61,12 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	public static final long TILE_LIFETIME = 12_000;
 	/** How long a tile of loaded chunks is kept before it's read again (5 seconds): a plan's many lookups, no more. */
 	public static final long LOADED_LIFETIME = 100;
-	/** How long the server thread spends estimating ground from the noise each tick, all worlds together (4 ms). */
+	/** The least the server thread spends estimating ground from the noise each tick, all worlds together (4 ms); see estimateBudget. */
 	public static final long ESTIMATE_NANOS_PER_TICK = 4_000_000;
 	/** Where in each cell the four columns are sampled. */
 	private static final int[][] SAMPLES = {{2, 2}, {6, 2}, {2, 6}, {6, 6}};
 	private static final int[] SAMPLED_COLUMNS = sampledColumns();
+	private static final int[] ESTIMATED_COLUMNS = estimatedColumns();
 
 	private static final Map<ResourceKey<Level>, TerrainSurvey> SURVEYS = new HashMap<>();
 
@@ -87,10 +89,38 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 
 	/** Each tick: takes in what's been read off disk, and estimates never-generated chunks for as long as the budget allows. */
 	public static void tickAll(MinecraftServer server) {
-		long deadline = System.nanoTime() + ESTIMATE_NANOS_PER_TICK;
+		long start = System.nanoTime();
+		long budget = estimateBudget(server.tickRateManager().nanosecondsPerTick(), server.getAverageTickTimeNanos(), averageEstimateNanos);
+		long deadline = start + budget;
+		boolean estimated = false;
 		for (TerrainSurvey survey : SURVEYS.values())
 			if (server.getLevel(survey.level.dimension()) == survey.level)
-				survey.tick(deadline);
+				estimated |= survey.tick(deadline);
+		// The survey's own share of the server's tick time, so it isn't taken for the server being busy
+		long spent = estimated ? System.nanoTime() - start : 0;
+		averageEstimateNanos += (spent - averageEstimateNanos) / AVERAGE_OVER;
+	}
+
+	/** The most the survey takes of a tick (30 ms of 50), however idle the server: the rest is the world's. */
+	public static final long ESTIMATE_NANOS_MAX = 30_000_000;
+	/** Of a tick's spare time, this share is left free: the server's ticks vary, and a slow one mustn't run late. */
+	public static final double SPARE_KEPT = 0.25;
+	/** The survey's own time is averaged over about this many ticks, as the server averages its tick times. */
+	private static final int AVERAGE_OVER = 100;
+	private static long averageEstimateNanos;
+
+	/**
+	 * How long the survey may spend estimating never-generated ground this tick: the tick's spare time (what the
+	 * server doesn't use of it, with a share kept free), never less than {@link #ESTIMATE_NANOS_PER_TICK} and never
+	 * more than {@link #ESTIMATE_NANOS_MAX}. On a server with time to spare a long trip into unexplored land is
+	 * surveyed several times faster, so the route is worked out as quickly as it used to be; on a busy one it goes no
+	 * faster than the least, and the server never stalls for it. The server's average tick time includes the survey's
+	 * own, which is taken off first, or the survey would see its own work as the server being busy.
+	 */
+	static long estimateBudget(long nanosPerTick, long averageTickNanos, long averageEstimateNanos) {
+		long serverNanos = Math.max(0, averageTickNanos - averageEstimateNanos);
+		long spare = (long) ((nanosPerTick - serverNanos) * (1 - SPARE_KEPT));
+		return Math.clamp(spare, ESTIMATE_NANOS_PER_TICK, ESTIMATE_NANOS_MAX);
 	}
 
 	/** How the survey stands, for the log: tiles read, and tiles still waiting on chunks off disk. */
@@ -225,16 +255,28 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 			this.pos = pos;
 		}
 
-		/** Samples one more column; true once they all are. */
+		/**
+		 * Estimates one more cell, from the column in its middle, its heights standing for all four of the cell's
+		 * samples; true once every cell is. (A column costs a fraction of a millisecond of noise, and a long trip into
+		 * unexplored land needs hundreds of thousands of them: one a cell is a quarter of the work, and the real ground
+		 * is read in with all four samples once the chunk loads, ahead of him.)
+		 */
 		boolean step(ChunkGenerator generator, RandomState random, LevelHeightAccessor heights) {
-			int column = SAMPLED_COLUMNS[next++];
+			int cell = next++;
+			int column = ESTIMATED_COLUMNS[cell];
 			int x = pos.getMinBlockX() + column % 16, z = pos.getMinBlockZ() + column / 16;
 			// One pass of the noise for both heights, where asking for each would build it twice
 			NoiseColumn blocks = generator.getBaseColumn(x, z, heights, random);
-			floors[column] = firstFree(blocks, heights.getMinBuildHeight(), heights.getMaxBuildHeight(), Heightmap.Types.OCEAN_FLOOR_WG.isOpaque());
-			tops[column] = firstFree(blocks, heights.getMinBuildHeight(), heights.getMaxBuildHeight(), Heightmap.Types.WORLD_SURFACE_WG.isOpaque());
-			icy[column] = isIceField(generator.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(tops[column]), QuartPos.fromBlock(z), random.sampler())) ? 1 : 0;
-			return next >= SAMPLED_COLUMNS.length;
+			int floor = firstFree(blocks, heights.getMinBuildHeight(), heights.getMaxBuildHeight(), Heightmap.Types.OCEAN_FLOOR_WG.isOpaque());
+			int top = firstFree(blocks, heights.getMinBuildHeight(), heights.getMaxBuildHeight(), Heightmap.Types.WORLD_SURFACE_WG.isOpaque());
+			int ice = isIceField(generator.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(x), QuartPos.fromBlock(top), QuartPos.fromBlock(z), random.sampler())) ? 1 : 0;
+			for (int sample = 0; sample < SAMPLES.length; sample++) {
+				int sampled = SAMPLED_COLUMNS[cell * SAMPLES.length + sample];
+				floors[sampled] = floor;
+				tops[sampled] = top;
+				icy[sampled] = ice;
+			}
+			return next >= ESTIMATED_COLUMNS.length;
 		}
 	}
 
@@ -250,6 +292,19 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	}
 
 	/** The columns of a chunk (index z * 16 + x) that its cells sample: the only ones an estimate need look at. */
+	/**
+	 * The column in the middle of each cell (index z * 16 + x), in the same order as {@link #sampledColumns} takes the
+	 * cells: where never-generated ground is estimated, one column a cell.
+	 */
+	public static int[] estimatedColumns() {
+		int[] columns = new int[CELLS_PER_CHUNK * CELLS_PER_CHUNK];
+		int i = 0;
+		for (int cx = 0; cx < CELLS_PER_CHUNK; cx++)
+			for (int cz = 0; cz < CELLS_PER_CHUNK; cz++)
+				columns[i++] = (cz * CoarsePlanner.CELL + CoarsePlanner.CELL / 2) * 16 + cx * CoarsePlanner.CELL + CoarsePlanner.CELL / 2;
+		return columns;
+	}
+
 	public static int[] sampledColumns() {
 		int[] columns = new int[CELLS_PER_CHUNK * CELLS_PER_CHUNK * SAMPLES.length];
 		int i = 0;
@@ -263,15 +318,17 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 	/**
 	 * Takes in every chunk read off disk, and estimates the never-generated ones a column at a time until the deadline
 	 * (at least one column a tick, so no world waits on another for ever), carrying on next tick from where it got to.
+	 * True if it estimated anything.
 	 */
-	private void tick(long deadline) {
+	private boolean tick(long deadline) {
 		ChunkGenerator generator = level.getChunkSource().getGenerator();
 		RandomState random = level.getChunkSource().randomState();
+		boolean estimated = false;
 		while (true) {
 			if (estimating == null) {
 				Arrival arrival = arrivals.poll();
 				if (arrival == null)
-					return;
+					return estimated;
 				if (arrival.floors() != null) {
 					fill(arrival.pos(), arrival.floors(), arrival.tops(), arrival.icy());
 					continue;
@@ -280,6 +337,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 					continue;
 				estimating = new Estimate(arrival.pos());
 			}
+			estimated = true;
 			try {
 				if (estimating.step(generator, random, level)) {
 					fill(estimating.pos, estimating.floors, estimating.tops, estimating.icy);
@@ -293,7 +351,7 @@ public final class TerrainSurvey implements CoarsePlanner.Cells {
 				estimating = null;
 			}
 			if (System.nanoTime() >= deadline)
-				return;
+				return estimated;
 		}
 	}
 

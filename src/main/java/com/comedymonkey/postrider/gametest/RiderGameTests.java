@@ -128,13 +128,17 @@ public final class RiderGameTests {
 		Scene scene = new Scene(helper);
 		scene.ground(0, 0, 79, 63);
 		// The lake well out from the near mailbox (so he rides to it, unless he starts close) and right across the
-		// arena, so there's no riding round it; the island in it, its mailbox well in from where he lands
+		// arena, so there's no riding round it; the island in it, its mailbox well in from where he lands (more than
+		// the 15 blocks he'd walk). The game-test world's flat ground runs on round the arena at the arena's height,
+		// so the island is kept at least a whole long-range cell of water (15 blocks, however the arena lines up with the
+		// cells) from the arena's edges: a cell over the
+		// edge, half lake and half that ground, counts as land, and next to the island it was a way round the lake
 		scene.water(34, 0, 79, 63, 2);
-		scene.fill(48, -1, 20, 72, -1, 44, Blocks.DIRT.defaultBlockState());
-		scene.ground(48, 20, 72, 44);
+		scene.fill(48, -1, 20, 64, -1, 44, Blocks.DIRT.defaultBlockState());
+		scene.ground(48, 20, 64, 44);
 		String fromName = Scene.address(what + " A"), toName = Scene.address(what + " B");
 		BlockPos from = scene.mailbox(fromX, 32, Direction.EAST, fromName);
-		BlockPos to = scene.mailbox(68, 32, Direction.WEST, toName);
+		BlockPos to = scene.mailbox(64, 32, Direction.WEST, toName);
 		return new Island(scene, to, new Watch(scene, scene.post(from, fromName, toName)));
 	}
 
