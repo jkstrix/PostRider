@@ -3,8 +3,10 @@ package com.comedymonkey.postrider.gametest;
 import com.comedymonkey.postrider.PostRider;
 import com.comedymonkey.postrider.content.postman.BargeEntity;
 import com.comedymonkey.postrider.content.postman.Crossing;
+import com.comedymonkey.postrider.content.postman.DeliveryRun;
 import com.comedymonkey.postrider.content.postman.PostmanEntity;
 import com.comedymonkey.postrider.content.postman.Roster;
+import com.comedymonkey.postrider.content.postman.TentEntity;
 import com.comedymonkey.postrider.registry.ModEntities;
 
 import net.minecraft.core.BlockPos;
@@ -12,8 +14,11 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.entity.ai.village.poi.PoiTypes;
+import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -118,6 +123,58 @@ public final class RiderGameTests {
 		deliver(scene, to, watch, () -> {
 			if (watch.rowed)
 				throw new GameTestAssertException("He took the barge with no water about");
+		});
+	}
+
+	/**
+	 * Dusk falls as he rides through a village (a bell, and a bed a few blocks off his way): he sleeps in the bed rather
+	 * than camping, the bed taken while he's in it, and in the morning he gets up and leaves it free.
+	 */
+	@GameTest(skyAccess = true, template = "gametest/arena_48x32", batch = "village_bed", timeoutTicks = DELIVERY_TICKS)
+	public static void inAVillageAtDuskHeSleepsInABedNobodysIn(GameTestHelper helper) {
+		Scene scene = new Scene(helper);
+		scene.ground(0, 0, 47, 31);
+		String fromName = Scene.address("GT Bed A"), toName = Scene.address("GT Bed B");
+		BlockPos from = scene.mailbox(4, 16, Direction.EAST, fromName);
+		scene.mailbox(43, 16, Direction.WEST, toName);
+		BlockPos bell = new BlockPos(26, 1, 23);
+		helper.setBlock(bell, Blocks.BELL.defaultBlockState());
+		BlockPos bellAt = helper.absolutePos(bell);
+		BlockPos head = new BlockPos(22, 1, 21);
+		BlockState bed = Blocks.RED_BED.defaultBlockState().setValue(BedBlock.FACING, Direction.NORTH);
+		helper.setBlock(head.south(), bed.setValue(BedBlock.PART, BedPart.FOOT));
+		helper.setBlock(head, bed.setValue(BedBlock.PART, BedPart.HEAD));
+		BlockPos headAt = helper.absolutePos(head);
+		Watch watch = new Watch(scene, scene.post(from, fromName, toName));
+		boolean[] dusk = {false}, slept = {false}, claimed = {false};
+		helper.onEachTick(() -> {
+			// The game counts a place as a village only where a villager has claimed something: the bell is claimed (as a
+			// villager would, gathering at it), the bed left unclaimed
+			if (!claimed[0] && scene.level.getPoiManager().existsAtPosition(PoiTypes.MEETING, bellAt))
+				claimed[0] = scene.level.getPoiManager().take(type -> type.is(PoiTypes.MEETING), (type, at) -> at.equals(bellAt), bellAt, 1).isPresent();
+			PostmanEntity rider = watch.rider;
+			if (rider == null || watch.run == null)
+				return;
+			DeliveryRun.Stage stage = watch.run.stage();
+			boolean taken = scene.level.getBlockState(headAt).getValue(BedBlock.OCCUPIED);
+			if (!dusk[0] && claimed[0] && stage == DeliveryRun.Stage.RIDING && helper.relativeVec(rider.position()).x >= 14) {
+				// Late enough that monsters are out: he goes straight to bed once he's there
+				scene.level.setDayTime(13500);
+				dusk[0] = true;
+			} else if (dusk[0] && !slept[0]) {
+				if (scene.level.getEntitiesOfClass(TentEntity.class, rider.getBoundingBox().inflate(16)).size() > 0)
+					throw new GameTestAssertException("He pitched his tent with a free bed in the village");
+				if (rider.getActivity() == PostmanEntity.Activity.SLEEP && taken) {
+					if (rider.position().distanceTo(Vec3.atBottomCenterOf(headAt)) > 2.0)
+						throw new GameTestAssertException("Asleep, but not in the bed (at " + rider.position() + ")");
+					slept[0] = true;
+					scene.level.setDayTime(1000);
+				}
+			} else if (slept[0] && stage != DeliveryRun.Stage.CAMPING) {
+				if (taken)
+					throw new GameTestAssertException("He got up and left the bed taken");
+				helper.succeed();
+			}
 		});
 	}
 

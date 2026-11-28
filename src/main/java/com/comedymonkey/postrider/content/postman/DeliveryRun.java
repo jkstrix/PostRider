@@ -49,9 +49,12 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -913,11 +916,25 @@ public class DeliveryRun {
 	public static final double DETOUR_SLACK = 3.0;
 	/** How long he walks towards his pitch before stepping onto it. */
 	public static final int WALK_TO_CAMP_TICKS = 200;
+	/** How long he's given to walk to a village bed before he camps instead. */
+	public static final int WALK_TO_BED_TICKS = 600;
+	/** How near a village bed (either end) counts as there. */
+	public static final double AT_BED = 1.6;
+	/** How many beds he'll try in an evening (one taken as he got there, the next) before he camps instead. */
+	public static final int BED_TRIES = 3;
+	/** How long he's given to land after getting down from the saddle, before a way to a bed is looked for. */
+	public static final int LANDING_TICKS = 40;
+	/** How far he can be pushed off a bed (by a villager, say) before he's put back. */
+	public static final double BED_DRIFT = 0.3;
 
-	/** The evening, step by step: find a pitch, walk to it, hammer in the pegs, play, sleep. */
+	/**
+	 * The evening, step by step: find a pitch, walk to it, hammer in the pegs, play, sleep. In a village with a free bed
+	 * he walks to the bed instead, plays beside it, and sleeps in it.
+	 */
 	public enum CampStep {
 		FINDING,
 		WALKING,
+		TO_BED,
 		HAMMERING,
 		LIGHTING,
 		PLAYING,
@@ -930,6 +947,14 @@ public class DeliveryRun {
 	private CampSites.Site campSite;
 	@Nullable
 	private UUID tentId;
+	/** The village bed he's making for or lying in (its head end), where he stood beside it, and whether he's in it. */
+	@Nullable
+	private BlockPos bed;
+	@Nullable
+	private Vec3 bedStand;
+	private boolean inBed;
+	/** How many beds he's tried this evening; with none to be had, he camps. */
+	private int bedTries;
 
 	private void step(CampStep next) {
 		campStep = next;
@@ -960,6 +985,21 @@ public class DeliveryRun {
 				rider.dismissHorse();
 				rider.setSprinting(false);
 				BlockPos here = rider.blockPosition();
+				// In a village (where villagers live: the game counts a place with a bed, a bell or a workstation a villager has
+				// claimed), a bed nobody's in: he sleeps there rather than under canvas
+				if (bedTries < BED_TRIES && level.isVillage(here)) {
+					// Just down from the saddle he's still dropping, and no way is worked out for anyone off the ground
+					if (!rider.onGround() && stepTicks < LANDING_TICKS)
+						return;
+					bed = bedWithAWayTo(rider, level, here);
+					bedTries++;
+					if (bed != null) {
+						logRoute(rider, "in a village at dusk: a free bed at " + Navigator.spot(Vec3.atCenterOf(bed)) + " for the night");
+						step(CampStep.TO_BED);
+						return;
+					}
+					bedTries = BED_TRIES;
+				}
 				campSite = CampSites.find(here, (x, z) -> CampSites.floorIn(level, x, z, here.getY()));
 				if (campSite != null)
 					step(CampStep.WALKING);
@@ -976,6 +1016,26 @@ public class DeliveryRun {
 					step(CampStep.HAMMERING);
 				} else if (stepTicks % 20 == 1) {
 					rider.getNavigation().moveTo(seat.x, seat.y, seat.z, 1.0);
+				}
+			}
+			case TO_BED -> {
+				BlockState state = level.getBlockState(bed);
+				if (!VillageBeds.isFreeBedHead(state)) {
+					// Taken (or gone) before he got there: another, or his tent
+					bed = null;
+					step(CampStep.FINDING);
+				} else if (nearBed(rider.position(), bed, state)) {
+					rider.getNavigation().stop();
+					bedStand = rider.position();
+					face(rider, VillageBeds.yaw(state.getValue(BedBlock.FACING)));
+					startEvening(rider, level);
+				} else if (stepTicks >= WALK_TO_BED_TICKS) {
+					logRoute(rider, "couldn't get to the bed at " + Navigator.spot(Vec3.atCenterOf(bed)) + ": camps instead");
+					bed = null;
+					bedTries = BED_TRIES;
+					step(CampStep.FINDING);
+				} else if (stepTicks % 20 == 1) {
+					rider.getNavigation().moveTo(bed.getX() + 0.5, bed.getY(), bed.getZ() + 0.5, 1.0);
 				}
 			}
 			case HAMMERING -> {
@@ -1012,8 +1072,85 @@ public class DeliveryRun {
 				else if (shiversNow(coldCamp, stepTicks, rider.isBusy()))
 					rider.playGesture(PostmanEntity.Gesture.SHIVER);
 			}
-			case SLEEPING -> {}
+			case SLEEPING -> {
+				if (inBed)
+					stayInBed(rider, level);
+			}
 		}
+	}
+
+	/** The nearest free bed within reach that he has a way to on foot, or null. */
+	@Nullable
+	private static BlockPos bedWithAWayTo(PostmanEntity rider, ServerLevel level, BlockPos here) {
+		List<BlockPos> beds = VillageBeds.freeBedsNear(level, here);
+		for (BlockPos candidate : beds.subList(0, Math.min(VillageBeds.CANDIDATES, beds.size()))) {
+			Path path = rider.getNavigation().createPath(candidate, 1);
+			if (path != null && path.canReach())
+				return candidate;
+		}
+		return null;
+	}
+
+	/** Whether he's beside the bed: near either end of it, about level with it. */
+	private static boolean nearBed(Vec3 at, BlockPos head, BlockState state) {
+		BlockPos foot = VillageBeds.footOf(head, state.getValue(BedBlock.FACING));
+		return Math.abs(at.y - head.getY()) < 1.5
+			&& Math.min(Journey.horizontalDistance(at, Vec3.atBottomCenterOf(head)), Journey.horizontalDistance(at, Vec3.atBottomCenterOf(foot))) < AT_BED;
+	}
+
+	/** Into the village bed: marked taken, as anyone's is, and flat on his back with his head on the pillow. */
+	private boolean lieDown(PostmanEntity rider, ServerLevel level) {
+		BlockState state = level.getBlockState(bed);
+		if (!VillageBeds.isFreeBedHead(state))
+			return false;
+		level.setBlock(bed, state.setValue(BedBlock.OCCUPIED, true), Block.UPDATE_ALL);
+		inBed = true;
+		putInBed(rider, level, state.getValue(BedBlock.FACING));
+		rider.setActivity(PostmanEntity.Activity.SLEEP);
+		return true;
+	}
+
+	private void putInBed(PostmanEntity rider, ServerLevel level, Direction facing) {
+		Vec3 soles = VillageBeds.soles(bed, facing, VillageBeds.topOf(level, VillageBeds.footOf(bed, facing)));
+		float yaw = VillageBeds.yaw(facing);
+		rider.moveTo(soles.x, soles.y, soles.z, yaw, 0);
+		face(rider, yaw);
+	}
+
+	/** Asleep in a village bed: put back if he's been pushed off it; up and out if the bed's gone. */
+	private void stayInBed(PostmanEntity rider, ServerLevel level) {
+		BlockState state = level.getBlockState(bed);
+		if (!VillageBeds.isBed(state) || state.getValue(BedBlock.PART) != BedPart.HEAD) {
+			leaveBed(rider, level);
+			rider.setActivity(PostmanEntity.Activity.CAMP_REST);
+			return;
+		}
+		Direction facing = state.getValue(BedBlock.FACING);
+		Vec3 soles = VillageBeds.soles(bed, facing, VillageBeds.topOf(level, VillageBeds.footOf(bed, facing)));
+		if (rider.position().distanceTo(soles) > BED_DRIFT)
+			putInBed(rider, level, facing);
+	}
+
+	/** Out of the village bed (if he's in it), which is free again, and back beside it; the evening's bed forgotten. */
+	private void leaveBed(PostmanEntity rider, ServerLevel level) {
+		if (inBed) {
+			releaseBed(level);
+			if (bedStand != null)
+				rider.moveTo(bedStand.x, bedStand.y, bedStand.z, rider.getYRot(), 0);
+		}
+		inBed = false;
+		bed = null;
+		bedStand = null;
+	}
+
+	/** Frees the village bed he's lying in (he's leaving it, or the world). */
+	public void releaseBed(ServerLevel level) {
+		if (inBed && bed != null && level.isLoaded(bed)) {
+			BlockState state = level.getBlockState(bed);
+			if (VillageBeds.isBed(state) && state.getValue(BedBlock.PART) == BedPart.HEAD && state.getValue(BedBlock.OCCUPIED))
+				level.setBlock(bed, state.setValue(BedBlock.OCCUPIED, false), Block.UPDATE_ALL);
+		}
+		inBed = false;
 	}
 
 	/** The harmonica until monsters come out (sat shivering at a cold camp instead); straight to bed if they already have. */
@@ -1063,6 +1200,14 @@ public class DeliveryRun {
 	/** Into the tent for the night, flat on his back with his boots out of the door (or, with no tent, dozing where he sits). */
 	private void turnIn(PostmanEntity rider, ServerLevel level) {
 		nightsOut++;
+		if (bed != null) {
+			if (lieDown(rider, level)) {
+				step(CampStep.SLEEPING);
+				return;
+			}
+			// Taken while he sat by it: he dozes where he sits
+			bed = null;
+		}
 		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent) {
 			Vec3 soles = sleepingSpot(tent.position(), tent.getYRot());
 			rider.moveTo(soles.x, soles.y, soles.z, tent.getYRot(), 0);
@@ -1129,6 +1274,8 @@ public class DeliveryRun {
 			rider.moveTo(seat.x, seat.y, seat.z, rider.getYRot(), 0);
 		}
 		rider.setInTent(false);
+		leaveBed(rider, level);
+		bedTries = 0;
 		rider.setActivity(PostmanEntity.Activity.NONE);
 		if (tentId != null && level.getEntity(tentId) instanceof TentEntity tent)
 			tent.packAway(level);
@@ -1695,6 +1842,17 @@ public class DeliveryRun {
 		}
 		if (coldCamp)
 			tag.putBoolean("cold_camp", true);
+		if (bed != null)
+			tag.putLong("bed", bed.asLong());
+		if (bedStand != null) {
+			tag.putDouble("bed_stand_x", bedStand.x);
+			tag.putDouble("bed_stand_y", bedStand.y);
+			tag.putDouble("bed_stand_z", bedStand.z);
+		}
+		if (inBed)
+			tag.putBoolean("in_bed", true);
+		if (bedTries > 0)
+			tag.putInt("bed_tries", bedTries);
 		if (attacker != null)
 			tag.putUUID("attacker", attacker);
 		return tag;
@@ -1747,6 +1905,15 @@ public class DeliveryRun {
 			run.fireLitAt = tag.getLong("fire_lit_at");
 		}
 		run.coldCamp = tag.getBoolean("cold_camp");
+		if (tag.contains("bed"))
+			run.bed = BlockPos.of(tag.getLong("bed"));
+		if (tag.contains("bed_stand_x"))
+			run.bedStand = new Vec3(tag.getDouble("bed_stand_x"), tag.getDouble("bed_stand_y"), tag.getDouble("bed_stand_z"));
+		run.inBed = run.bed != null && tag.getBoolean("in_bed");
+		run.bedTries = tag.getInt("bed_tries");
+		// A bed that didn't survive saving: start the evening over
+		if (run.bed == null && run.campStep == CampStep.TO_BED)
+			run.campStep = CampStep.FINDING;
 		if (tag.hasUUID("attacker"))
 			run.attacker = tag.getUUID("attacker");
 		return run;
