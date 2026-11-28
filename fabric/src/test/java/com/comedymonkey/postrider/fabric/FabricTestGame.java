@@ -40,6 +40,10 @@ public final class FabricTestGame {
 				if (ours(entrypoint))
 					entrypoint.getEntrypoint().onInitializeClient();
 		BuiltInRegistries.bootStrap();
+		// Each block state's cached properties (its fluid, for one: a waterlogged wreck holds water) are worked out once all
+		// blocks are in. In the game Fabric API does it after the freeze (BlockInitTracker.postFreeze, started by its own
+		// initializer, which isn't run here), so here it's done by hand, as vanilla's bootstrap did for its own blocks
+		net.minecraft.world.level.block.Blocks.rebuildCache();
 		started = true;
 	}
 
