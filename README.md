@@ -48,7 +48,8 @@ On the road a rider:
 - **Camps** at dusk. He finds a flat pitch, hammers in the pegs and lights a campfire with his flint and steel, and plays the harmonica until monsters come out,
   then sleeps in his tent with his boots out of the door. Mobs only notice him there from close by. The fire burns bright
   through the evening and dies down to embers by 3am. It's harmless, nobody can put it out, and it goes when he does.
-  If he's attacked in camp, he runs for it until morning.
+  If he's attacked in camp, he runs for it until morning. In a village he skips the tent and sleeps in any bed nobody's
+  in, a villager's included, and leaves it free in the morning.
 - **Fights back for his life:** every hostile mob that hunts players hunts riders too. He carries two healing
   potions a day and drinks one when he's hurt.
 - **Has mannerisms:** he waves at players he passes, tips his hat to villagers, wipes his brow in the desert, yawns
