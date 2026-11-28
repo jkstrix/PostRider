@@ -105,11 +105,10 @@ crossed water by barge or spent nights on the trail.
 ./gradlew build
 ```
 
-Java 21. `./gradlew runClient` and `./gradlew runServer` start a development game. Every run loads two other mods
-alongside, from Modrinth, as players are likely to have them and both change how chunks are loaded under the riders:
-the Concurrent Chunk Management Engine (`c2me-neoforge`, alpha builds only for NeoForge 1.21.1), in the in-world tests
-too, and Distant Horizons (`distanthorizons`), in every run but the in-world tests, where it crashes at startup (it
-takes the game-test server for a dedicated one); the versions are in `build.gradle`.
+Java 21. `./gradlew :neoforge:runClient` and `./gradlew :neoforge:runServer` (or `:fabric:`) start a development game
+with the mod alone; add `-Pc2me` (the Concurrent Chunk Management Engine) and/or `-Pdh` (Distant Horizons) to any run to
+check it alongside mods that change how chunks are loaded under the riders (Distant Horizons is kept out of the in-world
+tests, where it crashes at startup); the versions are in each loader's `build.gradle`.
 The ice hopper is a boat for you: any boat and two packed ice make one, and it hops from the water up onto sea ice
 and slides on without stopping (and off again), so a frozen ocean is no bar to it.
 

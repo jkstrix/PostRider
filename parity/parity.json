@@ -8,6 +8,7 @@
   ],
   "notes": [
     "Moving a world between loaders isn't supported (user, 2026-11-28), so where each loader saves the riders' chunk tickets (NeoForge data/chunks.dat, Fabric data/postrider_rider_tickets.dat) is no difference",
-    "Approved by the user on 2026-11-28: Fabric has no spawn-finishing event, so a summoned horse's spawn is finished directly (the same unless another mod hooks NeoForge's FinalizeSpawnEvent)"
+    "Approved by the user on 2026-11-28: Fabric has no spawn-finishing event, so a summoned horse's spawn is finished directly (the same unless another mod hooks NeoForge's FinalizeSpawnEvent)",
+    "Approved by the user on 2026-11-28: on Minecraft 1.21.1, Fabric API has no mod protocol API, so the Fabric build doesn't refuse a vanilla client or one with another Post Rider protocol version as NeoForge does (Fabric's registry sync still refuses a Fabric client without Post Rider); Post Rider has only protocol \"1\""
   ]
 }
