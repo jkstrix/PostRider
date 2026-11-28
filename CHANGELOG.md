@@ -6,6 +6,8 @@
   was worked out and got lost on the way (on the frozen-ocean test seed he delivered one trip in three, against every
   trip before 1.2.1). The unexplored land is now surveyed several times faster, in the server's spare time, so his
   route is planned before he goes, and the server still never stalls for it.
+- Fixed: an explosion big enough to reach a mailbox (far beyond any creeper or TNT) could drop a copy of it while
+  leaving it standing.
 
 ## 1.3.1
 

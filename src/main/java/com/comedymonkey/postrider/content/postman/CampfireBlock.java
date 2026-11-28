@@ -116,4 +116,13 @@ public class CampfireBlock extends Block {
 	/** Nothing a blast does puts it out: it goes when the camp does. */
 	@Override
 	public void onBlockExploded(BlockState state, Level level, BlockPos pos, Explosion explosion) {}
+
+	/**
+	 * Nor does it drop anything to one, as the campfire that stays put mustn't leave a copy of itself behind (the game drops
+	 * a block's loot before it takes the block away).
+	 */
+	@Override
+	public boolean dropFromExplosion(Explosion explosion) {
+		return false;
+	}
 }
