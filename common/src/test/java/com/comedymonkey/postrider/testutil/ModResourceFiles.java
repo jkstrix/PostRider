@@ -25,15 +25,23 @@ public final class ModResourceFiles {
 	@Nullable
 	public static Path find(String... path) {
 		String name = String.join("/", path);
-		URL url = ModResourceFiles.class.getClassLoader().getResource(name);
-		if (url != null) {
-			try {
-				Path found = Path.of(url.toURI());
-				if (Files.exists(found))
-					return found;
-			} catch (URISyntaxException | IllegalArgumentException | FileSystemNotFoundException ignored) {
-				// Not a plain file (inside a jar, say): fall back to the source tree
+		// Every copy on the classpath, skipping jars: the mod's own resources are a folder in tests, and a jar's copy of a
+		// file in a shared namespace is someone else's (NeoForge 21.1's jar has vanilla's assets/minecraft/atlases/blocks.json,
+		// and its test classpath reads it like a file, ahead of the mod's)
+		try {
+			for (URL url : java.util.Collections.list(ModResourceFiles.class.getClassLoader().getResources(name))) {
+				if (url.toString().contains(".jar"))
+					continue;
+				try {
+					Path found = Path.of(url.toURI());
+					if (Files.exists(found))
+						return found;
+				} catch (URISyntaxException | IllegalArgumentException | FileSystemNotFoundException ignored) {
+					// Not a plain file: try the next, then the source tree
+				}
 			}
+		} catch (IOException ignored) {
+			// Fall back to the source tree
 		}
 		// The tests may run in a folder below the project's (a run folder), so look up from there for the resources
 		for (Path dir = Path.of("").toAbsolutePath(); dir != null; dir = dir.getParent())
