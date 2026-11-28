@@ -1,0 +1,233 @@
+plugins {
+    id 'multiloader-loader'
+    id 'net.minecraftforge.gradle'
+}
+
+// Every run has a folder of its own under forge/ (forge/run, forge/run-watch, forge/run-headless...), so the Forge build
+// never shares a world with the NeoForge or Fabric one. Worlds to copy from are still the NeoForge client's, in the
+// top-level run/saves
+// (Not named runDir or workingDir: inside minecraft.runs a script-level name like that would be called instead of each
+// run's own setting)
+def runFolder = { String name -> layout.projectDirectory.dir(name) }
+def clientSaves = { String world -> rootProject.file("run/saves/${world}") }
+
+// The mixin config, named on the dev runs' command line and in the jar's manifest (Forge's Mixin finds it either way)
+def mixinConfig = 'postrider.forge.mixins.json'
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
+
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${minecraft_version}-${forge_version}")
+
+    // Post Rider is standalone, and every run is the mod alone unless asked otherwise (as on every loader and on main;
+    // the user's choice, 2026-11-28). NeoForge's and Fabric's runs take -Pc2me (the Concurrent Chunk Management Engine)
+    // and -Pdh (Distant Horizons) to check the riders alongside the mods that change how chunks are loaded; neither has a
+    // Forge build for 1.21.1 on Modrinth (checked 2026-11-28: C2ME's 1.21.1 builds are Fabric and NeoForge only, and
+    // Distant Horizons 3.3.3-1.21.1 is one jar for Fabric and NeoForge), so on Forge they add nothing. When one appears:
+    //     if (project.hasProperty('c2me'))
+    //         runtimeOnly 'maven.modrinth:<forge build>'
+}
+
+// Forge's own settings for its client and server runs (its userdev config.json for this forge_version: main class,
+// launch target, JVM arguments, environment). ForgeGradle only gives them to runs named as Forge's are (client, server,
+// gameTestServer), so the watch, screenshots and headless runs take them from here. Check them against the new userdev
+// jar's config.json when forge_version changes.
+// Game tests are switched on (forge.enableGameTest, which Forge's userdev config sets for its client and server runs) in
+// the client runs only, watch and screenshots, as NeoForge's client runs have them and its server runs don't
+def forgeRun = { run, boolean client ->
+    run.mainClass = 'net.minecraftforge.bootstrap.ForgeBootstrap'
+    run.args client
+        ? ['--launchTarget', 'forge_userdev_client', '--version', 'MOD_DEV', '--assetIndex', '{asset_index}', '--assetsDir', '{assets_root}', '--gameDir', '.']
+        : ['--launchTarget', 'forge_userdev_server', '--gameDir', '.']
+    run.jvmArgs '-Djava.net.preferIPv6Addresses=system'
+    run.environment 'MCP_MAPPINGS', '{mcp_mappings}'
+    if (client)
+        run.systemProperty 'forge.enableGameTest', 'true'
+}
+
+minecraft {
+    // 1.21.1 is obfuscated: the game is deobfuscated to Mojang's names for development, as Forge's MDK does. Forge 52 also
+    // runs on Mojang's names outside development (its installer renames Minecraft to them), so the jar is used as built:
+    // no reobfuscation, and the mixins need no refmap
+    mappings channel: 'official', version: minecraft_version
+    // The access transformer is common's (the jar carries it at META-INF/accesstransformer.cfg, where Forge reads it);
+    // ForgeGradle applies it to the Minecraft the module compiles against
+    accessTransformers = files(project(':common').file('src/main/resources/META-INF/accesstransformer.cfg'))
+
+    runs {
+        configureEach {
+            // forge.enabledGameTestNamespaces is left unset: Forge 52 matches it against each test's batch name, not its
+            // structure's namespace as NeoForge does, so postrider would keep none of the mod's tests (their batches are
+            // doors, parcel...). Only Post Rider registers game tests in these runs (Forge itself has none), so they hold
+            // only postrider tests anyway
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            // Mixin is told of the config on the command line in development (in the jar it's in the manifest)
+            args "--mixin.config=${mixinConfig}"
+            // Loader parity checks: -Pparity.manifest=<file> writes the registry manifest once the server has started,
+            // -Pparity.gametest.report=<file> the game test results as a JUnit report (paths from the project's top)
+            ['parity.manifest', 'parity.gametest.report'].each { key ->
+                if (project.hasProperty(key))
+                    systemProperty key, rootProject.file(project.property(key)).absolutePath
+            }
+        }
+        register('client') {
+            workingDir = runFolder('run')
+            // The in-world tests can be watched from a creative world: /test run <name>, or /test runall (Forge's client
+            // run has its game tests enabled, forge.enableGameTest, as NeoForge's client run does)
+        }
+        register('server') {
+            workingDir = runFolder('run')
+            args '--nogui'
+        }
+        // Opens a flat creative world of its own and runs the in-world tests in front of the player, to be watched:
+        // all of them, or one with -Ptests=<name> (./gradlew :forge:runWatch -Ptests=heopensthedoorsonhiswayandleavesthemashefoundthem)
+        register('watch') {
+            forgeRun(it, true)
+            workingDir = runFolder('run-watch')
+            systemProperty 'postrider.trace', 'true'
+            systemProperty 'postrider.watch', (project.findProperty('tests') ?: 'all').toString()
+            // Or a trip across a real world: ./gradlew :forge:runWatch -Pworld="New World (1)" -Pfrom=Testing -Pto=Smelly, or
+            // -Pworld=new -Pseed=<seed> (-Pfrom=spawn -Pto=random:3000 unless said otherwise), as the headless run takes them
+            systemProperty 'postrider.watchWorld', project.findProperty('world')
+                ? "${project.findProperty('world')}|${project.findProperty('from') ?: 'spawn'}|${project.findProperty('to') ?: 'random:3000'}".toString() : ''
+            systemProperty 'postrider.watchSeed', (project.findProperty('seed') ?: '').toString()
+        }
+        // A headless trip across one of the client's worlds (run/saves/<world> at the top of the project, copied to
+        // forge/run-headless/world): the server starts on it, posts a parcel from one box to the other, logs the rider's
+        // progress, and stops once it's delivered or lost. ./gradlew :forge:runHeadless -Pworld="New World (1)" -Pfrom=Testing -Pto=Smelly
+        register('headless') {
+            forgeRun(it, false)
+            workingDir = runFolder('run-headless')
+            args '--nogui'
+            systemProperty 'postrider.post', "${project.findProperty('from') ?: 'Testing'}|${project.findProperty('to') ?: 'Smelly'}".toString()
+            systemProperty 'postrider.sprint', "${project.findProperty('sprint') ?: 'true'}".toString()
+            systemProperty 'postrider.forceload', "${project.findProperty('forceload') ?: 'true'}".toString()
+            // (An hour of game time: a 3,000-block trip is a day's riding, and a night camped on the way is no failure)
+            systemProperty 'postrider.timeout', "${project.findProperty('timeout') ?: '60'}".toString()
+            systemProperty 'postrider.trace', 'true'
+            systemProperty 'postrider.traceAll', 'true'
+        }
+        // Opens the screens with awkward contents, saves screenshots to forge/run-screenshots/screenshots/postrider, and quits
+        register('screenshots') {
+            forgeRun(it, true)
+            workingDir = runFolder('run-screenshots')
+            systemProperty 'postrider.screenshots', 'true'
+        }
+        // The in-world tests (common/src/main/java/.../gametest): ./gradlew :forge:runGameTestServer runs them all and
+        // exits, failing if any do, in a world of its own (forge/run-gametest/world). Forge's launch target for it sets
+        // forge.enableGameTest and forge.gameTestServer itself
+        register('gameTestServer') {
+            workingDir = runFolder('run-gametest')
+            systemProperty 'postrider.trace', 'true'
+        }
+    }
+}
+
+tasks.named('jar', Jar) {
+    manifest {
+        // Mixin finds the mod's mixins through its jar's manifest
+        attributes 'MixinConfigs': mixinConfig
+    }
+}
+
+// Forge has no way to run JUnit inside FML, so the unit tests (common's, which the convention adds, and this module's)
+// run on the plain classpath, and ForgeTestBootstrap starts the game and loads the mod the way FML does before the
+// first test class runs (ForgeTestGame), as NeoForge's unitTest does. JUnit finds it through META-INF/services
+// (its extension auto-detection, switched on here)
+tasks.named('test', Test) {
+    systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
+}
+
+// NeoForge's development server takes the EULA as agreed; Forge's only does for its game test server (or a game run
+// from an IDE), so the plain server run agrees to it in its folder, as the headless run does
+tasks.matching { it.name == 'runServer' }.configureEach {
+    doFirst {
+        def eula = runFolder('run').file('eula.txt').asFile
+        eula.parentFile.mkdirs()
+        if (!eula.exists())
+            eula.text = "eula=true\n"
+    }
+}
+
+// Each run of the in-world tests starts from a fresh world, so nothing is left over from the last
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    doFirst { delete runFolder('run-gametest/world') }
+}
+
+// A watched trip across one of the client's worlds runs on a fresh copy of it, so the client's own save is never touched
+tasks.matching { it.name == 'runWatch' }.configureEach {
+    doFirst {
+        def world = project.findProperty('world')
+        if (world && world != 'new') {
+            def source = clientSaves(world)
+            if (!source.isDirectory())
+                throw new GradleException("No world at ${source}: pass -Pworld=<name of a world in run/saves>, or -Pworld=new")
+            def target = runFolder("run-watch/saves/${world}")
+            delete target
+            copy {
+                from source
+                into target
+            }
+        }
+    }
+}
+
+// (NeoForge's and Fabric's builds keep Distant Horizons off the game test server's classpath; it has no Forge build, so
+// there's nothing to keep off here)
+
+// The world a run made is deleted when the next run of that kind starts: they're hundreds of megabytes each, and
+// nothing is ever started on an old one (a watched or headless trip makes its world afresh), but the last one is kept
+// until then so a trip that went wrong can be looked at (copy it into run/saves to keep it longer)
+def runWorlds = ['runWatch': 'run-watch/saves', 'runHeadless': 'run-headless/world', 'runGameTestServer': 'run-gametest/world']
+runWorlds.each { task, worlds ->
+    tasks.matching { it.name == task }.configureEach {
+        doFirst { delete runFolder(worlds) }
+    }
+}
+
+// The headless trip runs on a fresh copy of the chosen client world, so the client's own save is never touched
+tasks.matching { it.name == 'runHeadless' }.configureEach {
+    doFirst {
+        def world = project.findProperty('world') ?: 'New World (1)'
+        def dir = runFolder('run-headless').asFile
+        dir.mkdirs()
+        delete file("${dir}/world")
+        def properties = ["level-name=world", "online-mode=false", "spawn-protection=0", "max-tick-time=-1", "view-distance=10", "simulation-distance=10"]
+        if (world == 'new') {
+            // A fresh, ordinary world is generated by the server itself: -Pseed=<seed> for the same one again
+            properties += "level-type=minecraft\\:normal"
+            if (project.findProperty('seed'))
+                properties += "level-seed=${project.findProperty('seed')}"
+        } else {
+            def source = clientSaves(world)
+            if (!source.isDirectory())
+                throw new GradleException("No world at ${source}: pass -Pworld=<name of a world in run/saves>, or -Pworld=new")
+            copy {
+                from source
+                into file("${dir}/world")
+            }
+        }
+        file("${dir}/eula.txt").text = "eula=true\n"
+        file("${dir}/server.properties").text = properties.join("\n") + "\n"
+    }
+}
+
+// Implement the mcgradleconventions loader attribute, so common is seen as this loader's own code
+def loaderAttribute = Attribute.of('io.github.mcgradleconventions.loader', String)
+['apiElements', 'runtimeElements'].each { variant ->
+    configurations.named(variant) {
+        attributes { attribute(loaderAttribute, 'forge') }
+    }
+}
+sourceSets.configureEach {
+    [it.compileClasspathConfigurationName, it.runtimeClasspathConfigurationName].each { variant ->
+        configurations.named(variant) {
+            attributes { attribute(loaderAttribute, 'forge') }
+        }
+    }
+}
