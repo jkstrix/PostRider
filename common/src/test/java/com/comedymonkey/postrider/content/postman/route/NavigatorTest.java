@@ -19,6 +19,17 @@ import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.Vec3;
 
 class NavigatorTest {
+	@Test
+	void onFootAWayStartsFromTheBlockHeStandsOnNotTheDropHisMiddleIsOver() {
+		int y = GridTerrain.GROUND;
+		// A shaft a block wide at x 10, all the way down: standing at x 10.2, his middle is over it, his feet on x 9
+		GridTerrain edge = new GridTerrain().fill(10, y - 20, -5, 10, y - 1, 5, Terrain.Kind.OPEN);
+		assertTrue(java.util.Arrays.equals(new int[] {9, 0}, Navigator.footStart(edge, 10.2, y, 0.5, 0.3)), "the tread he's on");
+		assertTrue(java.util.Arrays.equals(new int[] {5, 0}, Navigator.footStart(edge, 5.5, y, 0.5, 0.3)), "where he stands squarely");
+		// Over the middle of the shaft, nothing under him: the block he's in, as before
+		assertTrue(java.util.Arrays.equals(new int[] {10, 0}, Navigator.footStart(edge, 10.5, y, 0.5, 0.3)));
+	}
+
 	private static final List<Step> WAY = List.of(
 		new Step(0, 64, 0, true, Move.START),
 		new Step(1, 64, 0, true, Move.WALK),
