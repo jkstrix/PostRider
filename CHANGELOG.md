@@ -2,6 +2,8 @@
 
 ## 1.4.0
 
+- Fixed: a rider on foot waiting on the edge of a stair's tread for the next stretch of his way could start it from the
+  drop beside the tread, and walk off: on a winding stair round a tower, to his death.
 - In a village at dusk a rider sleeps in a bed nobody's in (a villager's included, straw beds too) rather than pitching
   his tent: his horse goes off for the night, he plays the harmonica beside the bed until monsters come out, and sleeps
   in it with his hat over his face. In the morning the bed is free again. Attacked, he runs for it as from his camp.
