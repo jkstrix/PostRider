@@ -411,6 +411,14 @@ public class PostmanEntity extends PathfinderMob {
 		horseCountdown = 0;
 	}
 
+	/** Leaving the world for good (killed, vanished, removed) while asleep in a village bed, he leaves the bed free. */
+	@Override
+	public void remove(Entity.RemovalReason reason) {
+		if (reason.shouldDestroy() && run != null && level() instanceof ServerLevel server)
+			run.releaseBed(server);
+		super.remove(reason);
+	}
+
 	/** He and his horse vanish in a puff of smoke. */
 	public void vanish() {
 		dismissHorse();

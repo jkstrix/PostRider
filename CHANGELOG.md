@@ -2,6 +2,9 @@
 
 ## 1.4.0
 
+- In a village at dusk a rider sleeps in a bed nobody's in (a villager's included) rather than pitching
+  his tent: his horse goes off for the night, he plays the harmonica beside the bed until monsters come out, and sleeps
+  in it with his hat over his face. In the morning the bed is free again. Attacked, he runs for it as from his camp.
 - Fixed: a rider on foot planned his way over a bed, a slab or deep snow with only two blocks over its floor, where
   his head is in the block above (a straw bed under a camp tent's roof, say) and he can't go, and pushed against it
   until the delivery was lost. A floor that lifts him more than a fifth of a block now needs three blocks clear.
