@@ -14,6 +14,7 @@ classes/
 .settings/
 bin/
 .vscode/
+.eclipse/
 
 # dev runs
 run/
@@ -34,3 +35,13 @@ release/
 # loader parity checks: generated output and reports
 parity/out/
 parity/report.*
+
+# fabric: Loom caches and what the unit tests and runs leave in the module folder
+.fabric/
+fabric/config/
+fabric/logs/
+fabric/defaultconfigs/
+fabric/mods/
+
+# forge: what its runs leave in the module folder
+forge/logs/

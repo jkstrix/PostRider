@@ -1,0 +1,8 @@
+accessWidener v2 named
+# The common access transformer (common/src/main/resources/META-INF/accesstransformer.cfg), for Fabric
+# Each rider's horse always has the same coat and markings
+accessible method net/minecraft/world/entity/animal/horse/Horse setVariantAndMarkings (Lnet/minecraft/world/entity/animal/horse/Variant;Lnet/minecraft/world/entity/animal/horse/Markings;)V
+# Monsters are taught to hunt riders as they hunt players (RiderHunting)
+accessible field net/minecraft/world/entity/Mob targetSelector Lnet/minecraft/world/entity/ai/goal/GoalSelector;
+# The mod's block entity types are built from their constructors outside the type (ModBlockEntities)
+accessible class net/minecraft/world/level/block/entity/BlockEntityType$BlockEntitySupplier

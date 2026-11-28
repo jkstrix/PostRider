@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${mod_version}",
+  "name": "${mod_name}",
+  "description": "${mod_description}",
+  "authors": [
+    "${mod_authors}"
+  ],
+  "license": "${mod_license}",
+  "icon": "postrider_logo.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.comedymonkey.postrider.fabric.PostRiderFabric"
+    ],
+    "client": [
+      "com.comedymonkey.postrider.fabric.PostRiderFabricClient"
+    ],
+    "fabric-gametest": [
+      "com.comedymonkey.postrider.fabric.FabricGameTests"
+    ]
+  },
+  "mixins": [
+    "postrider.fabric.mixins.json"
+  ],
+  "accessWidener": "postrider.accesswidener",
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": ">=${fabric_api_version}",
+    "minecraft": "${minecraft_version}",
+    "java": ">=${java_version}",
+    "forgeconfigapiport": ">=${forge_config_api_port_version}"
+  }
+}

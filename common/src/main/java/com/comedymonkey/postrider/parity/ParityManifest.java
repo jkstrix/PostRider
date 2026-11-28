@@ -56,8 +56,6 @@ public final class ParityManifest {
 
 	/** The mod's own root commands, written out in full. */
 	private static final List<String> COMMAND_ROOTS = List.of("postrider");
-	/** Root commands a mod loader adds itself, left out. */
-	private static final List<String> LOADER_COMMANDS = List.of("neoforge", "forge", "fabric");
 
 	private static final Map<String, String> PAYLOADS = new TreeMap<>();
 	private static final Map<String, String> CONFIG = new TreeMap<>();
@@ -189,8 +187,11 @@ public final class ParityManifest {
 			if (DefaultAttributes.hasSupplier(type)) {
 				AttributeSupplier supplier = DefaultAttributes.getSupplier((EntityType<? extends LivingEntity>) type);
 				JsonObject attributes = new JsonObject();
+				// Vanilla's attributes and the mod's: a loader adds its own to every living entity (NeoForge's swim speed and
+				// name tag distance), which isn't the mod's doing
 				BuiltInRegistries.ATTRIBUTE.holders().forEach(holder -> {
-					if (supplier.hasAttribute(holder))
+					String namespace = holder.key().location().getNamespace();
+					if ((namespace.equals("minecraft") || namespace.equals(PostRider.MOD_ID)) && supplier.hasAttribute(holder))
 						attributes.addProperty(holder.key().location().toString(), supplier.getBaseValue(holder));
 				});
 				entry.add("attributes", attributes);
@@ -230,9 +231,11 @@ public final class ParityManifest {
 	private static JsonObject commands(MinecraftServer server) {
 		CommandDispatcher<CommandSourceStack> dispatcher = server.getCommands().getDispatcher();
 		JsonObject commands = new JsonObject();
+		// Only the mod's own commands: vanilla's and the loader's differ between loaders' runs (Fabric's game test server
+		// registers the dedicated server's commands, NeoForge's doesn't), and aren't the mod's doing
 		List<String> roots = new ArrayList<>();
 		for (CommandNode<CommandSourceStack> node : dispatcher.getRoot().getChildren())
-			if (LOADER_COMMANDS.stream().noneMatch(node.getName()::startsWith))
+			if (COMMAND_ROOTS.contains(node.getName()))
 				roots.add(node.getName());
 		commands.add("roots", strings(roots.stream().sorted().toList()));
 		for (String name : COMMAND_ROOTS) {

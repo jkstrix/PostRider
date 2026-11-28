@@ -1,4 +1,7 @@
 plugins {
+    // see https://maven.fabricmc.net/net/fabricmc/fabric-loom/maven-metadata.xml for new versions (1.19 needs Gradle 9.8). 1.21.1
+    // is obfuscated, so it's Loom's remapping plugin (fabric-loom-remap), with Mojang's mappings
+    id 'net.fabricmc.fabric-loom-remap' version '1.19.4' apply false
     // see https://projects.neoforged.net/neoforged/moddevgradle for new versions
     id 'net.neoforged.moddev' version '2.0.148' apply false
 }

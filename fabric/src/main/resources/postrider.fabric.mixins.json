@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.comedymonkey.postrider.fabric.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "MinecraftServerMixin",
+    "PersistentEntitySectionManagerMixin",
+    "ServerChunkCacheMixin",
+    "ServerLevelMixin"
+  ],
+  "client": [
+    "client.ClientLevelMixin",
+    "client.EntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

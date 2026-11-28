@@ -7,6 +7,8 @@ Minecraft 1.21.1, NeoForge 21.1.x. Standalone (no other mods required). All item
 - One project with a module per loader: `common/` is the whole mod in plain Minecraft code (with the unit tests and game tests), and `neoforge/`, `fabric/` and `forge/` only connect their loader's events and registries to it. `parity/hooks.md` lists every such connection.
 - Fabric uses Forge Config API Port for the server config, so the file, keys and comments are the same as on NeoForge; Fabric players install it and Fabric API.
 - The Dailies compat is NeoForge only, as Dailies is a NeoForge mod.
+- On Fabric the riders' chunk tickets are kept as NeoForge 21.1 keeps them (per rider, held loaded or ticking, saved with the world and sorted out when it loads), and they keep the dimension awake with no player in it, as NeoForge's tickets do. The config is NeoForge 21.1's SERVER config on both, in each world's `serverconfig/` folder.
+- A world isn't moved from one loader to another (it doesn't happen in practice), so each loader may keep its own saved data where it likes (the riders' chunk tickets).
 - Parity is checked by registry manifest, the unit tests and the game tests on each loader, and seeded trips (the game tests' trials, the frozen ocean seed postrider12, and the land seeds postrider, postrider2 and postrider3), with `loader-parity-check`. A loader build is only released after it passes.
 - Releases go to CurseForge only (one project, a file per loader); not to Modrinth until its AI policy changes.
 

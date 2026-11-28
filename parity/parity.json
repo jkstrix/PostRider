@@ -2,8 +2,12 @@
   "reference": "neoforge",
   "allow": [
     {
-      "key": "metadata.required.forgeconfigapiport@fabric",
+      "key": "metadata.required.forgeconfigapiport",
       "reason": "Fabric has no config system; the user chose Forge Config API Port for the Fabric build on 2026-11-25, so the config file matches NeoForge's"
     }
+  ],
+  "notes": [
+    "Moving a world between loaders isn't supported (user, 2026-11-28), so where each loader saves the riders' chunk tickets (NeoForge data/chunks.dat, Fabric data/postrider_rider_tickets.dat) is no difference",
+    "Approved by the user on 2026-11-28: Fabric has no spawn-finishing event, so a summoned horse's spawn is finished directly (the same unless another mod hooks NeoForge's FinalizeSpawnEvent)"
   ]
 }

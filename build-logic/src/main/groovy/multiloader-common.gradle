@@ -30,7 +30,7 @@ tasks.withType(JavaCompile).configureEach {
 processResources {
     // Every property a loader's metadata file may name; a loader's own versions are blank until it exists
     def names = ['mod_id', 'mod_name', 'mod_license', 'mod_version', 'mod_authors', 'mod_description', 'minecraft_version',
-                 'minecraft_version_range', 'neo_version_range', 'loader_version_range', 'fabric_loader_version', 'fabric_api_version',
+                 'minecraft_version_range', 'neo_version_range', 'loader_version_range', 'fabric_loader_version', 'fabric_api_version', 'forge_config_api_port_version',
                  'forge_version_range', 'forge_loader_version_range', 'java_version']
     def expandProps = names.collectEntries { [(it): project.findProperty(it) ?: ''] }
     def jsonExpandProps = expandProps.collectEntries { key, value -> [(key): value instanceof String ? value.replace('\n', '\\n') : value] }
