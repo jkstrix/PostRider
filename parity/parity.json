@@ -11,6 +11,10 @@
   ],
   "notes": [
     "pack.mcmeta: Forge loads a mod's assets and data only with one in its jar; NeoForge and Fabric don't need it",
-    "Forge's server config is COMMON (config/postrider-server.toml, same keys and defaults): not synced to clients (they never read it), no per-world override, read at game start. Approved by the user on 2026-11-25"
+    "Forge's server config is COMMON (config/postrider-server.toml, same keys and defaults): not synced to clients (they never read it), no per-world override, read at game start. Approved by the user on 2026-11-25",
+    "Moving a world between loaders isn't supported (user, 2026-11-28), so where each loader saves the riders' chunk tickets (NeoForge chunk_tickets.dat, Fabric and Forge data/postrider/rider_tickets.dat) is no difference",
+    "Approved by the user on 2026-11-28: Fabric's per-world config override folder is serverconfig/ (Forge Config API Port) where NeoForge's is syncedconfig/",
+    "Approved by the user on 2026-11-28: Fabric has no spawn-finishing event, so a summoned horse's spawn is finished directly (the same unless another mod hooks NeoForge's FinalizeSpawnEvent)",
+    "Approved by the user on 2026-11-28: Forge writes '#Range:' where NeoForge writes '# Range:' in the config file (Forge generates the line)"
   ]
 }
