@@ -122,6 +122,15 @@ public class LostParcelBlock extends HorizontalDirectionalBlock implements Entit
 	@Override
 	public void onBlockExploded(BlockState state, ServerLevel level, BlockPos pos, Explosion explosion) {}
 
+	/**
+	 * Nor does it drop anything to one, as a lost parcel that stays put mustn't leave a copy of itself behind (the game drops
+	 * a block's loot before it takes the block away).
+	 */
+	@Override
+	public boolean dropFromExplosion(Explosion explosion) {
+		return false;
+	}
+
 	@Override
 	@Nullable
 	public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {

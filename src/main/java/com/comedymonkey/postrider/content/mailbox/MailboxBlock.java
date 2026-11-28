@@ -160,6 +160,15 @@ public class MailboxBlock extends HorizontalDirectionalBlock implements EntityBl
 	@Override
 	public void onBlockExploded(BlockState state, ServerLevel level, BlockPos pos, Explosion explosion) {}
 
+	/**
+	 * Nor does it drop anything to one, as a mailbox that stays put mustn't leave a copy of itself behind (the game drops
+	 * a block's loot before it takes the block away).
+	 */
+	@Override
+	public boolean dropFromExplosion(Explosion explosion) {
+		return false;
+	}
+
 	@Override
 	protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
 		return canBreak(player, level, state, pos) ? super.getDestroyProgress(state, player, level, pos) : 0;
