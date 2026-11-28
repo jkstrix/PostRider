@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.comedymonkey.postrider.forge.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ChunkMapMixin",
+    "MinecraftServerMixin",
+    "ServerChunkCacheMixin",
+    "RegistryDataLoaderMixin",
+    "RegistryLoadTaskAccessor",
+    "RegistryLoadTaskMixin"
+  ],
+  "client": [
+    "client.ClientLevelMixin",
+    "client.EntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

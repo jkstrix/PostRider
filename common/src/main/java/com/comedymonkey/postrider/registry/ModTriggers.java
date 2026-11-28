@@ -1,0 +1,28 @@
+package com.comedymonkey.postrider.registry;
+
+import com.comedymonkey.postrider.PostRider;
+import com.comedymonkey.postrider.advancement.PostEventTrigger;
+
+import net.minecraft.advancements.triggers.CriterionTrigger;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.stats.StatFormatter;
+import net.minecraft.stats.Stats;
+
+/** The advancement trigger and the statistic the post keeps. */
+public final class ModTriggers {
+	public static final Registrar<CriterionTrigger<?>> TRIGGERS = Registrar.create(Registries.TRIGGER_TYPE);
+	public static final Registrar<Identifier> STATS = Registrar.create(Registries.CUSTOM_STAT);
+
+	public static final RegistryEntry<CriterionTrigger<?>, PostEventTrigger> POST_EVENT = TRIGGERS.register("post_event", PostEventTrigger::new);
+	/** Letters sent on their own, shown in the statistics screen and counted for "Pen Pal". */
+	public static final RegistryEntry<Identifier, Identifier> LETTERS_SENT = STATS.register("letters_sent",
+		() -> PostRider.asResource("letters_sent"));
+
+	private ModTriggers() {}
+
+	/** Makes the statistic show in the statistics screen; once the registries are ready. */
+	public static void registerStatFormats() {
+		Stats.CUSTOM.get(LETTERS_SENT.get(), StatFormatter.DEFAULT);
+	}
+}

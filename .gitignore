@@ -30,3 +30,15 @@ repo/
 
 # built jars copied out for release
 release/
+
+# loader parity checks: generated output and reports
+parity/out/
+parity/report.*
+
+# fabric: Loom caches and what the unit tests leave in the module folder
+.fabric/
+fabric/config/
+fabric/logs/
+
+# forge: what the unit tests leave in the module folder (Forge's log4j2 config writes logs/ in the working folder)
+forge/logs/

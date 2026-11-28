@@ -1,0 +1,76 @@
+{
+  "scenarios": [
+    {
+      "name": "trials",
+      "run": "./gradlew :{loader}:runGameTestServer --console=plain",
+      "events": "Trial [^:]+: ",
+      "strip": [
+        "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
+      ],
+      "compare": "outcome",
+      "outcome": "Trial [^:]+: \\w+",
+      "timeout_minutes": 20,
+      "order": "any"
+    },
+    {
+      "name": "frozen-ocean",
+      "run": "./gradlew :{loader}:runHeadless -Pworld=new -Pseed=postrider12 -Pfrom=spawn -Pto=at:1969,1794 --console=plain",
+      "events": "trace:|: DELIVERING|the delivery is lost|giving up after|stuck at",
+      "strip": [
+        "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
+      ],
+      "compare": "outcome",
+      "outcome": ": DELIVERING|the delivery is lost|giving up after",
+      "timeout_minutes": 90,
+      "note": "Trips aren't deterministic (the same seed ends differently run to run, on NeoForge too), so only how a trip ends is compared; read the traces for how far and how well he got"
+    },
+    {
+      "name": "land-postrider",
+      "run": "./gradlew :{loader}:runHeadless -Pworld=new -Pseed=postrider -Pfrom=spawn -Pto=at:-2987,319 --console=plain",
+      "events": "trace:|: DELIVERING|the delivery is lost|giving up after|stuck at",
+      "strip": [
+        "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
+      ],
+      "compare": "outcome",
+      "outcome": ": DELIVERING|the delivery is lost|giving up after",
+      "timeout_minutes": 90,
+      "note": "Trips aren't deterministic (the same seed ends differently run to run, on NeoForge too), so only how a trip ends is compared; read the traces for how far and how well he got"
+    },
+    {
+      "name": "river-postrider2",
+      "run": "./gradlew :{loader}:runHeadless -Pworld=new -Pseed=postrider2 -Pfrom=spawn -Pto=at:-616,-2936 --console=plain",
+      "events": "trace:|: DELIVERING|the delivery is lost|giving up after|stuck at",
+      "strip": [
+        "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
+      ],
+      "compare": "outcome",
+      "outcome": ": DELIVERING|the delivery is lost|giving up after",
+      "timeout_minutes": 90,
+      "note": "Trips aren't deterministic (the same seed ends differently run to run, on NeoForge too), so only how a trip ends is compared; read the traces for how far and how well he got"
+    },
+    {
+      "name": "lake-postrider3",
+      "run": "./gradlew :{loader}:runHeadless -Pworld=new -Pseed=postrider3 -Pfrom=spawn -Pto=at:-2560,-1563 --console=plain",
+      "events": "trace:|: DELIVERING|the delivery is lost|giving up after|stuck at",
+      "strip": [
+        "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
+      ],
+      "compare": "outcome",
+      "outcome": ": DELIVERING|the delivery is lost|giving up after",
+      "timeout_minutes": 90,
+      "note": "Trips aren't deterministic (the same seed ends differently run to run, on NeoForge too), so only how a trip ends is compared; read the traces for how far and how well he got"
+    },
+    {
+      "name": "river-empty-world",
+      "run": "./gradlew :{loader}:runHeadless -Pworld=new -Pseed=postrider2 -Pfrom=spawn -Pto=at:-616,-2936 -Pforceload=false --console=plain",
+      "events": "trace:|: DELIVERING|the delivery is lost|giving up after|stuck at",
+      "strip": [
+        "^\\[[^\\]]*\\] \\[[^\\]]*\\] (\\[[^\\]]*\\]:|\\([^)]*\\)) ?"
+      ],
+      "compare": "outcome",
+      "outcome": ": DELIVERING|the delivery is lost|giving up after",
+      "timeout_minutes": 90,
+      "note": "The first box's chunks are let go a minute in, so only the rider's own tickets keep the world awake (as when the only player is in another dimension): a rider frozen by an inactive world runs out of time instead of delivering"
+    }
+  ]
+}

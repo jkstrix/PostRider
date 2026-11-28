@@ -1,0 +1,39 @@
+// A loader module: compiles common's sources and packs common's resources into its own jar, and runs common's tests
+plugins {
+    id 'multiloader-common'
+}
+
+configurations {
+    commonJava { canBeResolved = true }
+    commonResources { canBeResolved = true }
+}
+
+dependencies {
+    compileOnly(project(':common')) {
+        attributes { attribute(Attribute.of('io.github.mcgradleconventions.loader', String), 'common') }
+    }
+    commonJava(project(path: ':common', configuration: 'commonJava'))
+    commonResources(project(path: ':common', configuration: 'commonResources'))
+    testImplementation(platform('org.junit:junit-bom:5.10.2'))
+    testImplementation('org.junit.jupiter:junit-jupiter')
+    testRuntimeOnly('org.junit.platform:junit-platform-launcher')
+}
+
+tasks.named('compileJava', JavaCompile) {
+    dependsOn(configurations.commonJava)
+    source(configurations.commonJava)
+}
+
+processResources {
+    dependsOn(configurations.commonResources)
+    from(configurations.commonResources)
+}
+
+// The same unit tests run on every loader: common's own, then the loader's
+sourceSets.test.java.srcDir project(':common').file('src/test/java')
+
+tasks.named('test', Test) {
+    useJUnitPlatform()
+    maxHeapSize = '3G'
+    testLogging { events 'failed'; exceptionFormat 'full' }
+}
