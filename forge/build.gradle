@@ -132,6 +132,14 @@ tasks.named('jar', Jar) {
     }
 }
 
+// Forge has no way to run JUnit inside FML, so the unit tests (common's, which the convention adds, and this module's)
+// run on the plain classpath, and ForgeTestBootstrap starts the game and loads the mod the way FML does before the
+// first test class runs (ForgeTestGame), as NeoForge's unitTest does. JUnit finds it through META-INF/services
+// (its extension auto-detection, switched on here)
+tasks.named('test', Test) {
+    systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
+}
+
 // NeoForge's development server takes the EULA as agreed; Forge's only does for its game test server, so the plain
 // server run agrees to it in its folder, as the headless run does
 tasks.matching { it.name == 'runServer' }.configureEach {

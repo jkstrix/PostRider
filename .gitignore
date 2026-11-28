@@ -39,3 +39,6 @@ parity/report.*
 .fabric/
 fabric/config/
 fabric/logs/
+
+# forge: what the unit tests leave in the module folder (Forge's log4j2 config writes logs/ in the working folder)
+forge/logs/
