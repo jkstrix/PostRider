@@ -89,6 +89,7 @@ loom {
             programArg '--nogui'
             property 'postrider.post', "${project.findProperty('from') ?: 'Testing'}|${project.findProperty('to') ?: 'Smelly'}".toString()
             property 'postrider.sprint', "${project.findProperty('sprint') ?: 'true'}".toString()
+            property 'postrider.forceload', "${project.findProperty('forceload') ?: 'true'}".toString()
             // (An hour of game time: a 3,000-block trip is a day's riding, and a night camped on the way is no failure)
             property 'postrider.timeout', "${project.findProperty('timeout') ?: '60'}".toString()
             property 'postrider.trace', 'true'

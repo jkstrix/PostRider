@@ -49,8 +49,12 @@ import net.minecraft.world.level.saveddata.SavedDataType;
  * and never saves these), so the game's registries are the same as on NeoForge, where they're NeoForge's own.
  */
 public final class FabricRiderTickets extends SavedData {
-	private static final TicketType RIDER = new TicketType(TicketType.NO_TIMEOUT, TicketType.FLAG_LOADING | TicketType.FLAG_SIMULATION);
-	private static final TicketType RIDER_WITH_NATURAL_SPAWNING = new TicketType(TicketType.NO_TIMEOUT, TicketType.FLAG_LOADING | TicketType.FLAG_SIMULATION);
+	// Keeping the dimension active too: NeoForge's world tick counts any ticket controller's chunks as keeping a world
+	// awake with no player in it (its patch to ServerLevel.tick), where vanilla only counts tickets with this flag, so
+	// without it a rider froze 15 s after the last player left his dimension
+	private static final int FLAGS = TicketType.FLAG_LOADING | TicketType.FLAG_SIMULATION | TicketType.FLAG_KEEP_DIMENSION_ACTIVE;
+	private static final TicketType RIDER = new TicketType(TicketType.NO_TIMEOUT, FLAGS);
+	private static final TicketType RIDER_WITH_NATURAL_SPAWNING = new TicketType(TicketType.NO_TIMEOUT, FLAGS);
 
 	/** One rider's saved tickets: the chunks held loaded, and those held with natural spawning (NeoForge's TicketSet). */
 	private record OwnerTickets(UUID owner, LongSet normal, LongSet naturalSpawning) {

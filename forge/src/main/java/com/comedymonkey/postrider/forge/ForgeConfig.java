@@ -27,7 +27,11 @@ final class ForgeConfig {
 				builder.push(setting.section());
 				section = setting.section();
 			}
-			builder.comment(setting.comment().toArray(String[]::new));
+			// NeoForge's spec adds a "Default:" line under the comment by itself; Forge's doesn't, so it's written here (Forge
+			// writes its own "#Range:" line, without NeoForge's space)
+			java.util.List<String> comment = new java.util.ArrayList<>(setting.comment());
+			comment.add(" Default: " + setting.defaultValue());
+			builder.comment(comment.toArray(String[]::new));
 			ParityManifest.recordConfig(setting.section() + "." + setting.key(), setting.defaultValue(), setting.min(), setting.max());
 			VALUES.put(setting, setting.isWhole()
 				? builder.defineInRange(setting.key(), setting.defaultValue().intValue(), setting.min().intValue(), setting.max().intValue())

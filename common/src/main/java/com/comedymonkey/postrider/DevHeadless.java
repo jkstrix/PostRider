@@ -41,6 +41,8 @@ public final class DevHeadless {
 	public static final String PROPERTY = "postrider.post";
 	/** Unless this is false, the server runs the trip as fast as it can (a tick sprint) rather than at twenty a second. */
 	public static final String SPRINT_PROPERTY = "postrider.sprint";
+	/** False to let go of the first box's chunks once he's on his way, so only the riders' own tickets keep the world going. */
+	public static final String FORCELOAD_PROPERTY = "postrider.forceload";
 	/** The server stops after this long whatever has happened (an hour of game time, unless {@code postrider.timeout} says otherwise, in minutes). */
 	public static final int TIMEOUT_TICKS = 20 * 60 * Integer.getInteger("postrider.timeout", 60);
 	private static final int STATUS_INTERVAL = 20 * 15;
@@ -48,6 +50,13 @@ public final class DevHeadless {
 
 	@Nullable
 	private static PendingDelivery delivery;
+	/** The first box's chunks, forced so the rider can set out from them with nobody about. */
+	@Nullable
+	private static ServerLevel forcedLevel;
+	@Nullable
+	private static ChunkPos forcedBox;
+	/** With -Pforceload=false, the box's chunks are let go this long after posting, once he's well on his way. */
+	static final int RELEASE_TICKS = 60 * 20;
 	private static long startedAt;
 	private static boolean done;
 
@@ -108,9 +117,11 @@ public final class DevHeadless {
 		PendingDelivery posted = Posting.post(server, names[0], names[1]);
 		ChunkPos box = ChunkPos.containing(posted.from().pos());
 		ServerLevel level = server.getLevel(posted.from().dimension());
+		forcedLevel = level != null ? level : server.overworld();
+		forcedBox = box;
 		for (int dx = -1; dx <= 1; dx++)
 			for (int dz = -1; dz <= 1; dz++)
-				(level != null ? level : server.overworld()).setChunkForced(box.x() + dx, box.z() + dz, true);
+				forcedLevel.setChunkForced(box.x() + dx, box.z() + dz, true);
 		return posted;
 	}
 
@@ -247,6 +258,15 @@ public final class DevHeadless {
 		boolean waiting = office.waiting().stream().anyMatch(d -> d.id().equals(delivery.id()));
 		boolean active = office.isActive(delivery.id());
 		long ticks = server.getTickCount() - startedAt;
+		// -Pforceload=false: once he's on his way, nothing but his own chunk tickets keeps his world awake with no
+		// player in it (as when the only player is in another dimension)
+		if (forcedBox != null && ticks >= RELEASE_TICKS && !Boolean.parseBoolean(System.getProperty(FORCELOAD_PROPERTY, "true"))) {
+			for (int dx = -1; dx <= 1; dx++)
+				for (int dz = -1; dz <= 1; dz++)
+					forcedLevel.setChunkForced(forcedBox.x() + dx, forcedBox.z() + dz, false);
+			forcedBox = null;
+			PostRider.LOGGER.info("Post Rider headless run: let go of the first box's chunks: only the rider's own tickets keep the world going now");
+		}
 		if (!waiting && !active) {
 			done = true;
 			server.tickRateManager().stopSprinting();
