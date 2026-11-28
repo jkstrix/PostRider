@@ -53,6 +53,35 @@ class LocalPlannerTest {
 		allStand(flat, steps);
 	}
 
+	/** A wall right across his way, six blocks high, with a hole two blocks high through it at z 0, floored with this. */
+	private static GridTerrain holeInAWall(Kind floor) {
+		return new GridTerrain().fill(10, Y, -400, 10, Y + 5, 400, Kind.SOLID).fill(10, Y, 0, 10, Y + 1, 0, Kind.OPEN)
+			.fill(10, Y, 0, 10, Y, 0, floor);
+	}
+
+	@Test
+	void onFootHeGoesThroughAHoleTwoHighOverAThinFloorButNotARaisedOne() {
+		// A carpet (or no floor at all) leaves him room under the top of the hole; a bed or a slab lifts his head into it,
+		// as a straw bed under a tent's roof did, where he pushed against the roof until he was lost
+		for (Kind floor : new Kind[] {Kind.OPEN, Kind.LOW}) {
+			GridTerrain wall = holeInAWall(floor);
+			assertTrue(LocalPlanner.stands(wall, false, 10, Y, 0), floor.toString());
+			LocalPlanner planner = walking(wall, 20, 0, false);
+			assertEquals(Status.FOUND, planner.finishNow(), floor.toString());
+			allStand(wall, planner.steps());
+		}
+		GridTerrain raised = holeInAWall(Kind.RAISED);
+		assertFalse(LocalPlanner.stands(raised, false, 10, Y, 0));
+		assertNotEquals(Status.FOUND, walking(raised, 20, 0, false).finishNow());
+	}
+
+	@Test
+	void onFootHeStandsOnARaisedFloorWithTwoBlocksClearOverIt() {
+		GridTerrain open = new GridTerrain().fill(3, Y, 0, 3, Y, 0, Kind.RAISED);
+		assertTrue(LocalPlanner.stands(open, false, 3, Y, 0));
+		assertFalse(LocalPlanner.stands(open.fill(3, Y + 2, 0, 3, Y + 2, 0, Kind.SOLID), false, 3, Y, 0));
+	}
+
 	@Test
 	void heGoesRoundAWall() {
 		GridTerrain walled = new GridTerrain().fill(10, Y, -20, 10, Y + 2, 20, Kind.SOLID);
