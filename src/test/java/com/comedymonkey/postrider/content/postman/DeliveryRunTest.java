@@ -281,4 +281,15 @@ class DeliveryRunTest {
 		assertFalse(DeliveryRun.caughtOnACorner(true, true), "bumping with the bow against a bank: hard against the shore, not a corner");
 		assertFalse(DeliveryRun.caughtOnACorner(false, false));
 	}
+
+	@Test
+	void jumpedFromTheSameSpotAgainHeIsPutFurtherOutEachTime() {
+		assertEquals(0, DeliveryRun.nearestJump(0), "a new spot: the nearest way out, as before");
+		assertEquals(6, DeliveryRun.nearestJump(1), "stuck there again: at least 6 blocks out");
+		assertEquals(12, DeliveryRun.nearestJump(2), "and again: at least 12");
+		assertEquals(12, DeliveryRun.nearestJump(5), "never further than that");
+		for (int nearest : DeliveryRun.ESCALATING_JUMPS)
+			assertTrue(nearest <= DeliveryRun.JUMP_MAX, "always within the most a jump goes");
+		assertTrue(DeliveryRun.jumpOffsets().stream().anyMatch(o -> Math.hypot(o[0], o[1]) >= 12), "there are spots that far out to try");
+	}
 }
